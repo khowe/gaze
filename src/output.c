@@ -1,4 +1,4 @@
-/*  Last edited: Oct  5 13:45 2001 (klh) */
+/*  Last edited: Jan 18 10:37 2002 (klh) */
 /**********************************************************************
  ** File: output.c
  ** Author : Kevin Howe
@@ -70,7 +70,7 @@ void print_GFF_path( FILE *fh,
 		     GArray *fts, 
 		     Gaze_Structure *gs,
 		     char *seq_name) {
-  Feature *f1, *f2;
+  Feature *f1, *f2 = NULL;
   Feature_Info *f1_info, *f2_info;
   Feature_Relation *src;
   char *empty = ".";
@@ -122,11 +122,13 @@ void print_GFF_path( FILE *fh,
 
   /* finally, the last feature */
 
-  fprintf(fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t.\t.\n", 
-	  seq_name, g_array_index( gs->feat_dict,
-				   char *,
-				   f2->feat_idx ),
-	  f2->real_pos.s, f2->real_pos.e, f2->score);
+  if (f2 != NULL) {
+    fprintf(fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t.\t.\n", 
+	    seq_name, g_array_index( gs->feat_dict,
+				     char *,
+				     f2->feat_idx ),
+	    f2->real_pos.s, f2->real_pos.e, f2->score);
+  }
 }
 
 

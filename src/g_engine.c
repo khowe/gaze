@@ -1,4 +1,4 @@
-/*  Last edited: Jan 14 16:08 2002 (klh) */
+/*  Last edited: Jan 18 10:44 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -321,7 +321,7 @@ void scan_through_sources_dp(GArray *features,
 			     int trace,
 			     FILE *trace_fh) {
   
-  int src_type, src_idx, max_index;
+  int src_type, src_idx, max_index = 0; /* Initialsied to get arounc gcc warnings */
   int frame, k, index_count[3];
   int last_necessary_idx, local_fringe, last_idx_for_frame[3];
   int left_pos, right_pos, distance;
@@ -329,7 +329,8 @@ void scan_through_sources_dp(GArray *features,
   Killer_Feature_Qualifier *kq;
 
   gboolean touched_score, touched_score_local;
-  GArray *all_scores, *all_indices;
+  GArray *all_scores = NULL;
+  GArray *all_indices = NULL;  /* Initialsied to get arounc gcc warnings */
   Feature_Info *tgt_info;
   Feature_Relation *reg_info;
   Feature *src, *tgt;
@@ -1260,13 +1261,14 @@ void scan_through_sources_dp_old(GArray *features,
 				 int trace,
 				 FILE *trace_fh) {
 
-  int src_idx, max_index, left_pos, right_pos, distance, k;
+  int src_idx, left_pos, right_pos, distance, k, max_index = 0;
   Killer_Feature_Qualifier *kq;
-  int local_fringe, last_fringe;
+  int last_fringe, local_fringe = 0;
   double trans_score, viterbi_temp, forward_temp, len_pen, seg_score;
 
   gboolean touched_score;
-  GArray *all_scores, *all_indices;
+  GArray *all_scores = NULL;
+  GArray *all_indices = NULL;
   GArray *poss_killer_feats;
   Feature_Info *src_info, *tgt_info;
   Feature_Relation *reg_info;
@@ -1667,7 +1669,7 @@ void scan_through_targets_dp_old(GArray *features,
 
   int tgt_idx, left_pos, right_pos, distance, k; 
   Killer_Feature_Qualifier *kq;
-  int local_fringe, last_fringe;
+  int last_fringe, local_fringe = 0;
   double trans_score, len_pen, seg_score, backward_temp;
 
   gboolean touched_score;

@@ -1,4 +1,4 @@
-/*  Last edited: Jan 14 16:49 2002 (klh) */
+/*  Last edited: Jan 18 10:32 2002 (klh) */
 /**********************************************************************
  ** File: str_parse.c
  ** Author : Kevin Howe
@@ -320,7 +320,7 @@ static void parse_Gaze_Structure_dnafeat( struct Parse_context *state,
  *********************************************************************/
 static void parse_Gaze_Structure_feat( struct Parse_context *state, 
 				       const char **attr ) {
-  int i, index;
+  int i, index = 0;
   Feature *feat;
   double score = 0.0;
 
@@ -690,7 +690,7 @@ static void parse_Gaze_Structure_killdna( struct Parse_context *state,
 static void parse_Gaze_Structure_killfeat( struct Parse_context *state, 
 					 const char **attr ) {
 
-  int  i, feat_idx;
+  int  i, feat_idx = 0;
   gboolean in_source_tag = FALSE;
   
   if (state->tag_stack->len && 
@@ -1027,7 +1027,7 @@ static void parse_Gaze_Structure_point( struct Parse_context *state,
 static void parse_Gaze_Structure_seg( struct Parse_context *state, 
 				      const char **attr ) {
 
-  int i, index;
+  int i, index = 0;
   Segment *seg;
 
   for( i=0; attr[i]; i += 2 ) {
@@ -1313,7 +1313,7 @@ static void parse_Gaze_Structure_source( struct Parse_context *state,
 static void parse_Gaze_Structure_takedna( struct Parse_context *state, 
 					  const char **attr ) {
   
-  int i, feat_idx;
+  int i, feat_idx = 0;
   int st_off = 0;
   int en_off = 0;
   gboolean has_st_off = FALSE;
@@ -1448,7 +1448,7 @@ static void parse_Gaze_Structure_target( struct Parse_context *state,
  *********************************************************************/
 static void parse_Gaze_Structure_useseg( struct Parse_context *state, 
 					 const char **attr ) {
-  int  i, seg_idx;
+  int  i, seg_idx = 0;
   gboolean in_source_tag = FALSE;
   gboolean user_specified_scoring = FALSE;
 

@@ -1,4 +1,4 @@
-/*  Last edited: Jan  3 17:24 2001 (klh) */
+/*  Last edited: Jan 18 10:34 2002 (klh) */
 /**********************************************************************
  ** FILE: options.c
  ** DESCRIPTION:
@@ -32,7 +32,7 @@ int get_option(int argc,
   static int optindex = 1;        /* init to 1 on first call  */
   static char *optptr = NULL;     /* ptr to next valid switch */
 
-  unsigned int i, arglen, matches, opti;
+  unsigned int i, arglen, matches, opti = 0; /* initialised to get around gcc warnings */ 
 
   /* Check to see if we've run out of options. '-' on its own is not an option */
   
