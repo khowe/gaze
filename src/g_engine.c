@@ -212,7 +212,7 @@ void forwards_calc( Gaze_Sequence *g_seq,
 
   free_Gaze_DP_struct( g_res, gs->feat_dict->len );
 
-fprintf(stderr, "Comparisons = %ld\n", comparisons);
+  /* fprintf(stderr, "Comparisons = %ld\n", comparisons); */
 }
 
 

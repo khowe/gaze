@@ -31,6 +31,21 @@ enum DP_Traceback_Mode {
   SAMPLE_TRACEBACK
 };
 
+/****************** Index_list **************************/
+
+struct _Index_list {
+  boolean need_to_keep;
+  int idx;
+  struct _Index_list *next;
+};
+
+typedef struct _Index_list Index_list;
+
+
+Index_list *add_to_Index_list( Index_list *, int, boolean );
+Index_list *free_Index_list( Index_list *l, boolean);
+Index_list *new_Index_list(void);
+void traverse_Index_list( Index_list * );
 
 /****************** Seg_Results *************************/
 

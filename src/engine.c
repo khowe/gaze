@@ -108,6 +108,8 @@ double calculate_segment_score(Gaze_Sequence *g_seq,
     index_Array( s_res->has_score, boolean, i ) = FALSE;
     index_Array( s_res->raw_scores, double, i ) = 0.0;
   }
+  s_res->has_exact_at_src = s_res->exact_extends_beyond_tgt = FALSE;
+  s_res->has_exact_at_tgt = s_res->exact_extends_beyond_src = FALSE;
 
   if ( (seg_quals = tgt_rel->seg_quals) != NULL) {
     for (i=0; i < seg_quals->len; i++) {
@@ -176,7 +178,20 @@ double calculate_segment_score(Gaze_Sequence *g_seq,
 	  else {
 	    int low = (seg->pos.s < src_pos)?src_pos:seg->pos.s;
 	    int high = (seg->pos.e > tgt_pos)?tgt_pos:seg->pos.e;
-	    
+	  
+	    /* the following block passes exact segment information
+	       back to the caller, to help with decisions about pruning */
+	    if (qual->is_exact_src && seg->pos.s == src_pos ) {
+	      s_res->has_exact_at_src = TRUE;
+	      if (seg->pos.e > tgt_pos)
+		s_res->exact_extends_beyond_tgt = TRUE;
+	    }
+	    if (qual->is_exact_tgt && seg->pos.e == tgt_pos) {
+	      s_res->has_exact_at_tgt = TRUE;
+	      if (seg->pos.s < src_pos)
+		s_res->exact_extends_beyond_src = TRUE;
+	    }
+	   
 	    if ((! qual->is_exact_src || seg->pos.s == src_pos ) &&
 		(! qual->is_exact_tgt || seg->pos.e == tgt_pos)) {
 	  
@@ -311,6 +326,112 @@ boolean is_legal_path( Array *path,
 }
 
 
+/*********************** Index_list *********************************/
+
+
+/*********************************************************************
+ FUNCTION: add_to_Index_list
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+Index_list *add_to_Index_list( Index_list *l, int idx, boolean keep) {
+  Index_list *idxlist = new_Index_list();
+
+  idxlist->idx = idx;
+  idxlist->need_to_keep = keep;
+  idxlist->next = l;
+
+  return idxlist;
+}
+
+
+/*********************************************************************
+ FUNCTION: free_Index_list
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+Index_list *free_Index_list( Index_list *l, boolean keep) {
+
+  /* progress to the first node we wish to keep */
+  while (l != NULL && (!keep || ! l->need_to_keep)) {
+    Index_list *temp = l;
+    l = temp->next;
+    free_util(temp);
+  } 
+
+  /* now process rest of list */
+  if (l != NULL) {
+    Index_list *current_tail = l;
+    Index_list *current = l->next;
+    current_tail->need_to_keep = FALSE;
+
+    while( current != NULL ) {
+      if (keep && current->need_to_keep) {
+	current->need_to_keep = FALSE;
+	current_tail->next = current;
+	current_tail = current;
+	current = current_tail->next;
+      }
+      else {
+	Index_list *temp = current;
+	current = temp->next;
+	free_util(temp);
+	current_tail->next = NULL;
+      }
+    }
+  }
+
+  return l;
+    
+}
+
+
+
+/*********************************************************************
+ FUNCTION: new_Index_list
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+Index_list *new_Index_list(void) {
+  Index_list *l = (Index_list *) malloc_util( sizeof(Index_list) );
+
+  l->need_to_keep = FALSE;
+  l->idx = 0;
+  l->next = NULL;
+
+  return l;
+}
+
+
+
+/*********************************************************************
+ FUNCTION: traverse_Index_list
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void traverse_Index_list( Index_list *l ) {
+
+  while (l != NULL) {
+    fprintf(stderr, "IDX=%d ", l->idx);
+
+    if (l->need_to_keep) {
+      fprintf(stderr, " KEEP ");
+    }
+    l = l->next;
+  }
+  fprintf(stderr, "\n");
+}
+
+
+
 
 /*********************** Seg_Results *********************************/
 
@@ -345,6 +466,8 @@ Seg_Results *new_Seg_Results( int seg_dict_size ) {
   s_res->has_score = new_Array( sizeof( boolean ), TRUE ); 
   set_size_Array( s_res->raw_scores, seg_dict_size );
   set_size_Array( s_res->has_score, seg_dict_size );
+  s_res->has_exact_at_src = s_res->exact_extends_beyond_tgt = FALSE;
+  s_res->has_exact_at_tgt = s_res->exact_extends_beyond_src = FALSE;
 
   return s_res;
 }
