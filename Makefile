@@ -26,7 +26,9 @@ OBJS =	$(OBJ)/util.o \
 	$(OBJ)/info.o \
 	$(OBJ)/output.o \
 	$(OBJ)/g_features.o \
+	$(OBJ)/gff.o \
 	$(OBJ)/g_engine.o \
+	$(OBJ)/sequence.o \
 	$(OBJ)/gaze.o
 
 
@@ -72,6 +74,12 @@ $(OBJ)/output.o : $(SRC)/output.c $(INC)/output.h
 
 $(OBJ)/g_engine.o : $(SRC)/g_engine.c $(INC)/g_engine.h
 	$(CC) $(CFLAGS) $(TRACE_LEV) $(INCPATH) -o $(OBJ)/g_engine.o $(SRC)/g_engine.c
+
+$(OBJ)/sequence.o : $(SRC)/sequence.c $(INC)/sequence.h
+	$(CC) $(CFLAGS) $(TRACE_LEV) $(INCPATH) -o $(OBJ)/sequence.o $(SRC)/sequence.c
+
+$(OBJ)/gff.o : $(SRC)/gff.c $(INC)/gff.h
+	$(CC) $(CFLAGS) $(TRACE_LEV) $(INCPATH) -o $(OBJ)/gff.o $(SRC)/gff.c
 
 $(OBJ)/gaze.o : $(SRC)/gaze.c
 	$(CC) $(CFLAGS) $(TRACE_LEV) $(INCPATH) -o $(OBJ)/gaze.o $(SRC)/gaze.c
