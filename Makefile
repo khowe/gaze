@@ -2,14 +2,18 @@
 # If you have installed glib and/or expat locally,
 # you will have to amend the following lines
 
-# put the location of glib.h here
+# put the location of glib.h here. 
+# If centrally installed, comment this line out.
 GLIBINC = -I/usr/local/include
-# put the location of the glibconfig.h here
+# put the location of the glibconfig.h here. 
+# If centrally installed, comment this line out.
 GLIBCONFIGINC = -I/usr/local/lib/glib/include 
-# put the location of expat.h file here
+# Put the location of expat.h file here. 
+# If centrally installed, comment this line out.
 EXPATINC = -I$(HOME)/libraries/osf/include
 
-# put the location of the glib and expat libraries themselves here
+# put the location of the glib and expat libraries themselves here.
+# If centrally installed, comment these lines out
 EXPATLIB = -L$(HOME)/libraries/osf/lib
 GLIBLIB = 
 
