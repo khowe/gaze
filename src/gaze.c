@@ -1,4 +1,4 @@
-/*  Last edited: Oct 10 17:20 2001 (klh) */
+/*  Last edited: Oct 25 14:15 2001 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -540,20 +540,12 @@ int main (int argc, char *argv[]) {
   /*****************************************************************/
   calc_mode = (gaze_options.full_calc)?STANDARD_SUM:PRUNED_SUM;
 
-  /*
-  if (gaze_options.begin_dna < 10090706) {
-    g_array_remove_index( features, 1 );
-    g_array_remove_index( features, 1 );
-    g_array_remove_index( features, 1 );
-  }
-  */
-
   if (gaze_options.verbose)
     fprintf(stderr, 
 	    "Doing forward calculation over %d features and %d segments...\n", 
 	    features->len, 
 	    num_segs);
-  forwards_calc( features, segments, gs, calc_mode, gaze_options.trace, gaze_options.trace_file );
+  forwards_calc( features, segments, gs, calc_mode, gaze_options.trace, gaze_options.trace_file ); 
 
   if ( gaze_options.path_file != NULL) {
     
@@ -572,8 +564,9 @@ int main (int argc, char *argv[]) {
       fprintf(gaze_options.trace_file, "Tracing back...\n");
     feature_path = trace_back_general(features, 
 				      segments, 
-				      gs, 
-				      (gaze_options.sample_gene)?SAMPLE_TRACEBACK:MAX_TRACEBACK ); 
+				      gs,
+				      gaze_options.sample_gene ? SAMPLE_TRACEBACK : MAX_TRACEBACK ); 
+				      
     
     if (gaze_options.post_probs) {
       /*
