@@ -1,4 +1,4 @@
-/*  Last edited: Mar 29 13:16 2002 (klh) */
+/*  Last edited: Apr  2 14:47 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -545,15 +545,15 @@ int main (int argc, char *argv[]) {
     
     if (gaze_options.verbose)
       fprintf(stderr, "Reading the gff correct path file...\n");
-    feature_path = read_in_path(gaze_options.path_file, gs->feat_dict, features);
     
-    if (feature_path == NULL)
+    if ( (feature_path = read_in_path(gaze_options.path_file, gs->feat_dict, features, stderr)) == NULL || 
+	 ! is_legal_path( feature_path, gs, stderr ))
       exit(1);
     
-    if (! calculate_path_score( feature_path, segments, gs ))
-      fprintf( stderr, "The feature list is an illegal path in the model you have given\n");
-    else
-      print_GFF_path( gaze_options.output_file, feature_path, gs, seq_name );
+    /* the following is called for its side effect of filling in path
+       score up-to-and-including each feature in the path */ 
+    calculate_path_score( feature_path, segments, gs );    
+    print_GFF_path( gaze_options.output_file, feature_path, gs, seq_name );      
   }
   else {
     /*********** do the dynamic programming *****************/

@@ -1,4 +1,4 @@
-/*  Last edited: Nov  5 13:07 2001 (klh) */
+/*  Last edited: Apr  2 14:35 2002 (klh) */
 
 /**********************************************************************
  ** File: p_engine.h
@@ -51,5 +51,7 @@ double calculate_segment_score( Feature *, Feature *,
 				Seg_Results * );
 	
 GArray *calculate_post_accuracies( GArray *, int, double);			
+
+gboolean is_legal_path( GArray *, Gaze_Structure *, FILE *);
 
 #endif

@@ -1,4 +1,4 @@
-/*  Last edited: Mar 29 17:10 2002 (klh) */
+/*  Last edited: Apr  2 15:15 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -96,81 +96,49 @@ Gaze_DP_struct *new_Gaze_DP_struct( int feat_dict_size, int fringe_init ) {
  ARGS: 
  NOTES:
  *********************************************************************/
-gboolean calculate_path_score(GArray *path, 
-			      GArray *segs,
-			      Gaze_Structure *gs) {
+double calculate_path_score(GArray *path, 
+			    GArray *segs,
+			    Gaze_Structure *gs) {
   
-  int idx, left_pos, right_pos, distance; 
-  Feature_Info *tgt_info;
+  int idx; 
   Feature_Relation *reg_info;
   Feature *src, *tgt;
-  double  trans_score, len_pen, seg_score;
-  gboolean legal_path = TRUE;
+  double total_score, trans_score, len_pen, seg_score;
   Seg_Results *s_res = new_Seg_Results( gs->seg_dict->len );
 
-  trans_score = len_pen = seg_score = 0.0;
+  total_score = 0.0;
 
-  for( idx=0; legal_path && idx < path->len - 1; idx++) { 
+  for( idx=0; idx < path->len - 1; idx++) { 
     /* for the score to mean anything, all paths must begin with "BEGIN"
        and end with "END." Therefore ignoring the local score of the first 
        feature (done here) has no effect, since the score of "BEGIN" is 0
        (and has to be for the DP to work */
 
     src = g_array_index( path, Feature *, idx );
-    
     tgt = g_array_index( path, Feature *, idx + 1 );
-    tgt_info = g_array_index( gs->feat_info, Feature_Info *, tgt->feat_idx );
+    reg_info = g_array_index( g_array_index( gs->feat_info, Feature_Info *, tgt->feat_idx )->sources, 
+			      Feature_Relation *, 
+			      src->feat_idx);
+
+    trans_score = len_pen = 0.0;
     
-    if (! src->invalid && ! tgt->invalid) {
-      left_pos = src->adj_pos.s;
-      right_pos = tgt->adj_pos.e;
-
-      distance = right_pos - left_pos + 1;
-
-      if ((reg_info = g_array_index(tgt_info->sources, Feature_Relation *, src->feat_idx)) != NULL) {
-
-	if ((reg_info->phase == NULL) || (*(reg_info->phase) == distance % 3)) {
-
-	  if ((reg_info->min_dist == NULL) || (*(reg_info->min_dist)) <= distance) {
-
-	    if ((reg_info->max_dist == NULL) || (*(reg_info->max_dist)) >= distance) {
-
-	      trans_score = 0.0;
-	      len_pen = 0.0;
-	      
-	      seg_score = calculate_segment_score( src, tgt, segs, gs, s_res );
-	      trans_score += seg_score;
-	      
-	      if (reg_info->len_fun != NULL) {
-		Length_Function *lf = 
-		  g_array_index(gs->length_funcs, Length_Function *, *(reg_info->len_fun));
-		len_pen = apply_Length_Function( lf, distance );
-	      }
-	      trans_score -= len_pen;
-	      /* tgt->path_score = src->path_score + trans_score + tgt->score; */
-	      
-	      tgt->path_score = src->path_score + trans_score + tgt->score;
-	      
-	    }
-	    else
-	      legal_path = FALSE;
-	  }
-	  else 
-	    legal_path = FALSE;
-	}
-	else
-	  legal_path = FALSE;
-      }
-      else
-	legal_path = FALSE;
+    seg_score = calculate_segment_score( src, tgt, segs, gs, s_res );
+    trans_score += seg_score;
+    
+    if (reg_info->len_fun != NULL) {
+      Length_Function *lf = 
+	g_array_index(gs->length_funcs, Length_Function *, *(reg_info->len_fun));
+      len_pen = apply_Length_Function( lf,  tgt->adj_pos.e - src->adj_pos.s + 1 );
     }
-    else
-      legal_path = FALSE;
+    trans_score -= len_pen;
+    
+    tgt->path_score = src->path_score + trans_score + tgt->score;
+    total_score += trans_score + tgt->score;
   }
 
   free_Seg_Results( s_res );
 
-  return legal_path;
+  return total_score;
 }
 
 
@@ -212,9 +180,9 @@ void forwards_calc( GArray *features,
 
     scan_through_sources_dp( features, 
 			     segments, 
+			     gs, 
 			     ft_idx,  
 			     g_res, 
-			     gs, 
 			     sum_mode,
 			     MAX_TRACEBACK,
 			     exon_fp,
@@ -265,9 +233,9 @@ void backwards_calc( GArray *features,
 
     scan_through_targets_dp( features, 
 			     segments, 
+			     gs,
 			     ft_idx,  
 			     g_res,
-			     gs,
 			     sum_mode,
 			     trace, 
 			     trace_fh);
@@ -290,9 +258,9 @@ void backwards_calc( GArray *features,
  *********************************************************************/
 void scan_through_sources_dp(GArray *features,
 			     GArray *segments,
+			     Gaze_Structure *gs,
 			     int tgt_idx,
 			     Gaze_DP_struct *g_res,
-			     Gaze_Structure *gs,
 			     enum DP_Calc_Mode sum_mode,
 			     enum DP_Traceback_Mode trace_mode,
 			     FILE *exon_fp,
@@ -592,9 +560,9 @@ void scan_through_sources_dp(GArray *features,
 			 
 			    However, assumption 2 does not quite hold when the dominant source
 			    for a given target is not valid for a future target of this type,
-			    due to DNA killers. Therefore, we need to ensure that sources
+			    due to DNA killers. Therefore, we ensure that sources
 			    do not dominate if they might be illegal with respect to future
-			    targets of this type. This is a "to do" */
+			    targets of this type */
 		      
 		      if (! touched_score_local ) {
 			
@@ -807,9 +775,9 @@ void scan_through_sources_dp(GArray *features,
  *********************************************************************/
 void scan_through_targets_dp(GArray *features,
 			     GArray *segments,
+			     Gaze_Structure *gs,
 			     int src_idx,
 			     Gaze_DP_struct *g_res,
-			     Gaze_Structure *gs,
 			     enum DP_Calc_Mode sum_mode,
 			     int trace,
 			     FILE *trace_fh) {
@@ -1265,7 +1233,7 @@ GArray *trace_back_general ( GArray *feats,
     Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, 0 );
 
     while (pos > 0) {
-      scan_through_sources_dp( feats, segs, pos,  g_res, gs, 
+      scan_through_sources_dp( feats, segs, gs, pos, g_res,
 			       NO_SUM, SAMPLE_TRACEBACK, NULL, FALSE, NULL );
       pos = g_res->pth_trace;
       

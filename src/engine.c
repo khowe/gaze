@@ -1,4 +1,4 @@
-/*  Last edited: Jan 28 14:48 2002 (klh) */
+/*  Last edited: Apr  2 14:35 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -172,6 +172,104 @@ double calculate_segment_score( Feature *src, Feature *tgt,
      
   return score;
 }
+
+
+/*********************************************************************
+ FUNCTION: is_legal_path
+ DESCRIPTION:
+   Returns true iff the given list of features, when interpreted as 
+   a path, is legal with repect to the give structure
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+gboolean is_legal_path( GArray *path,
+			Gaze_Structure *gs,
+			FILE *err ) {
+
+  int idx, left_pos, right_pos, distance, k; 
+  Feature_Info *tgt_info;
+  Feature_Relation *reg_info;
+  Feature *src, *tgt;
+  gboolean legal_path = TRUE;
+
+  for( idx=0; legal_path && idx < path->len - 1; idx++) { 
+    /* for the score to mean anything, all paths must begin with "BEGIN"
+       and end with "END." Therefore ignoring the local score of the first 
+       feature (done here) has no effect, since the score of "BEGIN" is 0
+       (and has to be for the DP to work */
+
+    src = g_array_index( path, Feature *, idx );
+    
+    tgt = g_array_index( path, Feature *, idx + 1 );
+    tgt_info = g_array_index( gs->feat_info, Feature_Info *, tgt->feat_idx );
+    
+    left_pos = src->adj_pos.s;
+    right_pos = tgt->adj_pos.e;
+    
+    distance = right_pos - left_pos + 1;
+    
+    if ((reg_info = g_array_index(tgt_info->sources, Feature_Relation *, src->feat_idx)) != NULL) {
+      
+      if ((reg_info->phase == NULL) || (*(reg_info->phase) == distance % 3)) {
+	
+	if ((reg_info->min_dist == NULL) || (*(reg_info->min_dist)) <= distance) {
+	  
+	  if ((reg_info->max_dist == NULL) || (*(reg_info->max_dist)) >= distance) {
+	    /* check for DNA killers */
+	    gboolean killed_by_dna = FALSE;
+	    
+	    if (reg_info->kill_dna_quals == NULL) {
+	      
+	      for(k=0; k < reg_info->kill_dna_quals->len; k++) {
+		Killer_DNA_Qualifier *kdq = g_array_index( reg_info->kill_dna_quals, 
+							   Killer_DNA_Qualifier *,
+							   k );
+		
+		if (src->dna > 0 && src->dna == kdq->src_dna 
+		    && tgt->dna > 0 && tgt->dna == kdq->tgt_dna) { 
+		  
+		  killed_by_dna = TRUE;
+		}
+	      }
+	    }
+	    
+	    if (! killed_by_dna) 
+	      continue;
+	    else { 
+	      if (err != NULL) 
+		fprintf(err, "The given path is illegal due to DNA constraints\n");
+	      legal_path = FALSE;
+	    }
+	  }
+	  else {
+	    if (err != NULL) 
+	      fprintf( err, "The given path is illegal to a maximun distance violation\n" );
+	    legal_path = FALSE;
+	  }
+	}
+	else {
+	  if (err != NULL) 
+	    fprintf( err, "The given path is illegal to a minimum distance violation\n" );
+	  legal_path = FALSE;	    
+	}
+      }
+      else {
+	if (err != NULL) 
+	  fprintf( err, "The given path is illegal to a phase violation\n" );	  
+	legal_path = FALSE;
+      }
+    }
+    else {
+      if (err != NULL) 
+	fprintf( err, "The given path has an illegal pair of features\n" );
+      legal_path = FALSE;
+    }
+  }
+
+  return legal_path;
+}
+
 
 
 /*********************** Seg_Results *********************************/
