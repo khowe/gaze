@@ -1,4 +1,4 @@
-/*  Last edited: Oct  5 14:27 2001 (klh) */
+/*  Last edited: Nov  5 13:06 2001 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -8,6 +8,74 @@
  **********************************************************************/
 
 #include "engine.h"
+
+
+/*********************************************************************
+ FUNCTION: calculate_post_accuracies
+ DESCRIPTION:
+    This function takes the given list of function, and measures the
+    accuracies of the posterior probabilities of each feature. It
+    does this by plotting a histogram (with the number of bins given)
+    of the proportion of features that are correct for various ranges
+    of posterior probability (idea: 70% of features that have a post.
+    prob. of 0.7 should be correct).
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+GArray *calculate_post_accuracies( GArray *feats, int bins, double sigma ) {
+  int i;
+  GArray *res = g_array_new( FALSE, TRUE, sizeof( double ) );
+  GArray *trues = g_array_new( FALSE, TRUE, sizeof( int ) );
+  GArray *totals = g_array_new( FALSE, TRUE, sizeof( int  ) );
+
+
+  g_array_set_size( res, bins );
+  g_array_set_size( trues, bins );
+  g_array_set_size( totals, bins );
+
+  for(i=0; i < feats->len; i++) {
+    Feature *ft = g_array_index( feats, Feature *, i);
+
+    double post_prob = exp( ft->forward_score +
+			    ft->backward_score -
+			    g_array_index( feats, Feature *, 0)->backward_score);
+    int index = (int) (post_prob * (double) bins);
+
+    /* the following is to allow for the special case of a post prob of 1 */
+    
+    if (index == bins)
+      index = bins - 1;
+
+    g_array_index( totals, int, index ) = g_array_index( totals, int, index ) + 1;			    
+    if (ft->is_correct) 
+      g_array_index( trues, int, index ) = g_array_index( trues, int, index ) + 1;
+
+  }
+    
+  for(i=0; i < res->len; i++) {
+    if (g_array_index( totals, int, i ) > 0)
+      g_array_index( res, double, i ) = 
+	(double) g_array_index( trues, int, i ) /
+	(double) g_array_index( totals, int, i );
+  }
+
+  g_array_free( trues, TRUE );
+  g_array_free( totals, TRUE );
+
+  /* put output in here for now. */
+
+  printf( "Posterior probability accuracy plot - sigma = %.3f\n", sigma );
+  printf( "Post prob     Prop. correct\n" );
+  for (i=0; i < res->len; i++) {
+    printf( "%4.3f:%4.3f\t%.3f\n", 
+	    1.0 / (double) bins * i, 
+	    1.0 / (double) bins * (i+1),
+	    g_array_index( res, double, i ));
+  }
+
+  return res;
+}
 
 
 
@@ -26,20 +94,11 @@ double calculate_segment_score( Feature *src, Feature *tgt,
   int i,j;
   double score;
 
-  /*
-  Feature_Info *src_info = g_array_index( gs->feat_info, 
-					  Feature_Info *,
-					  src->feat_idx );
-  */
   Feature_Info *tgt_info = g_array_index( gs->feat_info, 
 					  Feature_Info *,
 					  tgt->feat_idx );
   Feature_Relation *tgt_rel = g_array_index( tgt_info->sources, Feature_Relation *, src->feat_idx);
 
-  /*
-  int src_pos = src->real_pos.s + src_info->start_offset;
-  int tgt_pos = tgt->real_pos.e - tgt_info->end_offset;
-  */
   int src_pos = src->adj_pos.s; 
   int tgt_pos = tgt->adj_pos.e; 
 
@@ -54,12 +113,6 @@ double calculate_segment_score( Feature *src, Feature *tgt,
   if ( (seg_quals = tgt_rel->seg_quals) != NULL) {
     for (i=0; i < seg_quals->len; i++) {
       Segment_Qualifier *qual = g_array_index( seg_quals, Segment_Qualifier *, i);
-
-      /* to do: each segment should have a type, either normal or projected.
-	 for normal segs, the maximum original segment in the region being
-	 considered is taken. For projected segments, the sum of all projected
-	 segments in the region of interest is taken. Exact segments, by their
-	 nature, are necessarily standard (not projected) segments. */
 
       if (qual != NULL) {
 	Segment_lists *sl = g_array_index( segments, Segment_lists *, i);

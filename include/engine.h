@@ -1,4 +1,4 @@
-/*  Last edited: Apr 24 15:08 2001 (klh) */
+/*  Last edited: Nov  5 13:07 2001 (klh) */
 
 /**********************************************************************
  ** File: p_engine.h
@@ -43,10 +43,13 @@ void free_Seg_Results( Seg_Results * );
 Seg_Results *new_Seg_Results( int );
 
 
+
+
 double calculate_segment_score( Feature *, Feature *,
 				GArray *, 
 				Gaze_Structure *,
 				Seg_Results * );
-				
+	
+GArray *calculate_post_accuracies( GArray *, int, double);			
 
 #endif
