@@ -1,4 +1,4 @@
-/*  Last edited: Jan 14 16:39 2002 (klh) */
+/*  Last edited: Jan 17 11:24 2002 (klh) */
 /**********************************************************************
  ** File: str_parse.h
  ** Author : Kevin Howe
@@ -18,7 +18,7 @@
 #include "structure.h"
 #include "info.h"
 #include "features.h"
-#include "xmlparse.h"
+#include "expat.h"
 
 
 
