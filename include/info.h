@@ -1,4 +1,4 @@
-/*  Last edited: Apr 23 15:37 2002 (klh) */
+/*  Last edited: Apr 25 15:28 2002 (klh) */
 /**********************************************************************
  ** File: info.h
  ** Author : Kevin Howe
@@ -140,6 +140,8 @@ typedef struct {
   GArray *value_map;
   GArray *raw_x_vals;
   GArray *raw_y_vals;
+  gboolean becomes_monotonic;
+  int monotonic_point;
 } Length_Function;                       
 
 

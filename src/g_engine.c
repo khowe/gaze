@@ -1,4 +1,4 @@
-/*  Last edited: Apr 24 09:44 2002 (klh) */
+/*  Last edited: Apr 25 15:46 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -264,7 +264,6 @@ void scan_through_sources_dp(GArray *features,
   int frame, k, index_count[3];
   int last_necessary_idx, local_fringe, last_idx_for_frame[3];
   int left_pos, right_pos, distance;
-  double trans_score, viterbi_temp, forward_temp, len_pen, seg_score, max_forpluslen;
   Killer_Feature_Qualifier *kq;
 
   gboolean touched_score, touched_score_local;
@@ -275,6 +274,7 @@ void scan_through_sources_dp(GArray *features,
   Feature *src, *tgt;
   Seg_Results *seg_res;
 
+  double max_forpluslen = 0.0;
   double max_score = NEG_INFINITY;
   double max_forward = NEG_INFINITY;
   int *killer_source_dna = NULL;
@@ -283,8 +283,6 @@ void scan_through_sources_dp(GArray *features,
   g_res->pth_score = 0.0;
   g_res->pth_trace = 0,0;
   g_res->score = 0.0;
-
-  trans_score = viterbi_temp = forward_temp = len_pen = seg_score = 0.0;
 
   tgt = g_array_index( features, Feature *, tgt_idx );
   tgt_info = g_array_index( gs->feat_info, Feature_Info *, tgt->feat_idx );
@@ -501,15 +499,15 @@ void scan_through_sources_dp(GArray *features,
 	      if ((reg_info->min_dist == NULL) || (*(reg_info->min_dist)) <= distance) {
 		/* Finally, if this source does not result in a DNA kill, we can calc the score */
 		if (killer_source_dna == NULL || src->dna < 0 || ! killer_source_dna[src->dna]) {
-		  trans_score = 0.0;
-		  len_pen = 0.0;
-		  
+		  double trans_score, len_pen, seg_score, forward_temp, viterbi_temp;
+		  Length_Function *lf = NULL;
+		  trans_score = len_pen = forward_temp = viterbi_temp = 0.0;
+
 		  seg_score = calculate_segment_score( src, tgt, segments, gs, seg_res );
 		  trans_score += seg_score;
 		  
 		  if (reg_info->len_fun != NULL) {
-		    Length_Function *lf = 
-		      g_array_index(gs->length_funcs, Length_Function *, *(reg_info->len_fun));
+		    lf = g_array_index(gs->length_funcs, Length_Function *, *(reg_info->len_fun));
 		    len_pen = apply_Length_Function( lf, distance );
 		  }
 		  trans_score -= len_pen;
@@ -555,10 +553,22 @@ void scan_through_sources_dp(GArray *features,
 			if (danger_source_dna == NULL 
 			    || src->dna < 0  
 			    || ! danger_source_dna[src->dna]) {
-			  /* add back in the length penalty, because when judging for dominance, 
-			     the length penalty will be different for future features */
-			  max_forpluslen = forward_temp + len_pen;
-			  touched_score_local = TRUE;
+
+			  /* strictly speaking, it is only sound to register this source
+			     as "dominant" if we are into the monotonic part of the length
+			     function (i.e. the point past which the penalty never decreases 
+			     with increasing distance). Therefore, we update the fringe, but
+			     don't flag touched_local_score. The efect of this is that the
+			     fringe will be updated for all scoring sources until we get past
+			     the point of monotonicity, at which point the pruning kicks in */
+
+			  if (lf == NULL || (lf->becomes_monotonic && lf->monotonic_point <= distance)) { 
+			    /* add back in the length penalty, because when judging for dominance, 
+			       the length penalty will be different for future features */
+			    
+			    max_forpluslen = forward_temp + len_pen;
+			    touched_score_local = TRUE;
+			  } 
 			}
 			
 			local_fringe = src_idx;
@@ -599,12 +609,12 @@ void scan_through_sources_dp(GArray *features,
 		      if (! g_out->use_threshold || reg_score >= g_out->threshold)
 			fprintf(g_out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.5f\t%s\t%s\t\n",
 				g_out->seq_name, 
-				reg_info->out_qual->feature,
+				reg_info->out_qual->feature != NULL ? reg_info->out_qual->feature : "Anonymous",
 				left_pos, 
 				right_pos, 
 				reg_score,
-				reg_info->out_qual->strand, 
-				reg_info->out_qual->frame );
+				reg_info->out_qual->strand != NULL ? reg_info->out_qual->strand : ".", 
+				reg_info->out_qual->frame != NULL ?  reg_info->out_qual->frame : ".");
 		      
 		    }
 		  }
@@ -792,7 +802,6 @@ void scan_through_targets_dp(GArray *features,
   int frame, k, index_count[3]; 
   int left_pos, right_pos, distance;
   int last_necessary_idx, local_fringe, last_idx_for_frame[3];
-  double trans_score, len_pen, seg_score, backward_temp;
   Killer_Feature_Qualifier *kq;
 
   gboolean touched_score, touched_score_local;
@@ -808,7 +817,6 @@ void scan_through_targets_dp(GArray *features,
   int *danger_target_dna = NULL;
 
   g_res->score = 0.0;
-  trans_score = len_pen = seg_score = backward_temp = 0.0;
 
   src = g_array_index( features, Feature *, src_idx );
   src_info = g_array_index( gs->feat_info, Feature_Info *, src->feat_idx );
@@ -828,20 +836,6 @@ void scan_through_targets_dp(GArray *features,
 
   if (! src->invalid ) { 
     touched_score = FALSE;
-  
-    /* TODO:
-       Backward calcuation wont work at the moment, because Ive taken away the
-       concept of downstream global killers. There is a long term fix for this:
-       - all killers must have src_phase OR target phase, so that we know to
-         measure the sistrance from the source or the target. 
-       - The local killer look-up operation needs to be done for all feature-pairs
-         now, but the src_phase / tgt_phase makes this unambiguous
-	 
-       This could slow down the calculation a lot. Now we need to obtain
-       a "killer fringe" for every potential target-type for a given source, rather
-       than just those for which there are no global killers but some local killers
-       (i.e. BEGIN and END). 
-    */  
 
     /* set up the boundaries for the scan. We do not want to go past 
        1. The last forced feature */
@@ -1044,16 +1038,15 @@ void scan_through_targets_dp(GArray *features,
 
 		/* Finally, if this source does not result in a DNA kill, we can calc the score */
 		if (killer_target_dna == NULL || tgt->dna < 0 || ! killer_target_dna[tgt->dna]) {
-
-		  trans_score = 0.0;
-		  len_pen = 0.0;
+		  double trans_score, len_pen, seg_score, backward_temp;
+		  Length_Function *lf = NULL;
+		  trans_score = len_pen = 0.0;
 		  
 		  seg_score = calculate_segment_score( src, tgt, segments, gs, seg_res );
 		  trans_score += seg_score;
 		  
 		  if (reg_info->len_fun != NULL) {
-		      Length_Function *lf = 
-			g_array_index(gs->length_funcs, Length_Function *, *(reg_info->len_fun));
+		      lf = g_array_index(gs->length_funcs, Length_Function *, *(reg_info->len_fun));
 		      len_pen = apply_Length_Function( lf, distance );
 		  }
 		  trans_score -= len_pen;
@@ -1075,8 +1068,19 @@ void scan_through_targets_dp(GArray *features,
 		      if (danger_target_dna == NULL 
 			  || tgt->dna < 0  
 			  || ! danger_target_dna[src->dna]) {
-			touched_score_local = TRUE;
-			max_backpluslen = backward_temp + len_pen;
+
+			/* strictly speaking, it is only sound to register this source
+			   as "dominant" if we are into the monotonic part of the length
+			   function (i.e. the point past which the penalty never decreases 
+			   with increasing distance). Therefore, we update the fringe, but
+			   don't flag touched_local_score. The efect of this is that the
+			   fringe will be updated for all scoring sources until we get past
+			   the point of monotonicity, at which point the pruning kicks in */
+
+			if (lf == NULL || (lf->becomes_monotonic && lf->monotonic_point <= distance)) {
+			  touched_score_local = TRUE;
+			  max_backpluslen = backward_temp + len_pen;
+			}
 		      }
 
 		      local_fringe = tgt_idx;

@@ -1,4 +1,4 @@
-/*  Last edited: Apr 23 15:26 2002 (klh) */
+/*  Last edited: Apr 25 14:06 2002 (klh) */
 /**********************************************************************
  ** File: info.c
  ** Author : Kevin Howe
@@ -306,7 +306,16 @@ void calc_Length_Function(Length_Function *len_fun) {
 	  y1 + ((fctr - x1) * dy_by_dx);
 	fctr++;
       }
-	    
+	
+      if (y2 >= y1) {
+	if (! len_fun->becomes_monotonic ) {
+	  len_fun->becomes_monotonic = TRUE;
+	  len_fun->monotonic_point = x1;
+	}
+      }
+      else 
+	len_fun->becomes_monotonic = FALSE;
+      
       x1 = x2;
       y1 = y2;
       point_ctr++;
@@ -361,6 +370,8 @@ Length_Function *new_Length_Function( double multiplier) {
   temp->raw_x_vals = g_array_new( FALSE, TRUE, sizeof(int) );
   temp->raw_y_vals = g_array_new( FALSE, TRUE, sizeof(double) );
   temp->multiplier = multiplier;
+  temp->becomes_monotonic = TRUE;
+  temp->monotonic_point = 0;
 
   return temp;
 }
