@@ -1,4 +1,4 @@
-/*  Last edited: Jul 15 11:41 2002 (klh) */
+/*  Last edited: Jul 22 11:03 2002 (klh) */
 /**********************************************************************
  ** File: structure.c
  ** Author : Kevin Howe
@@ -124,13 +124,13 @@ Gaze_Structure *new_Gaze_Structure( void ) {
 
 
 /*********************************************************************
- FUNCTION: print_Gaze_Structure
+ FUNCTION: write_Gaze_Structure
  DESCRIPTION:
  RETURNS:
  ARGS: 
  NOTES:
  *********************************************************************/
-void print_Gaze_Structure( Gaze_Structure *gs, FILE *out ) {
+void write_Gaze_Structure( Gaze_Structure *gs, FILE *out ) {
   int i,j,k;
 
   fprintf(out,"Gaze Internal Structure\n");

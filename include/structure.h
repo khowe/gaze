@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 12:53 2002 (klh) */
+/*  Last edited: Jul 22 11:32 2002 (klh) */
 /**********************************************************************
  ** File: structure.h
  ** Author : Kevin Howe
@@ -34,10 +34,10 @@
    appropriate Feature_Info object */
 
 typedef struct {
-  Array *feat_dict;
-  Array *seg_dict;
-  Array *len_fun_dict;
-  Array *motif_dict;
+  Dict *feat_dict;
+  Dict *seg_dict;
+  Dict *len_fun_dict;
+  Dict *motif_dict;
   Array *feat_info;       /* of Feature_Info */
   Array *seg_info;        /* of Segment_Info */
   Array *length_funcs;    /* of Length_Function */
@@ -53,7 +53,7 @@ typedef struct {
 
 void free_Gaze_Structure( Gaze_Structure * );
 Gaze_Structure *new_Gaze_Structure( void );
-void print_Gaze_Structure( Gaze_Structure *, FILE *);
+void write_Gaze_Structure( Gaze_Structure *, FILE *);
 void fill_in_Gaze_Structure( Gaze_Structure *);
 
 #endif
