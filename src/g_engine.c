@@ -1,4 +1,4 @@
-/*  Last edited: Oct 29 14:51 2001 (klh) */
+/*  Last edited: Nov  3 16:45 2001 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -110,20 +110,21 @@ Gaze_DP_struct *new_Gaze_DP_struct( int feat_dict_size, int fringe_init ) {
  ARGS: 
  NOTES:
  *********************************************************************/
-void calculate_path_score(GArray *path, 
-			  GArray *segs,
-			  Gaze_Structure *gs) {
+gboolean calculate_path_score(GArray *path, 
+			      GArray *segs,
+			      Gaze_Structure *gs) {
   
   int idx, left_pos, right_pos, distance; 
   Feature_Info *tgt_info;
   Feature_Relation *reg_info;
   Feature *src, *tgt;
   double  trans_score, len_pen, seg_score;
+  gboolean legal_path = TRUE;
   Seg_Results *s_res = new_Seg_Results( gs->seg_dict->len );
 
   trans_score = len_pen = seg_score = 0.0;
 
-  for( idx=0; idx < path->len - 1; idx++) { 
+  for( idx=0; legal_path && idx < path->len - 1; idx++) { 
     /* for the score to mean anything, all paths must begin with "BEGIN"
        and end with "END." Therefore ignoring the local score of the first 
        feature (done here) has no effect, since the score of "BEGIN" is 0
@@ -135,9 +136,6 @@ void calculate_path_score(GArray *path,
     tgt_info = g_array_index( gs->feat_info, Feature_Info *, tgt->feat_idx );
     
     if (! src->invalid && ! tgt->invalid) {
-      /*
-      left_pos = src->real_pos.s + src_info->start_offset;
-      right_pos = tgt->real_pos.e - tgt_info->end_offset; */
       left_pos = src->adj_pos.s;
       right_pos = tgt->adj_pos.e;
 
@@ -165,14 +163,26 @@ void calculate_path_score(GArray *path,
 	      
 	      tgt->path_score = src->path_score + trans_score + tgt->score;
 	      
-	    } 
+	    }
+	    else
+	      legal_path = FALSE;
 	  }
+	  else 
+	    legal_path = FALSE;
 	}
-      } 
+	else
+	  legal_path = FALSE;
+      }
+      else
+	legal_path = FALSE;
     }
+    else
+      legal_path = FALSE;
   }
 
   free_Seg_Results( s_res );
+
+  return legal_path;
 }
 
 

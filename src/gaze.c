@@ -1,4 +1,4 @@
-/*  Last edited: Oct 25 14:15 2001 (klh) */
+/*  Last edited: Nov  3 16:44 2001 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -556,7 +556,10 @@ int main (int argc, char *argv[]) {
     if (feature_path == NULL)
       exit(1);
     
-    calculate_path_score( feature_path, segments, gs );
+    if (! calculate_path_score( feature_path, segments, gs ))
+      fprintf( stderr, "The feature list is an illegal path in the model you have given\n");
+    else
+      print_GFF_path( gaze_options.output_file, feature_path, gs, seq_name );
   }
   else {
 
@@ -567,6 +570,9 @@ int main (int argc, char *argv[]) {
 				      gs,
 				      gaze_options.sample_gene ? SAMPLE_TRACEBACK : MAX_TRACEBACK ); 
 				      
+
+    if (! gaze_options.no_path)
+      print_GFF_path( gaze_options.output_file, feature_path, gs, seq_name );
     
     if (gaze_options.post_probs) {
       /*
@@ -580,12 +586,15 @@ int main (int argc, char *argv[]) {
 		features->len, 
 		num_segs);
       backwards_calc( features, segments, gs, calc_mode, gaze_options.trace, gaze_options.trace_file);
+
+      /* before printing the posterior probabilities, resort the features in the standard
+	 way. The method of sorting used for the D.P. will not list the complete set of 
+	 features in an order that is intuitive */ 
+
+      qsort( features->data, features->len, sizeof(Feature *), &order_features_standard); 
       print_post_probs( gaze_options.output_file, features, gaze_options.post_prob_thresh, gs, seq_name);
     }
   }
-
-  if (! gaze_options.no_path)
-    print_GFF_path( gaze_options.output_file, feature_path, gs, seq_name );
 
   for(i=0; i < features->len; i++)
     free_Feature( g_array_index( features, Feature *, i));
