@@ -19,15 +19,21 @@
  NOTES:
  *********************************************************************/
 Gaze_Output *new_Gaze_Output( FILE *fh,
-			      boolean posterior,
+			      boolean probability,
+			      boolean out_sample_gene,
+			      boolean out_features,
+			      boolean out_regions,
 			      boolean use_threshold,
 			      double threshold ) {
   Gaze_Output *out = (Gaze_Output *) malloc_util( sizeof( Gaze_Output ) );
 
   out->fh = fh;
-  out->posterior = posterior;
+  out->probability = probability;
   out->use_threshold = use_threshold;
   out->threshold = threshold;
+  out->sample_gene = out_sample_gene;
+  out->regions = out_regions;
+  out->features = out_features;
 
   return out;
 }
@@ -70,14 +76,16 @@ void write_Gaze_path( Gaze_Output *out,
   write_GFF_comment( out->fh, 
 		     "  Score of path : %.6f",
 		     g_seq->end_ft->path_score );
-  write_GFF_comment( out->fh, 
-		     "  Forward score : %.6f", 
-		     g_seq->end_ft->forward_score );
-  write_GFF_comment( out->fh, 
-		     "  Probability of path : %.6f", 
-		     exp ( g_seq->end_ft->path_score -
-			   g_seq->end_ft->forward_score) );
-  
+  if (out->probability) {
+    write_GFF_comment( out->fh, 
+		       "  Forward score : %.6f", 
+		       g_seq->end_ft->forward_score );
+    write_GFF_comment( out->fh, 
+		       "  Probability of path : %.6f", 
+		       exp ( g_seq->end_ft->path_score -
+			     g_seq->end_ft->forward_score) );
+  }
+
   for( i=0; i < g_seq->path->len - 1; i++) {
     f1 = index_Array( g_seq->path, Feature *, i);
     f2 = index_Array( g_seq->path, Feature *, i+1);
@@ -93,7 +101,7 @@ void write_Gaze_path( Gaze_Output *out,
 
     /* first print feature itself, then print the region */
     feature_score = f1->score;
-    if (out->posterior)
+    if (out->probability)
       feature_score = exp( f1->forward_score + 
 			   f1->backward_score - 
 			   g_seq->beg_ft->backward_score);
@@ -109,7 +117,7 @@ void write_Gaze_path( Gaze_Output *out,
 
     region_score = f2->path_score - f1->path_score - f2->score; 
     
-    if (out->posterior) 
+    if (out->probability) 
       region_score = exp( f1->forward_score +
 			  f2->backward_score +
 			  region_score + 
@@ -131,7 +139,7 @@ void write_Gaze_path( Gaze_Output *out,
   /* finally, the last feature */
 
   feature_score = f2->score;
-  if (out->posterior)
+  if (out->probability)
     feature_score = exp( f2->forward_score + 
 			 f2->backward_score - 
 			 g_seq->beg_ft->backward_score );
@@ -163,7 +171,7 @@ void write_Gaze_Features( Gaze_Output *out,
 
   int i, discarded = 0;
 
-  if (out->posterior) {
+  if (out->probability) {
     write_GFF_comment( out->fh, 
 		       " GAZE feature scored by posterior probability");
     write_GFF_comment( out->fh, 
@@ -180,7 +188,7 @@ void write_Gaze_Features( Gaze_Output *out,
     Feature *f = index_Array( g_seq->features, Feature *, i);
     double score = f->score;
 
-    if (out->posterior) {
+    if (out->probability) {
       score = exp( f->forward_score + 
 		   f->backward_score - 
 		   g_seq->beg_ft->backward_score );

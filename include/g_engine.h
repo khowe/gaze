@@ -12,6 +12,7 @@
 #include "engine.h"
 #include "output.h"
 
+
 typedef struct {
   double pth_score;
   int    pth_trace;
@@ -33,32 +34,31 @@ double calculate_path_score(Gaze_Sequence *, Gaze_Structure *);
 
 void forwards_calc(Gaze_Sequence *,
 		   Gaze_Structure *,
-		   enum DP_Calc_Mode,
-		   enum DP_Traceback_Mode,
+		   boolean, 
 		   Gaze_Output *);
 
 void backwards_calc(Gaze_Sequence *,
 		    Gaze_Structure *,
-		    enum DP_Calc_Mode);
+		    boolean);
 
 void scan_through_sources_dp(Gaze_Sequence *,
 			     Gaze_Structure *,
 			     int,
 			     Gaze_DP_struct *,
-			     enum DP_Calc_Mode,
-			     enum DP_Traceback_Mode,
+			     boolean,
 			     Gaze_Output *);
 
 void scan_through_targets_dp(Gaze_Sequence *,
 			     Gaze_Structure *,
 			     int,
 			     Gaze_DP_struct *,
-			     enum DP_Calc_Mode);
+			     boolean);
 
 void scan_through_sources_for_max_only( Gaze_Sequence *,
 					Gaze_Structure *,
 					int,
-					Gaze_DP_struct * );
+					Gaze_DP_struct *,
+					boolean);
 
 void trace_back_general(Gaze_Sequence *,
 			Gaze_Structure * );

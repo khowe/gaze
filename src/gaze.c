@@ -45,16 +45,15 @@ Input files:\n\
 Output files:\n\
  -out_file <s>          print gene structure to given file (def: stdout)\n\
 \n\
-Output format:\n\
- -output <c>            the output type. Should be one of the following:\n\
-                          B  (B)est (highest scoring) gene structure (default)\n\
-                          S  (S)ampled gene structure based on forward score\n\
-                          F  (F)eature candidates (most sensibly used with -posterior)\n\
-                          R  (R)egion candidates (for regions indicated in structure file)\n\
+Output options:\n\
+ -sample_gene           use posterior sampling to obtain gene structure (default: max)
+ -regions               show region candidates (for regions indicated in structure file)\n\
+ -feature               show feature candidates (most sensibly used with -probability)\n\
+    (If non of the above is suuplied, the highest scoring gene structure is obtained)\n\
 \n\
 Other options:\n\
 \
- -posterior             show element scores as posteriror probs. rather than raw scores\n\
+ -probability           show output scores as posterior probabilities\n\
  -full_calc             perform full dynamic programming (as opposed to faster heurstic method)\n\
  -verbose               write basic progess information to stderr\n\
  -help                  show this message\n" ;
@@ -68,10 +67,12 @@ static Option options[] = {
   { "-gene_file", STRING_ARG },
   { "-selected_file", STRING_ARG },
   { "-defaults_file", STRING_ARG },
-  { "-output", CHAR_ARG },
+  { "-sample_gene", NO_ARGS },
+  { "-regions", NO_ARGS },
+  { "-features", NO_ARGS },
   { "-help", NO_ARGS },
   { "-verbose", NO_ARGS },
-  { "-posterior", NO_ARGS },
+  { "-probability", NO_ARGS },
   { "-full_calc", NO_ARGS },
   { "-sigma", FLOAT_ARG }
 };
@@ -92,17 +93,14 @@ static struct {
   Array *gene_file_names;      /* of string */
   Array *selected_file_names;  /* of string */
 
-  enum {
-    BEST_PATH,
-    SAMPLE_PATH,
-    ALL_FEATURES,
-    ALL_REGIONS 
-  } output;    
+  boolean sample_gene;
+  boolean output_regions;
+  boolean output_features;
 
   boolean full_calc;
   boolean use_selected;
   boolean verbose;
-  boolean posterior;
+  boolean probability;
   boolean use_threshold;
 
   double threshold;
@@ -121,23 +119,11 @@ static boolean process_Gaze_Options(char *optname,
   if (strcmp(optname, "-sigma") == 0) gaze_options.sigma = atof( optarg );
   else if (strcmp(optname, "-selected") == 0) gaze_options.use_selected = TRUE;	     
   else if (strcmp(optname, "-verbose") == 0) gaze_options.verbose = TRUE;
-  else if (strcmp(optname, "-posterior") == 0) gaze_options.posterior = TRUE;  
+  else if (strcmp(optname, "-probability") == 0) gaze_options.probability = TRUE;  
   else if (strcmp(optname, "-full_calc") == 0) gaze_options.full_calc = TRUE;
-  else if (strcmp(optname, "-output") == 0) {
-    char output = (char) toupper( (int) optarg[0] );
-    if (output == 'B')
-      gaze_options.output = BEST_PATH;
-    else if (output == 'S')
-      gaze_options.output = SAMPLE_PATH;
-    else if (output == 'F')
-      gaze_options.output = ALL_FEATURES;
-    else if (output == 'R')
-      gaze_options.output = ALL_REGIONS;
-    else {
-      fprintf( stderr, "Unrecognised qualifier for -output (%s)\n", optarg );
-      options_error = TRUE;
-    }
-  }
+  else if (strcmp(optname, "-sample_gene") == 0) gaze_options.sample_gene = TRUE;
+  else if (strcmp(optname, "-regions") == 0) gaze_options.output_regions = TRUE;
+  else if (strcmp(optname, "-features") == 0) gaze_options.output_features = TRUE;
   else if (strcmp(optname, "-threshold") == 0) {
     gaze_options.use_threshold = TRUE;
     gaze_options.threshold = atof( optarg );
@@ -293,10 +279,9 @@ static int parse_command_line( int argc, char *argv[] ) {
   gaze_options.use_selected = FALSE;
   gaze_options.verbose = FALSE;
   gaze_options.full_calc = FALSE;
-  gaze_options.posterior = FALSE;
+  gaze_options.probability = FALSE;
   gaze_options.use_threshold = FALSE;
   gaze_options.threshold = 0.0;
-  gaze_options.output = BEST_PATH;
 
   if (process_default_Options( defaults_fh, &process_Gaze_Options  )) {
     return 0;
@@ -325,6 +310,18 @@ static int parse_command_line( int argc, char *argv[] ) {
     }
     if (gaze_options.dna_file_names->len == 0) {
       fprintf( stderr, "Warning: You have given not any DNA files\n");
+      options_error = TRUE;
+    }
+  }
+
+  /* check for legal combinations of options */
+
+  if (gaze_options.sample_gene || gaze_options.output_regions || gaze_options.output_features) {
+    if ( (gaze_options.sample_gene && gaze_options.output_regions) ||
+	 (gaze_options.output_regions && gaze_options.output_features) ||
+	 (gaze_options.sample_gene && gaze_options.output_features) ) {
+      
+      fprintf( stderr, "Error: You can only give one of -sample_gene -regions and -features\n");
       options_error = TRUE;
     }
   }
@@ -370,13 +367,13 @@ static int parse_command_line( int argc, char *argv[] ) {
 
 	  *ptr = '\0';
 	  en = ptr+1;
-	  
-	    /* ideally, allow the user to specify their own name/start-end format */
+
+	  /* ideally, allow the user to specify their own name/start-end format */
 	  for (i=0; all_digits && i < strlen( st ); i++)
-	    if (! isdigit((int)st[i]))
+	    if (! isdigit((int)st[i])) 
 	      all_digits = FALSE;
 	  for (i=0; all_digits && i < strlen( en ); i++)
-	    if (! isdigit((int)st[i]))
+	    if (! isdigit((int)en[i])) 
 	      all_digits = FALSE;
 
 	  if (all_digits) {
@@ -578,7 +575,10 @@ int main (int argc, char *argv[]) {
   /************************************************************************/
 
   gazeOutput = new_Gaze_Output(gaze_options.out_file,
-			       gaze_options.posterior,
+			       gaze_options.probability,
+			       gaze_options.sample_gene,
+			       gaze_options.output_features,
+			       gaze_options.output_regions,
 			       gaze_options.use_threshold,
 			       gaze_options.threshold);
 
@@ -592,17 +592,16 @@ int main (int argc, char *argv[]) {
 	      g_seq->seq_region.e,
 	      g_seq->features->len);
 
-    if (gazeOutput->posterior) {
+    if (gazeOutput->probability) {
       if (gaze_options.verbose)
 	fprintf(stderr, "Doing backward calculation...\n"); 
       backwards_calc( g_seq,
 		      gazeStructure, 
-		      gaze_options.full_calc ? STANDARD_SUM : PRUNED_SUM );
+		      ! gaze_options.full_calc );
     }
     
     if (gaze_options.verbose)
       fprintf(stderr, "Doing forward calculation...\n");
-
 
     /* need to write the head first because forwards_calc produces 
        the output of all candidate regions, for space-saving reasons */
@@ -610,30 +609,23 @@ int main (int argc, char *argv[]) {
     
     forwards_calc( g_seq,
 		   gazeStructure, 
-		   gaze_options.full_calc ? STANDARD_SUM : PRUNED_SUM,
-		   gaze_options.output == SAMPLE_PATH ? SAMPLE_TRACEBACK : MAX_TRACEBACK,
-		   gaze_options.output == ALL_REGIONS ? gazeOutput : NULL );
+		   ! gaze_options.full_calc,
+		   gazeOutput );
   
-    if (g_seq->path != NULL) {
-    
-      /* the following is called for its side effect of filling in path
-	 score up-to-and-including each feature in the path */ 
-      calculate_path_score( g_seq, gazeStructure );    
-      write_Gaze_path( gazeOutput, g_seq, gazeStructure );      
-    }
-    else if (gaze_options.output == BEST_PATH || gaze_options.output == SAMPLE_PATH) {
-      /* obtain a path by traceback */
-      if (gaze_options.verbose)
-	fprintf( stderr, "Tracing back...\n");
-      trace_back_general(g_seq, 
-			 gazeStructure ); 
-
-      /* for non-strandard traceback, we need to recalculate the path score */
+    if (gaze_options.output_features)
+       write_Gaze_Features( gazeOutput, g_seq, gazeStructure );
+    else if (!gaze_options.output_regions) {
+      if (g_seq->path == NULL) {
+	if (gaze_options.verbose)
+	  fprintf( stderr, "Tracing back...\n");
+	trace_back_general(g_seq, 
+			   gazeStructure );      
+      }
+      
       calculate_path_score( g_seq, gazeStructure );
-      write_Gaze_path( gazeOutput, g_seq, gazeStructure );        
+      write_Gaze_path( gazeOutput, g_seq, gazeStructure );
     }
-    else if (gaze_options.output == ALL_FEATURES)
-      write_Gaze_Features( gazeOutput, g_seq, gazeStructure );
+
   }
 
   free_Gaze_Output( gazeOutput );

@@ -19,11 +19,6 @@
 
 #define NEG_INFINITY -9999999.0
 
-enum DP_Calc_Mode {
-  NO_SUM,
-  STANDARD_SUM,
-  PRUNED_SUM
-};
 
 enum DP_Traceback_Mode {
   NO_TRACEBACK,

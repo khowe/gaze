@@ -165,8 +165,7 @@ double calculate_path_score(Gaze_Sequence *g_seq,
  *********************************************************************/
 void forwards_calc( Gaze_Sequence *g_seq,
 		    Gaze_Structure *gs,
-		    enum DP_Calc_Mode sum_mode,
-		    enum DP_Traceback_Mode trace_mode,
+		    boolean use_pruning,
 		    Gaze_Output *g_out) {
   
   int ft_idx, prev_idx;
@@ -181,7 +180,7 @@ void forwards_calc( Gaze_Sequence *g_seq,
   fprintf(stderr, "\nForward calculation:\n\n");
 #endif
   
-  if ( trace_mode == SAMPLE_TRACEBACK)
+  if ( g_out->sample_gene)
     srand( time(NULL) );
 
   for (ft_idx = 1; ft_idx < g_seq->features->len; ft_idx++) {
@@ -192,19 +191,20 @@ void forwards_calc( Gaze_Sequence *g_seq,
     temp = g_res->feats[prev_feat->feat_idx][prev_feat->adj_pos.s % 3];
     append_val_Array( temp, prev_idx );
 
-    scan_through_sources_dp( g_seq,
-			     gs, 
-			     ft_idx,  
-			     g_res, 
-			     sum_mode,
-			     trace_mode,
-			     g_out);
-    /*
-    scan_through_sources_for_max_only( g_seq,
-				       gs, 
-				       ft_idx,  
-				       g_res );
-    */
+    if (g_out->sample_gene || g_out->regions || g_out->probability)
+      scan_through_sources_dp( g_seq,
+			       gs, 
+			       ft_idx,  
+			       g_res, 
+			       use_pruning,
+			       g_out);
+    else
+      scan_through_sources_for_max_only( g_seq,
+					 gs, 
+					 ft_idx,  
+					 g_res,
+					 use_pruning);
+
     index_Array( g_seq->features, Feature *, ft_idx )->forward_score = g_res->score;
     index_Array( g_seq->features, Feature *, ft_idx )->path_score = g_res->pth_score;
     index_Array( g_seq->features, Feature *, ft_idx )->trace_pointer = g_res->pth_trace;
@@ -226,7 +226,7 @@ void forwards_calc( Gaze_Sequence *g_seq,
  *********************************************************************/
 void backwards_calc( Gaze_Sequence *g_seq,
 		     Gaze_Structure *gs,
-		     enum DP_Calc_Mode sum_mode) {
+		     boolean use_pruning) {
 
   int ft_idx, prev_idx;
   Feature *prev_feat;
@@ -254,7 +254,7 @@ void backwards_calc( Gaze_Sequence *g_seq,
 			     gs,
 			     ft_idx,  
 			     g_res,
-			     sum_mode);
+			     use_pruning);
 
     index_Array( g_seq->features, Feature *, ft_idx )->backward_score = g_res->score;
 
@@ -276,8 +276,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 			      Gaze_Structure *gs,
 			      int tgt_idx,
 			      Gaze_DP_struct *g_res,
-			      enum DP_Calc_Mode sum_mode,
-			      enum DP_Traceback_Mode trace_mode,
+			      boolean use_pruning,
 			      Gaze_Output *g_out) {
   
   int src_type, src_idx, kill_idx, max_index = 0; /* Initialsied to get arounc gcc warnings */
@@ -316,10 +315,8 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
     fprintf( stderr, "\n" );
 #endif
 
-  if (sum_mode == STANDARD_SUM || sum_mode == PRUNED_SUM || trace_mode == SAMPLE_TRACEBACK) {
     all_scores = new_Array( sizeof(double), TRUE );
     all_indices = new_Array( sizeof(int), TRUE );
-  }
 
   if (! tgt->invalid) {
     touched_score = FALSE;
@@ -566,96 +563,92 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 		    max_index = src_idx;
 		  }
 		  
-		  if (sum_mode == STANDARD_SUM || sum_mode == PRUNED_SUM || trace_mode == SAMPLE_TRACEBACK) {
-		    forward_temp = src->forward_score 
-		      + trans_score
-		      + tgt->score;
+		  forward_temp = src->forward_score 
+		    + trans_score
+		    + tgt->score;
 		    
-		    append_val_Array( all_scores, forward_temp);
-		    append_val_Array( all_indices, src_idx);
-
-		    if (! touched_score || (forward_temp > max_forward))
-		      max_forward = forward_temp;
+		  append_val_Array( all_scores, forward_temp);
+		  append_val_Array( all_indices, src_idx);
+		  
+		  if (! touched_score || (forward_temp > max_forward))
+		    max_forward = forward_temp;
+		  
+		  if (use_pruning) {
+		    /* There are two assumptions for my pruning method:
+		       1. Because the scores are log scores, if two scores differ
+		       by 25 (say) or more, then the first score is e^25 times bigger
+		       than the other; the smaller score will not register given 
+		       machine precision, so can be ignored. 
+		       2. If all features to the left of a given source are "dominated" in 
+		       this way, they will be dominated for all subsequence occurrences
+		       of the current target, so can be pruned away
+		       
+		       However, assumption 2 does not quite hold when the dominant source
+		       for a given target is not valid for a future target of this type,
+		       due to DNA killers. Therefore, we ensure that sources
+		       do not dominate if they might be illegal with respect to future
+		       targets of this type */
 		    
-		    if (sum_mode == PRUNED_SUM) {
-		      /* There are two assumptions for my pruning method:
-			 1. Because the scores are log scores, if two scores differ
-			    by 25 (say) or more, then the first score is e^25 times bigger
-			    than the other; the smaller score will not register given 
-			    machine precision, so can be ignored. 
-			 2. If all features to the left of a given source are "dominated" in 
-			    this way, they will be dominated for all subsequence occurrences
-			    of the current target, so can be pruned away
-			 
-			    However, assumption 2 does not quite hold when the dominant source
-			    for a given target is not valid for a future target of this type,
-			    due to DNA killers. Therefore, we ensure that sources
-			    do not dominate if they might be illegal with respect to future
-			    targets of this type */
+		    if (! touched_score_local ) {
 		      
-		      if (! touched_score_local ) {
+		      if (danger_source_dna == NULL 
+			  || src->dna < 0  
+			  || ! danger_source_dna[(int)src->dna]) {
 			
-			if (danger_source_dna == NULL 
-			    || src->dna < 0  
-			    || ! danger_source_dna[(int)src->dna]) {
-
-			  /* strictly speaking, it is only sound to register this source
-			     as "dominant" if we are into the monotonic part of the length
-			     function (i.e. the point past which the penalty never decreases 
-			     with increasing distance). Therefore, we update the fringe, but
-			     don't flag touched_local_score. The efect of this is that the
-			     fringe will be updated for all scoring sources until we get past
-			     the point of monotonicity, at which point the pruning kicks in */
-
-			  if (lf == NULL || (lf->becomes_monotonic && lf->monotonic_point <= distance)) { 
-			    /* finally, check that the source is not likely to be involved in
-			       an exact segment either here or at some point down the line. If so,
-			       it's unfair to consider the source as omnipotent
-			    */
+			/* strictly speaking, it is only sound to register this source
+			   as "dominant" if we are into the monotonic part of the length
+			   function (i.e. the point past which the penalty never decreases 
+			   with increasing distance). Therefore, we update the fringe, but
+			   don't flag touched_local_score. The efect of this is that the
+			   fringe will be updated for all scoring sources until we get past
+			   the point of monotonicity, at which point the pruning kicks in */
+			
+			if (lf == NULL || (lf->becomes_monotonic && lf->monotonic_point <= distance)) { 
+			  /* finally, check that the source is not likely to be involved in
+			     an exact segment either here or at some point down the line. If so,
+			     it's unfair to consider the source as omnipotent
+			  */
+			  
+			  if (! g_res->seg_res->has_exact_at_src) { 
+			    /* add back in the length penalty, because when judging for dominance, 
+			       the length penalty will be different for future features */
 			    
-			    if (! g_res->seg_res->has_exact_at_src) { 
-			      /* add back in the length penalty, because when judging for dominance, 
-				 the length penalty will be different for future features */
-			      
-			      max_forpluslen = forward_temp + len_pen;
-			      touched_score_local = TRUE;
-			    }
-			  } 
-			}
-			
+			    max_forpluslen = forward_temp + len_pen;
+			    touched_score_local = TRUE;
+			  }
+			} 
+		      }
+		      
+		      local_fringe = src_idx;
+		    }
+		    else {
+		      /* compare this one to max_forward, to see if it is dominated */
+		      if (forward_temp + len_pen > max_forpluslen 
+			  && (danger_source_dna == NULL 
+			      || src->dna < 0  
+			      || ! danger_source_dna[(int)src->dna])
+			  && ! g_res->seg_res->has_exact_at_src)
+			max_forpluslen = forward_temp + len_pen;
+		      
+		      if ( max_forpluslen - (forward_temp + len_pen) < 25.0 
+			   || (g_res->seg_res->has_exact_at_src 
+			       && g_res->seg_res->exact_extends_beyond_tgt))
 			local_fringe = src_idx;
-		      }
-		      else {
-			/* compare this one to max_forward, to see if it is dominated */
-			if (forward_temp + len_pen > max_forpluslen 
-			    && (danger_source_dna == NULL 
-				|| src->dna < 0  
-				|| ! danger_source_dna[(int)src->dna])
-			    && ! g_res->seg_res->has_exact_at_src)
-			  max_forpluslen = forward_temp + len_pen;
-			
-			if ( max_forpluslen - (forward_temp + len_pen) < 25.0 
-			     || (g_res->seg_res->has_exact_at_src 
-				 && g_res->seg_res->exact_extends_beyond_tgt))
-			  local_fringe = src_idx;
-		      }
-		    }		    
+		    }
 		  }
-		  
-		  touched_score = TRUE;
-		  
+		
+		  touched_score = TRUE;		  
 #ifdef TRACE
 		  if (TRACE > 1) 
 		    fprintf( stderr, "scre: v=%.3f, f=%.8f (seg:%.5f len:%.3f)\n",
 			     viterbi_temp, forward_temp, seg_score, len_pen );
 #endif
-		  if (g_out != NULL) {
-		    /* the following should be changed to a structure file lookup */
+		  if (g_out->regions) {
 		    if (reg_info->out_qual != NULL && reg_info->out_qual->need_to_print) {
 		      
 		      double reg_score = trans_score;
 		      
-		      if (g_out->posterior) 
+		      if (g_out->probability) 
 			reg_score = exp( src->forward_score + 
 					 trans_score + tgt->score +				   
 					 tgt->backward_score - 
@@ -676,7 +669,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 		} /* if killed by DNA */
 		else {
 		  /* source might not be killed for future incidences, so update fringe index */
-		  if (sum_mode == PRUNED_SUM)
+		  if (use_pruning)
 		    local_fringe = src_idx;
 		  
 #ifdef TRACE
@@ -687,7 +680,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	      } /* if min dist */
 	      else {
 		/* source might not be too close for future incidences, so update fringe index */
-		if (sum_mode == PRUNED_SUM)
+		if (use_pruning)
 		  local_fringe = src_idx;
 		
 #ifdef TRACE
@@ -712,7 +705,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 #endif
 	} /* while !gone_far_enough */
       
-	if (sum_mode == PRUNED_SUM) {
+	if (use_pruning) {
 	  /* We conservatively only prune in the frame of the target if this
 	     feature pair has a phase constraint, or if there are potential
 	     killers (which also might have a phase constraint). Otherwise, 
@@ -742,20 +735,17 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
     if (tgt->is_selected)
       g_res->last_selected = tgt_idx;
     
-    if (touched_score) {
-      
-      if (sum_mode == STANDARD_SUM || sum_mode == PRUNED_SUM || trace_mode == SAMPLE_TRACEBACK) {
-	/* the trick of subtracting the max before exponentiating avoids
-	   overflow errors. Just need to add it back when logging back down */
-	for (src_idx=0; src_idx < all_scores->len; src_idx++) {
-	  g_res->score += exp( index_Array(all_scores, double, src_idx) 
-			       - max_forward );  
+    if (touched_score) {      
+      /* the trick of subtracting the max before exponentiating avoids
+	 overflow errors. Just need to add it back when logging back down */
+      for (src_idx=0; src_idx < all_scores->len; src_idx++) {
+	g_res->score += exp( index_Array(all_scores, double, src_idx) 
+			     - max_forward );  
 	  
-	}
-	g_res->score = log( g_res->score ) + max_forward;	
       }
-
-      if (trace_mode == SAMPLE_TRACEBACK) {
+      g_res->score = log( g_res->score ) + max_forward;	
+            
+      if (g_out->sample_gene) {
 	double random_number = (double) rand() / (double) RAND_MAX;
 	double sum = 0.0;
 
@@ -783,7 +773,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	  }
 	}
       }
-      else if (trace_mode == MAX_TRACEBACK) {
+      else {
 	g_res->pth_trace = max_index;
 	g_res->pth_score = max_score;	
       }
@@ -816,11 +806,8 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
   if (tgt->invalid)
     g_res->score = NEG_INFINITY;
 
-  if (sum_mode == STANDARD_SUM || sum_mode == PRUNED_SUM ||  trace_mode == SAMPLE_TRACEBACK) {
-    free_Array( all_indices, TRUE );
-    free_Array( all_scores, TRUE );
-  }
-
+  free_Array( all_indices, TRUE );
+  free_Array( all_scores, TRUE );
 }
 
 
@@ -836,7 +823,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 			      Gaze_Structure *gs,
 			      int src_idx,
 			      Gaze_DP_struct *g_res,
-			      enum DP_Calc_Mode sum_mode) {
+			      boolean use_pruning) {
 
   int tgt_type, tgt_idx, kill_idx;
   int frame, k, index_count[3]; 
@@ -1132,7 +1119,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 		  
 		  append_val_Array( all_scores, backward_temp);
 
-		  if (sum_mode == PRUNED_SUM) {
+		  if (use_pruning) {
 		    if (! touched_score_local ) {
 
 		      if (danger_target_dna == NULL 
@@ -1178,7 +1165,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 		} /* if killed by DNA */
 		else {
 		  /* tgt might not be killed for future incidences, so update fringe index */
-		  if (sum_mode == PRUNED_SUM)
+		  if (use_pruning)
 		    local_fringe = tgt_idx;
 
 #ifdef TRACE
@@ -1189,7 +1176,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 	      } /* if min dist */
 	      else {
 		/* target might not be too close for future incidences, so update fringe index */
-		if (sum_mode == PRUNED_SUM)
+		if (use_pruning)
 		  local_fringe = tgt_idx;
 
 #ifdef TRACE		
@@ -1215,7 +1202,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 #endif
 	} /* while ! gone_far_enough */
 
-	if (sum_mode == PRUNED_SUM) {
+	if (use_pruning) {
 	  /* We conservatively only prune in the frame of the target if this
 	     feature pair has a phase constraint, or if there are potential
 	     killers (which also might have a phase constraint). Otherwise, 
@@ -1294,7 +1281,8 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 					Gaze_Structure *gs,
 					int tgt_idx,
-					Gaze_DP_struct *g_res ) {
+					Gaze_DP_struct *g_res,
+					boolean use_pruning) {
   
   int src_type, src_idx, kill_idx, max_index = 0; /* Initialsied to get arounc gcc warnings */
   int frame, k, index_count[3];
@@ -1649,16 +1637,18 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 #endif
 	} /* while !gone_far_enough */
       
-	  /* We conservatively only prune in the frame of the target if this
-	     feature pair has a phase constraint, or if there are potential
-	     killers (which also might have a phase constraint). Otherwise, 
-	     prune in all frames */
-	if (reg_info->phase != NULL || reg_info->kill_feat_quals != NULL) {
-	  g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3] = local_fringe;
-	}
-	else {
-	  for(k=0; k < 3; k++)
-	    g_res->fringes[(int)tgt->feat_idx][src_type][k] = local_fringe;
+	/* We conservatively only prune in the frame of the target if this
+	   feature pair has a phase constraint, or if there are potential
+	   killers (which also might have a phase constraint). Otherwise, 
+	   prune in all frames */
+	if (use_pruning) {
+	  if (reg_info->phase != NULL || reg_info->kill_feat_quals != NULL) {
+	    g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3] = local_fringe;
+	  }
+	  else {
+	    for(k=0; k < 3; k++)
+	      g_res->fringes[(int)tgt->feat_idx][src_type][k] = local_fringe;
+	  }
 	}
       
 	if (danger_source_dna != NULL) {

@@ -24,12 +24,18 @@
 
 typedef struct {
   FILE *fh;
-  boolean posterior;
+  boolean probability;
+  boolean sample_gene;
+  boolean regions;
+  boolean features;
   boolean use_threshold;
   double threshold;
 } Gaze_Output;
 
 Gaze_Output *new_Gaze_Output( FILE *,
+			      boolean,
+			      boolean,
+			      boolean,
 			      boolean,
 			      boolean,
 			      double );
