@@ -1,4 +1,4 @@
-/*  Last edited: Apr 23 15:38 2002 (klh) */
+/*  Last edited: Apr 25 15:44 2002 (klh) */
 /**********************************************************************
  ** File: structure.c
  ** Author : Kevin Howe
@@ -355,10 +355,15 @@ void fill_in_Gaze_Structure( Gaze_Structure *gs) {
 	    }
 	  }
 
-	  if (tgt_inf->out_qual != NULL) {
-	    if (src_tgt->out_qual == NULL) 
+	  if (src_tgt->out_qual == NULL) {
+	    if (tgt_inf->out_qual != NULL)
 	      src_tgt->out_qual = clone_Output_Qualifier( tgt_inf->out_qual );
-	    else {
+	    else
+	      src_tgt->out_qual = new_Output_Qualifier();
+	  }
+	  else {
+	    /* copy across global information where there is no conflict */
+	    if (tgt_inf->out_qual != NULL) {
 	      if (src_tgt->out_qual->feature == NULL && tgt_inf->out_qual->feature == NULL)
 		src_tgt->out_qual->feature = g_strdup (tgt_inf->out_qual->feature );
 	      if (src_tgt->out_qual->strand == NULL && tgt_inf->out_qual->strand == NULL)
@@ -368,7 +373,7 @@ void fill_in_Gaze_Structure( Gaze_Structure *gs) {
 	      if (tgt_inf->out_qual->need_to_print == TRUE) 
 		src_tgt->out_qual->need_to_print = TRUE;
 	    }
-	  }
+	  }	  
 	}
       }
     }
