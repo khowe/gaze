@@ -1,4 +1,4 @@
-/*  Last edited: Jul 16 12:40 2002 (klh) */
+/*  Last edited: Jul 16 14:10 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -319,7 +319,7 @@ static int parse_command_line( int argc, char *argv[] ) {
 
   if (! options_error ) {
     if (gaze_options.structure_file == NULL) {
-      fprintf( stderr, "You have not specified a structure file\n");
+      fprintf( stderr, "Error: You have not specified a structure file\n");
       options_error = TRUE;
     }
     if (gaze_options.gff_files->len == 0) {
