@@ -285,7 +285,7 @@ boolean is_legal_path( Array *path,
 	    }
 	  }
 	  else {
-	    fprintf( stderr, "The given path is illegal to a maximun distance violation\n" ); 
+	    fprintf( stderr, "The given path is illegal to a maximum distance violation\n" ); 
 	    legal_path = FALSE;
 	  }
 	}
@@ -300,7 +300,9 @@ boolean is_legal_path( Array *path,
       }
     }
     else {
-      fprintf( stderr, "The given path has an illegal pair of features\n" ); 
+      fprintf( stderr, "The given path has an illegal pair of features (%s, %s)\n",
+	       index_Array( gs->feat_dict, char *, src->feat_idx), 
+	       index_Array( gs->feat_dict, char *, tgt->feat_idx) ); 
       legal_path = FALSE;
     }
   }
