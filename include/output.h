@@ -1,4 +1,4 @@
-/*  Last edited: Apr 23 12:45 2002 (klh) */
+/*  Last edited: Jul 13 13:00 2002 (klh) */
 /**********************************************************************
  ** File: output.h
  ** Author : Kevin Howe
@@ -11,6 +11,7 @@
 
 #include <glib.h>
 #include <math.h>
+#include "util.h"
 #include "features.h"
 #include "structure.h"
 #include "engine.h"

@@ -1,4 +1,4 @@
-/*  Last edited: Apr  2 14:35 2002 (klh) */
+/*  Last edited: Jul 13 12:54 2002 (klh) */
 
 /**********************************************************************
  ** File: p_engine.h
@@ -14,6 +14,7 @@
 
 #include <glib.h>
 #include <math.h>
+#include "util.h"
 #include "features.h"
 #include "structure.h"
 

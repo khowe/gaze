@@ -1,4 +1,4 @@
-/*  Last edited: Jan 17 11:24 2002 (klh) */
+/*  Last edited: Jul 13 12:53 2002 (klh) */
 /**********************************************************************
  ** File: str_parse.h
  ** Author : Kevin Howe
@@ -15,6 +15,7 @@
 #include <glib.h>
 #include <stdlib.h>
 
+#include "util.h"
 #include "structure.h"
 #include "info.h"
 #include "features.h"

@@ -1,4 +1,4 @@
-/*  Last edited: Apr 25 15:28 2002 (klh) */
+/*  Last edited: Jul 13 12:57 2002 (klh) */
 /**********************************************************************
  ** File: info.h
  ** Author : Kevin Howe
@@ -11,7 +11,7 @@
 
 #include <glib.h>
 #include <stdio.h>
-
+#include "util.h"
 
 /*******************************************************
  The following three object represent a specific
@@ -44,8 +44,8 @@ Killer_Feature_Qualifier *new_Killer_Feature_Qualifier( void );
 *******************************************************/
 
 typedef struct {
-  int src_dna;
-  int tgt_dna;
+  char src_dna;
+  char tgt_dna;
 } Killer_DNA_Qualifier;
 
 Killer_DNA_Qualifier *clone_Killer_DNA_Qualifier( Killer_DNA_Qualifier *);

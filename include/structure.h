@@ -1,4 +1,4 @@
-/*  Last edited: Sep 19 16:12 2001 (klh) */
+/*  Last edited: Jul 13 12:53 2002 (klh) */
 /**********************************************************************
  ** File: structure.h
  ** Author : Kevin Howe
@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <glib.h>
 
+#include "util.h"
 #include "info.h"
 #include "features.h"
 
