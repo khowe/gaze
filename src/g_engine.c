@@ -9,8 +9,6 @@
 #include "g_engine.h"
 #include "time.h"
 
-static long comparisons = 0;
-
 /*********************************************************************
  FUNCTION: free_Gaze_DP_struct
  DESCRIPTION:
@@ -215,8 +213,6 @@ void forwards_calc( Gaze_Sequence *g_seq,
   }
 
   free_Gaze_DP_struct( g_res, gs->feat_dict->len );
-
-  /* fprintf(stderr, "Comparisons = %ld\n", comparisons); */
 }
 
 

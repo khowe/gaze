@@ -60,8 +60,8 @@ void scan_through_sources_for_max_only( Gaze_Sequence *,
 					Gaze_DP_struct *,
 					boolean);
 
-void trace_back_general(Gaze_Sequence *,
-			Gaze_Structure * );
+void trace_back_general(Gaze_Sequence * );
+
 
 #endif
 
