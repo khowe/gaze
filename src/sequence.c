@@ -1,4 +1,4 @@
-/*  Last edited: Jul 22 16:08 2002 (klh) */
+/*  Last edited: Jul 23 10:29 2002 (klh) */
 /**********************************************************************
  ** File: sequence.c
  ** Author : Kevin Howe
@@ -593,8 +593,8 @@ boolean read_in_paths( Gaze_Sequence_list *glist,
 
   for (i=0; i < file_list->len; i++) {
     FILE *file = index_Array( file_list, FILE *, i);
-	 
-    while( read_GFF_line( file, gff_line ) != EOF ){
+
+    while( read_GFF_line( file, gff_line ) != 0 ){
       
       if ( (seq_idx = dict_lookup( glist->seq_id_dict, gff_line->seqname )) >= 0) {
 	Gaze_Sequence *g_seq = glist->seq_list[seq_idx];
@@ -637,59 +637,62 @@ boolean read_in_paths( Gaze_Sequence_list *glist,
     for(i=0; i < glist->num_seqs; i++) { 
       Gaze_Sequence *g_seq = glist->seq_list[i];
 
-      qsort( g_seq->features->data, 
-	     g_seq->features->len, 
-	   sizeof(Feature *), 
-	     &order_features_standard );
-      
-      qsort( g_seq->path->data, 
-	   g_seq->path->len, 
-	     sizeof(Feature *), 
-	     &order_features_standard );
-      
-      for (i=j=0; i < g_seq->path->len; i++) {
-	Feature *f1 = index_Array( g_seq->path, Feature *, i);
-	match = FALSE;
-	for (; j < g_seq->features->len && ! match; j++) {
-	  Feature *f2 = index_Array( g_seq->features, Feature *, j );
-	  if ((f1->real_pos.s == f2->real_pos.s) &&  
-	      (f1->real_pos.e == f2->real_pos.e) && 
-	      (f1->feat_idx == f2->feat_idx)) {
-	    
-	    for (j++; j < g_seq->features->len; j++) {
-	      Feature *f3 = index_Array(g_seq->features, Feature *, j );
+      if (g_seq->path != NULL) {
+
+	qsort( g_seq->features->data, 
+	       g_seq->features->len, 
+	       sizeof(Feature *), 
+	       &order_features_standard );
+	
+	qsort( g_seq->path->data, 
+	       g_seq->path->len, 
+	       sizeof(Feature *), 
+	       &order_features_standard );
+
+	for (i=j=0; i < g_seq->path->len; i++) {
+	  Feature *f1 = index_Array( g_seq->path, Feature *, i);
+	  match = FALSE;
+	  for (; j < g_seq->features->len && ! match; j++) {
+	    Feature *f2 = index_Array( g_seq->features, Feature *, j );
+	    if ((f1->real_pos.s == f2->real_pos.s) &&  
+		(f1->real_pos.e == f2->real_pos.e) && 
+		(f1->feat_idx == f2->feat_idx)) {
 	      
-	      if ((f3->feat_idx == f2->feat_idx) && 
-		  (f3->real_pos.s == f2->real_pos.s) &&
-		  (f3->real_pos.e == f2->real_pos.e)) { 
+	      for (j++; j < g_seq->features->len; j++) {
+		Feature *f3 = index_Array(g_seq->features, Feature *, j );
 		
-		if (f3->score > f2->score)
-		  f2 = f3;
+		if ((f3->feat_idx == f2->feat_idx) && 
+		    (f3->real_pos.s == f2->real_pos.s) &&
+		    (f3->real_pos.e == f2->real_pos.e)) { 
+		  
+		  if (f3->score > f2->score)
+		    f2 = f3;
+		}
+		else {
+		  j--;
+		  break;
+		}
 	      }
-	      else {
-		j--;
-		break;
-	      }
+	      f2->is_correct = TRUE;
+	      
+	      free_Feature( index_Array( g_seq->path, Feature *, i ) );
+	      index_Array( g_seq->path, Feature *, i ) = f2;
+	      
+	      match = TRUE;
 	    }
-	    f2->is_correct = TRUE;
-	    
-	    free_Feature( index_Array( g_seq->path, Feature *, i ) );
-	    index_Array( g_seq->path, Feature *, i ) = f2;
-	    
-	    match = TRUE;
+	  }
+	  
+	  if (! match) {
+	    fprintf (stderr, 
+		     "In sequence %s, feature in 'correct' path not found in complete list: %s %d %d\n",
+		     g_seq->seq_name,
+		     index_Array( feat_dict, char *, f1->feat_idx ),
+		     f1->real_pos.s, f1->real_pos.e);
+	    no_problem = FALSE;
+	    j = 0;
 	  }
 	}
-      
-	if (! match) {
-	  fprintf (stderr, 
-		   "In sequence %s, feature in 'correct' path not found in complete list: %s %d %d\n",
-		   g_seq->seq_name,
-		   index_Array( feat_dict, char *, f1->feat_idx ),
-		   f1->real_pos.s, f1->real_pos.e);
-	  no_problem = FALSE;
-	  j = 0;
-	}
-      }      
+      }
     }
   }
 
