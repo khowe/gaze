@@ -134,7 +134,7 @@ void write_Gaze_path( Gaze_Output *out,
   if (out->posterior)
     feature_score = exp( f2->forward_score + 
 			 f2->backward_score - 
-			 g_seq->end_ft->backward_score );
+			 g_seq->beg_ft->backward_score );
   if (f2 != NULL) {
     write_GFF_line( out->fh,
 		    g_seq->seq_name, 
