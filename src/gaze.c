@@ -43,10 +43,10 @@ Input files:\n\
  -defaults <s>          name of the file of default options (def: './gaze.defaults')\n\
 \n\
 Output files:\n\
- -out_file <s>       print gene structure to given file (def: stdout)\n\
+ -out_file <s>          print gene structure to given file (def: stdout)\n\
 \n\
 Output format:\n\
- -output <c>            The output type. Should be one of the following:\n\
+ -output <c>            the output type. Should be one of the following:\n\
                           B  (B)est (highest scoring) gene structure (default)\n\
                           S  (S)ampled gene structure based on forward score\n\
                           F  (F)eature candidates (most sensibly used with -posterior)\n\
@@ -54,7 +54,7 @@ Output format:\n\
 \n\
 Other options:\n\
 \
- -posterior             Show element scores as posteriror probs. rather than raw scores\n\
+ -posterior             show element scores as posteriror probs. rather than raw scores\n\
  -full_calc             perform full dynamic programming (as opposed to faster heurstic method)\n\
  -verbose               write basic progess information to stderr\n\
  -help                  show this message\n" ;
@@ -366,13 +366,32 @@ static int parse_command_line( int argc, char *argv[] ) {
 	*ptr = '\0';
 	st = ptr+1;
 	if ((ptr = strchr( st, '-')) != NULL) {
+	  boolean all_digits = TRUE;
+
 	  *ptr = '\0';
 	  en = ptr+1;
 	  
-	    /* ideally, need a check here that start ends are digits, and to allow
-	       the user to specify their own name/start-end format */
+	    /* ideally, allow the user to specify their own name/start-end format */
+	  for (i=0; all_digits && i < strlen( st ); i++)
+	    if (! isdigit((int)st[i]))
+	      all_digits = FALSE;
+	  for (i=0; all_digits && i < strlen( en ); i++)
+	    if (! isdigit((int)st[i]))
+	      all_digits = FALSE;
+
+	  if (all_digits) {
 	    start = atoi( st );
 	    end = atoi ( en );
+
+	    if (start > end) {
+	      fprintf(stderr, "For %s, start (%d) is greater than end (%d)\n", seq_id, start, end);
+	      options_error = TRUE;
+	    }
+	  }
+	  else {
+	    fprintf(stderr, "For %s, start-end of \"%s-%s\" is illegal\n", seq_id, st, en);
+	    options_error = TRUE;
+	  }
 	}
       }
       
