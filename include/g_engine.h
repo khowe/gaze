@@ -1,4 +1,4 @@
-/*  Last edited: Jul 19 09:28 2002 (klh) */
+/*  Last edited: Aug  3 15:24 2002 (klh) */
 /**********************************************************************
  ** File: engine.h
  ** Author : Kevin Howe
@@ -29,7 +29,7 @@ void free_Gaze_DP_struct( Gaze_DP_struct *, int );
 Gaze_DP_struct *new_Gaze_DP_struct( int, int, int );
 
 
-double calculate_path_score(Array *, Array *, Gaze_Structure *);
+double calculate_path_score(Gaze_Sequence *, Gaze_Structure *);
 
 void forwards_calc(Gaze_Sequence *,
 		   Gaze_Structure *,
@@ -56,9 +56,9 @@ void scan_through_targets_dp(Gaze_Sequence *,
 			     Gaze_DP_struct *,
 			     enum DP_Calc_Mode);
 
-Array *trace_back_general(Gaze_Sequence *,
-			  Gaze_Structure *,
-			  enum DP_Traceback_Mode);
+void trace_back_general(Gaze_Sequence *,
+			Gaze_Structure *,
+			enum DP_Traceback_Mode);
 
 #endif
 
