@@ -1,4 +1,4 @@
-/*  Last edited: Jul 15 13:18 2002 (klh) */
+/*  Last edited: Jul 19 11:45 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -154,8 +154,7 @@ double calculate_path_score(Array *path,
  ARGS: 
  NOTES:
  *********************************************************************/
-void forwards_calc( Array *features,
-		    Array *segments,
+void forwards_calc( Gaze_Sequence *g_seq,
 		    Gaze_Structure *gs,
 		    enum DP_Calc_Mode sum_mode,
 		    Gaze_Output *g_out) {
@@ -170,16 +169,15 @@ void forwards_calc( Array *features,
     fprintf(stderr, "\nForward calculation:\n\n");
 #endif
 
-  for (ft_idx = 1; ft_idx < features->len; ft_idx++) {
+  for (ft_idx = 1; ft_idx < g_seq->features->len; ft_idx++) {
     /* push the index of the last feature onto the list of
        sorted indices */
     prev_idx = ft_idx - 1;
-    prev_feat = index_Array( features, Feature *, prev_idx );
+    prev_feat = index_Array( g_seq->features, Feature *, prev_idx );
     temp = g_res->feats[prev_feat->feat_idx][prev_feat->adj_pos.s % 3];
     append_val_Array( temp, prev_idx );
 
-    scan_through_sources_dp( features, 
-			     segments, 
+    scan_through_sources_dp( g_seq,
 			     gs, 
 			     ft_idx,  
 			     g_res, 
@@ -187,9 +185,9 @@ void forwards_calc( Array *features,
 			     MAX_TRACEBACK,
 			     g_out);
 
-    index_Array( features, Feature *, ft_idx )->forward_score = g_res->score;
-    index_Array( features, Feature *, ft_idx )->path_score = g_res->pth_score;
-    index_Array( features, Feature *, ft_idx )->trace_pointer = g_res->pth_trace;
+    index_Array( g_seq->features, Feature *, ft_idx )->forward_score = g_res->score;
+    index_Array( g_seq->features, Feature *, ft_idx )->path_score = g_res->pth_score;
+    index_Array( g_seq->features, Feature *, ft_idx )->trace_pointer = g_res->pth_trace;
   }
 
   free_Gaze_DP_struct( g_res, gs->feat_dict->len );
@@ -204,8 +202,7 @@ void forwards_calc( Array *features,
  ARGS: 
  NOTES:
  *********************************************************************/
-void backwards_calc( Array *features,
-		     Array *segments,
+void backwards_calc( Gaze_Sequence *g_seq,
 		     Gaze_Structure *gs,
 		     enum DP_Calc_Mode sum_mode) {
 
@@ -213,30 +210,29 @@ void backwards_calc( Array *features,
   Feature *prev_feat;
   Array *temp;
 
-  Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, features->len - 1 );
+  Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, g_seq->features->len - 1 );
 
-  g_res->last_selected = features->len + 1;
+  g_res->last_selected = g_seq->features->len + 1;
 
 #ifdef TRACE
   fprintf(stderr, "\nBackward calculation:\n\n");
 #endif
   
-  for (ft_idx = features->len-2; ft_idx >= 0; ft_idx--) {
+  for (ft_idx = g_seq->features->len-2; ft_idx >= 0; ft_idx--) {
     /* push the index if the last feature onto the list of
        sorted indices */
     prev_idx = ft_idx + 1;
-    prev_feat = index_Array( features, Feature *, prev_idx );
+    prev_feat = index_Array( g_seq->features, Feature *, prev_idx );
     temp = g_res->feats[prev_feat->feat_idx][prev_feat->adj_pos.e % 3];
     append_val_Array( temp, prev_idx );
 
-    scan_through_targets_dp( features, 
-			     segments, 
+    scan_through_targets_dp( g_seq,
 			     gs,
 			     ft_idx,  
 			     g_res,
 			     sum_mode);
 
-    index_Array( features, Feature *, ft_idx )->backward_score = g_res->score;
+    index_Array( g_seq->features, Feature *, ft_idx )->backward_score = g_res->score;
 
   }
 
@@ -252,14 +248,13 @@ void backwards_calc( Array *features,
  ARGS: 
  NOTES:
  *********************************************************************/
-void scan_through_sources_dp(Array *features,
-			     Array *segments,
-			     Gaze_Structure *gs,
-			     int tgt_idx,
-			     Gaze_DP_struct *g_res,
-			     enum DP_Calc_Mode sum_mode,
-			     enum DP_Traceback_Mode trace_mode,
-			     Gaze_Output *g_out) {
+void scan_through_sources_dp( Gaze_Sequence *g_seq,
+			      Gaze_Structure *gs,
+			      int tgt_idx,
+			      Gaze_DP_struct *g_res,
+			      enum DP_Calc_Mode sum_mode,
+			      enum DP_Traceback_Mode trace_mode,
+			      Gaze_Output *g_out) {
   
   int src_type, src_idx, kill_idx, max_index = 0; /* Initialsied to get arounc gcc warnings */
   int frame, k, index_count[3];
@@ -275,6 +270,7 @@ void scan_through_sources_dp(Array *features,
   Feature *src, *tgt;
   Seg_Results *seg_res;
 
+  boolean gone_far_enough = FALSE;
   double max_forpluslen = 0.0;
   double max_score = NEG_INFINITY;
   double max_forward = NEG_INFINITY;
@@ -285,7 +281,7 @@ void scan_through_sources_dp(Array *features,
   g_res->pth_trace = 0,0;
   g_res->score = 0.0;
 
-  tgt = index_Array( features, Feature *, tgt_idx );
+  tgt = index_Array( g_seq->features, Feature *, tgt_idx );
   tgt_info = index_Array( gs->feat_info, Feature_Info *, tgt->feat_idx );
   right_pos = tgt->adj_pos.e;
 
@@ -430,10 +426,9 @@ void scan_through_sources_dp(Array *features,
 	   further back than the index of the target itself when consdering
 	   furture instances of the target */
 	local_fringe = tgt_idx;
+	gone_far_enough = FALSE;
 
-	while (1) {
-	  /* This loop is terminated by break statements scattered throughout. 
-	     I know, I know... */
+	while( ! gone_far_enough ) {
 	  
 	  if (reg_info->phase == NULL) {
 	    /* For frameless feature pairs, we need to examine all frames, but 
@@ -459,8 +454,10 @@ void scan_through_sources_dp(Array *features,
 	  }
 	  
 	  /* The following tests if there was anything in the list at all */
-	  if (index_count[frame] < 0)
-	    break;
+	  if (index_count[frame] < 0) {
+	    gone_far_enough = TRUE;
+	    continue;
+	  }
 	  
 	  src_idx = index_Array( feats[frame], int, index_count[frame]-- );
 	  
@@ -475,7 +472,7 @@ void scan_through_sources_dp(Array *features,
 	    continue;
 	  }
 	  
-	  src = index_Array( features, Feature *, src_idx );
+	  src = index_Array( g_seq->features, Feature *, src_idx );
 	  
 #ifdef TRACE
 	  if (TRACE > 1)
@@ -503,7 +500,7 @@ void scan_through_sources_dp(Array *features,
 		  Length_Function *lf = NULL;
 		  trans_score = len_pen = forward_temp = viterbi_temp = 0.0;
 
-		  seg_score = calculate_segment_score( src, tgt, segments, gs, seg_res );
+		  seg_score = calculate_segment_score( src, tgt, g_seq->segment_lists, gs, seg_res );
 		  trans_score += seg_score;
 		  
 		  if (reg_info->len_fun != NULL) {
@@ -604,11 +601,11 @@ void scan_through_sources_dp(Array *features,
 			reg_score = exp( src->forward_score + 
 					 trans_score + tgt->score +				   
 					 tgt->backward_score - 
-					 index_Array( features, Feature *, 0)->backward_score );
+					 g_seq->beg_ft->backward_score );
 		      
 		      if (! g_out->use_threshold || reg_score >= g_out->threshold)
 			fprintf(g_out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.5f\t%s\t%s\t\n",
-				g_out->seq_name, 
+				g_seq->seq_name, 
 				reg_info->out_qual->feature != NULL ? reg_info->out_qual->feature : "Anonymous",
 				left_pos, 
 				right_pos, 
@@ -647,7 +644,7 @@ void scan_through_sources_dp(Array *features,
 		fprintf( stderr, "TOO DISTANT\n" );
 #endif
 	      /* we can break out of the loop here; all other sources will be too distant */
-	      break;
+	      gone_far_enough = TRUE;
 	    }
 	  }
 #ifdef TRACE
@@ -655,7 +652,7 @@ void scan_through_sources_dp(Array *features,
 	    if (TRACE > 1)
 	      fprintf( stderr, "INVALID\n" );
 #endif
-	}
+	} /* while !gone_far_enough */
       
 	if (sum_mode == PRUNED_SUM) {
 	  /* We conservatively only prune in the frame of the target if this
@@ -694,9 +691,9 @@ void scan_through_sources_dp(Array *features,
       if (g_res->last_selected < 0)
 	g_res->last_selected = tgt_idx;
       else {
-	Feature *last_feat = index_Array( features, 
-					    Feature *, 
-					    g_res->last_selected );
+	Feature *last_feat = index_Array( g_seq->features, 
+					  Feature *, 
+					  g_res->last_selected );
 	if (last_feat->real_pos.s != tgt->real_pos.s || last_feat->real_pos.e != tgt->real_pos.e) 
 	  g_res->last_selected = tgt_idx;
       }
@@ -728,7 +725,7 @@ void scan_through_sources_dp(Array *features,
 	    
 	    g_res->pth_trace = index_Array( all_indices, int, src_idx);
 
-	    tmp = index_Array(features, Feature *, g_res->pth_trace ); 
+	    tmp = index_Array( g_seq->features, Feature *, g_res->pth_trace ); 
 
 	    /* note that we are just returning the transition + local score 
 	       here for the source-target pair. This can be accumulated
@@ -791,12 +788,11 @@ void scan_through_sources_dp(Array *features,
  ARGS: 
  NOTES:
  *********************************************************************/
-void scan_through_targets_dp(Array *features,
-			     Array *segments,
-			     Gaze_Structure *gs,
-			     int src_idx,
-			     Gaze_DP_struct *g_res,
-			     enum DP_Calc_Mode sum_mode) {
+void scan_through_targets_dp( Gaze_Sequence *g_seq,
+			      Gaze_Structure *gs,
+			      int src_idx,
+			      Gaze_DP_struct *g_res,
+			      enum DP_Calc_Mode sum_mode) {
 
   int tgt_type, tgt_idx, kill_idx;
   int frame, k, index_count[3]; 
@@ -811,6 +807,7 @@ void scan_through_targets_dp(Array *features,
   Feature *src, *tgt;
   Seg_Results *seg_res;
 
+  boolean gone_far_enough = FALSE;
   double max_backward = 0.0;
   double max_backpluslen = 0.0;
   int *killer_target_dna = NULL;
@@ -818,7 +815,7 @@ void scan_through_targets_dp(Array *features,
 
   g_res->score = 0.0;
 
-  src = index_Array( features, Feature *, src_idx );
+  src = index_Array( g_seq->features, Feature *, src_idx );
   left_pos = src->adj_pos.s;
 
 #ifdef TRACE
@@ -839,7 +836,7 @@ void scan_through_targets_dp(Array *features,
     /* set up the boundaries for the scan. We do not want to go past 
        1. The last forced feature */
 
-    last_necessary_idx = features->len - 1; 
+    last_necessary_idx = g_seq->features->len - 1; 
 
     if (g_res->last_selected < last_necessary_idx)
       last_necessary_idx = g_res->last_selected;
@@ -969,10 +966,9 @@ void scan_through_targets_dp(Array *features,
 	   further back than the index of the target itself when consdering
 	   furture instances of the target */
 	local_fringe = src_idx;
+	gone_far_enough = FALSE;
 
-	while(1) {
-	  /* This loop is terminated by break statements scattered throughout. 
-	     I know, I know... */
+	while(! gone_far_enough) {
 	  
 	  if (reg_info->phase == NULL) {
 	    /* For frameless feature pairs, we need to examine all frames, but 
@@ -998,8 +994,10 @@ void scan_through_targets_dp(Array *features,
 	  }
 	  
 	  /* The following tests if there was anything in the list at all */
-	  if (index_count[frame] < 0)
-	    break;
+	  if (index_count[frame] < 0) {
+	    gone_far_enough = TRUE;
+	    continue;
+	  }
 	  
 	  tgt_idx = index_Array( feats[frame], int, index_count[frame]-- );
 
@@ -1014,7 +1012,7 @@ void scan_through_targets_dp(Array *features,
 	    continue;
 	  }
 
-	  tgt = index_Array( features, Feature *, tgt_idx );
+	  tgt = index_Array( g_seq->features, Feature *, tgt_idx );
 	    
 #ifdef TRACE
 	  if (TRACE > 1)
@@ -1041,7 +1039,7 @@ void scan_through_targets_dp(Array *features,
 		  Length_Function *lf = NULL;
 		  trans_score = len_pen = 0.0;
 		  
-		  seg_score = calculate_segment_score( src, tgt, segments, gs, seg_res );
+		  seg_score = calculate_segment_score( src, tgt, g_seq->segment_lists, gs, seg_res );
 		  trans_score += seg_score;
 		  
 		  if (reg_info->len_fun != NULL) {
@@ -1135,7 +1133,7 @@ void scan_through_targets_dp(Array *features,
 		fprintf( stderr, "TOO DISTANT\n" );
 #endif
 	      /* we can break out of the loop here; they will all be too distant */
-	      break;
+	      gone_far_enough = TRUE;
 	    }
 	  } /* if valid */
 #ifdef TRACE
@@ -1144,7 +1142,7 @@ void scan_through_targets_dp(Array *features,
 	      fprintf( stderr, "INVALID\n" );
 	  }
 #endif
-	}
+	} /* while ! gone_far_enough */
 
 	if (sum_mode == PRUNED_SUM) {
 	  /* We conservatively only prune in the frame of the target if this
@@ -1179,12 +1177,12 @@ void scan_through_targets_dp(Array *features,
        splice sites in the feature list */
     
     if (src->is_selected) {
-      if (g_res->last_selected > features->len)
+      if (g_res->last_selected > g_seq->features->len)
 	g_res->last_selected = src_idx;
       else {
-	Feature *last_feat = index_Array( features, 
-					    Feature *, 
-					    g_res->last_selected );
+	Feature *last_feat = index_Array( g_seq->features, 
+					  Feature *, 
+					  g_res->last_selected );
 	if (last_feat->real_pos.s != src->real_pos.s || last_feat->real_pos.e != src->real_pos.e) 
 	  g_res->last_selected = src_idx;
       }
@@ -1240,30 +1238,34 @@ void scan_through_targets_dp(Array *features,
  ARGS: 
  NOTES:
  *********************************************************************/
-Array *trace_back_general ( Array *feats,
-			     Array *segs,
-			     Gaze_Structure *gs,
-			     enum DP_Traceback_Mode tb_mode) {
+Array *trace_back_general ( Gaze_Sequence *g_seq,
+			    Gaze_Structure *gs,
+			    enum DP_Traceback_Mode tb_mode) {
   
   int i;
   Feature *temp;
 
   Array *stack = new_Array( sizeof(Feature *), TRUE);
   Array *feat_path = new_Array( sizeof(Feature *), TRUE);
-  int pos = feats->len - 1;  
+  int pos = g_seq->features->len - 1;  
 
-  temp = index_Array( feats, Feature *, pos );
+  temp = index_Array( g_seq->features, Feature *, pos );
   append_val_Array( stack, temp );
 
   if (tb_mode == SAMPLE_TRACEBACK) {
     Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, 0 );
 
     while (pos > 0) {
-      scan_through_sources_dp( feats, segs, gs, pos, g_res,
-			       NO_SUM, SAMPLE_TRACEBACK, NULL );
+      scan_through_sources_dp( g_seq,
+			       gs, 
+			       pos, 
+			       g_res,
+			       NO_SUM, 
+			       SAMPLE_TRACEBACK, 
+			       NULL );
       pos = g_res->pth_trace;
       
-      temp = index_Array( feats, Feature *, pos );
+      temp = index_Array( g_seq->features, Feature *, pos );
       append_val_Array( stack, temp );
     }
     
@@ -1273,7 +1275,7 @@ Array *trace_back_general ( Array *feats,
     while (pos > 0) {
       pos = temp->trace_pointer;    
       
-      temp = index_Array( feats, Feature *, pos );
+      temp = index_Array( g_seq->features, Feature *, pos );
       append_val_Array( stack, temp );
     }
   }
@@ -1286,7 +1288,7 @@ Array *trace_back_general ( Array *feats,
     /* for standard tracebacks, the path score in END will already be correct.
        However, we need to recalcuate the path score for sampled trances. Might 
        as well do it anyway, since it's cheap */
-    calculate_path_score( feat_path, segs, gs );
+    calculate_path_score( feat_path, g_seq->segment_lists, gs );
   }
   else {
     free_Array( feat_path, TRUE );

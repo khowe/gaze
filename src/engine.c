@@ -1,4 +1,4 @@
-/*  Last edited: Jul 15 11:51 2002 (klh) */
+/*  Last edited: Jul 22 14:45 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -203,8 +203,7 @@ double calculate_segment_score( Feature *src, Feature *tgt,
  NOTES:
  *********************************************************************/
 boolean is_legal_path( Array *path,
-			Gaze_Structure *gs,
-			FILE *err ) {
+		       Gaze_Structure *gs ) {
 
   int idx, left_pos, right_pos, distance, k; 
   Feature_Info *tgt_info;
@@ -257,32 +256,37 @@ boolean is_legal_path( Array *path,
 	    if (! killed_by_dna) 
 	      continue;
 	    else { 
+	      /*
 	      if (err != NULL) 
-		fprintf(err, "The given path is illegal due to DNA constraints\n");
+	      fprintf(err, "The given path is illegal due to DNA constraints\n"); */	      
 	      legal_path = FALSE;
 	    }
 	  }
 	  else {
+	    /*
 	    if (err != NULL) 
-	      fprintf( err, "The given path is illegal to a maximun distance violation\n" );
+	    fprintf( err, "The given path is illegal to a maximun distance violation\n" ); */
 	    legal_path = FALSE;
 	  }
 	}
 	else {
+	  /*
 	  if (err != NULL) 
-	    fprintf( err, "The given path is illegal to a minimum distance violation\n" );
+	  fprintf( err, "The given path is illegal to a minimum distance violation\n" ); */
 	  legal_path = FALSE;	    
 	}
       }
       else {
+	/*
 	if (err != NULL) 
-	  fprintf( err, "The given path is illegal to a phase violation\n" );	  
+	fprintf( err, "The given path is illegal to a phase violation\n" ); */
 	legal_path = FALSE;
       }
     }
     else {
+      /*
       if (err != NULL) 
-	fprintf( err, "The given path has an illegal pair of features\n" );
+      fprintf( err, "The given path has an illegal pair of features\n" ); */
       legal_path = FALSE;
     }
   }

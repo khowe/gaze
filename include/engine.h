@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 12:54 2002 (klh) */
+/*  Last edited: Jul 22 14:42 2002 (klh) */
 
 /**********************************************************************
  ** File: p_engine.h
@@ -14,7 +14,7 @@
 
 #include <math.h>
 #include "util.h"
-#include "features.h"
+#include "sequence.h"
 #include "structure.h"
 
 #define NEG_INFINITY -9999999.0
@@ -52,6 +52,6 @@ double calculate_segment_score( Feature *, Feature *,
 	
 Array *calculate_post_accuracies( Array *, int, double);			
 
-boolean is_legal_path( Array *, Gaze_Structure *, FILE *);
+boolean is_legal_path( Array *, Gaze_Structure * );
 
 #endif
