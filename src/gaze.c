@@ -1,4 +1,4 @@
-/*  Last edited: Jul 23 10:52 2002 (klh) */
+/*  Last edited: Jul 23 12:10 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -403,22 +403,17 @@ int main (int argc, char *argv[]) {
 			 gazeStructure->gff_to_feats, 
 			 gaze_options.use_selected ); 
 
+      
+  if (gaze_options.verbose)
+    fprintf(stderr, "Getting features from dna and dna for features...\n");
+  
   for (i=0; i < allGazeSequences->num_seqs; i++) {
     if (allGazeSequences->seq_list[i]->dna_seq != NULL) {
-
-      
-      if (gaze_options.verbose)
-	fprintf(stderr, "%s: getting features from dna...\n", 
-		allGazeSequences->seq_list[i]->seq_name);
 
       get_features_from_dna( allGazeSequences->seq_list[i], 
 			     gazeStructure->dna_to_feats );
 
       if (gazeStructure->take_dna != NULL) {
-	if (gaze_options.verbose)
-	  fprintf(stderr, "%s: getting dna for features...\n",
-		  allGazeSequences->seq_list[i]->seq_name);
-
 	get_dna_for_features( allGazeSequences->seq_list[i], 
 			      gazeStructure->take_dna, 
 			      gazeStructure->motif_dict );
@@ -464,14 +459,13 @@ int main (int argc, char *argv[]) {
   /***********************************************/
   /* Scale, sort, and remove duplicates features */
   /***********************************************/
+
+  if (gaze_options.verbose)
+    fprintf(stderr, "Sorting, scaling etc of features and segments...\n");
   
   for (s=0; s < allGazeSequences->num_seqs; s++) {
     Gaze_Sequence *g_seq = allGazeSequences->seq_list[s];
 
-    if (gaze_options.verbose)
-      fprintf(stderr, "%s: Features: sorting, scaling %d feats...", 
-	       g_seq->seq_name, g_seq->features->len );
-    
     for( i=0; i < g_seq->features->len; i++ ) {
       Feature *ft = index_Array( g_seq->features, Feature *, i );
       ft->score *= index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->multiplier;
@@ -487,15 +481,9 @@ int main (int argc, char *argv[]) {
     qsort( g_seq->features->data, g_seq->features->len, sizeof(Feature *), &order_features_for_dp); 
     remove_duplicate_features( g_seq );
     
-    if (gaze_options.verbose)
-      fprintf(stderr, "%d features left\n", g_seq->features->len);
-    
     /***************************************/
     /* scale, sort and index segments ******/
     /***************************************/
-    
-    if (gaze_options.verbose)
-      fprintf(stderr, "%s: segments (sorting, scaling, indexing and projecting)...\n", g_seq->seq_name);
     
     for( i=0; i < g_seq->segment_lists->len; i++ ) {
       double multiplier = index_Array( gazeStructure->seg_info, Segment_Info *, i )->multiplier;
@@ -538,14 +526,11 @@ int main (int argc, char *argv[]) {
     Gaze_Sequence *g_seq = allGazeSequences->seq_list[i];
 
     if(gaze_options.verbose)
-      fprintf(stderr, "Running GAZE for sequence %s (%s-%s)\n", 
+      fprintf(stderr, "Running GAZE for sequence %s (%s-%s), %d feats\n", 
 	      g_seq->seq_name, 
 	      g_seq->seq_region.s, 
-	      g_seq->seq_region.e);
-
-    /* need to write the head first because forwards_calc produces 
-       the output of all candidate regions, for space-saving reasons */
-    write_Gaze_header( gazeOutput, g_seq );
+	      g_seq->seq_region.e,
+	      g_seq->features->len);
         
     if (gazeOutput->posterior) {
       if (gaze_options.verbose)
@@ -557,6 +542,11 @@ int main (int argc, char *argv[]) {
     
     if (gaze_options.verbose)
       fprintf(stderr, "Doing forward calculation...\n");
+
+
+    /* need to write the head first because forwards_calc produces 
+       the output of all candidate regions, for space-saving reasons */
+    write_Gaze_header( gazeOutput, g_seq );
     
     forwards_calc( g_seq,
 		   gazeStructure, 
