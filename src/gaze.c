@@ -1,4 +1,4 @@
-/*  Last edited: Jan 29 16:17 2002 (klh) */
+/*  Last edited: Mar 12 14:44 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -23,35 +23,35 @@
 static char gaze_usage_string[] = "\
 Usage: gaze <options>\n\
 Options are:\n\
-
-Input files:
-
+\
+Input files:\
+\
  -structure_file <s>    XML file containing the gaze structure\n\
  -features_file <s>     name of the GFF file containing the features\n\
  -dna_file <s>          file containing the DNA sequence\n\
  -defaults <s>          name of the file of default options (def: './gaze.defaults')\n\
-
-Output files:
-
+\
+Output files:\
+\
  -output_file <s>       print gene structure to given file (def: stdout)\n\
  -exon_file <s>         print candidate exons to given file\n\
  -trace_file <s>        name of trace file if trace mode on (def: stderr)\n\
-
-Where to look for genes:
-
+\
+Where to look for genes:\
+\
  -begin_dna <n>         residue number to start looking for genes (def: 1)\n\
  -end_dna <n>           residue number to stop looking for genes (def: sequence length)\n\
  -offset_dna <n>        residue number of the first residue in the DNA file (def: 1)\n\
-
-Other options:
-
+\
+Other options:\
+\
  -path <s>              output the score and probability of the given path\n\
  -no_path               do not print out best path (usually used with -post_probs)\n\
  -post_probs <n>        calculate and show post. probs. for features scoring above given threshold\n\
  -selected              look out for Selected features in input\n\
  -full_calc             perform full dynamic programming (as opposed to faster heurstic method)\n\
  -sample_gene           calculate and show sampled gene\n\
-
+\
  -trace <n>             Print out a trace to the given trace file (n gives detail level)\n\
  -verbose               write basic progess information to stderr\n\
  -help                  show this message\n" ;
@@ -429,6 +429,7 @@ int main (int argc, char *argv[]) {
 				    gs->gff_to_feats, min_scores, 
 				    gaze_options.begin_dna, gaze_options.end_dna, 
 				    gaze_options.use_selected ); 
+
   if (seq_name == NULL)
     exit(1);
 
