@@ -1,4 +1,4 @@
-/*  Last edited: Jan 23 14:34 2002 (klh) */
+/*  Last edited: Jan 23 16:55 2002 (klh) */
 /**********************************************************************
  ** File: output.c
  ** Author : Kevin Howe
@@ -80,10 +80,12 @@ void print_GFF_path( FILE *fh,
   fprintf( fh, "##gff-version 2\n");
   fprintf( fh, "## GAZE gene structure of %s\n", seq_name);
   fprintf( fh, "##  Score of path : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->path_score);
+  /*
   fprintf( fh, "##  Forward score : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->forward_score);
   fprintf( fh, "##  Probability of path : %.6f\n", exp(g_array_index(fts,Feature *,fts->len-1)->path_score -
 						       g_array_index(fts,Feature *,fts->len-1)->forward_score));
-  
+  */
+
   for( i=0; i < fts->len - 1; i++) {
     f1 = g_array_index( fts, Feature *, i);
     f2 = g_array_index( fts, Feature *, i+1);

@@ -1,4 +1,4 @@
-/*  Last edited: Jan 23 14:25 2002 (klh) */
+/*  Last edited: Jan 24 16:18 2002 (klh) */
 /**********************************************************************
  ** File: info.c
  ** Author : Kevin Howe
@@ -263,8 +263,8 @@ Feature_Relation *new_Feature_Relation(void) {
   temp->kill_dna_quals = NULL;
   temp->len_fun = NULL;
   temp->out_feature = NULL;
-  temp->out_strand = NULL;
-  temp->out_frame = NULL;
+  temp->out_strand = '\0';
+  temp->out_frame = '\0';
   
   return temp;
 }
