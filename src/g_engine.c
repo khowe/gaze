@@ -165,7 +165,7 @@ void forwards_calc( GArray *features,
 
   Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, 0 );
 
-#ifdef DEBUG
+#ifdef TRACE
     fprintf(stderr, "\nForward calculation:\n\n");
 #endif
 
@@ -216,7 +216,7 @@ void backwards_calc( GArray *features,
 
   g_res->last_selected = features->len + 1;
 
-#ifdef DEBUG
+#ifdef TRACE
   fprintf(stderr, "\nBackward calculation:\n\n");
 #endif
   
@@ -290,12 +290,12 @@ void scan_through_sources_dp(GArray *features,
   tgt_info = g_array_index( gs->feat_info, Feature_Info *, tgt->feat_idx );
   right_pos = tgt->adj_pos.e;
 
-#ifdef DEBUG 
+#ifdef TRACE 
   fprintf( stderr, "Target %d %s %d %d %.3f", tgt_idx,
 	   g_array_index(gs->feat_dict, char *, tgt->feat_idx ), 
 	   tgt->real_pos.s, tgt->real_pos.e, tgt->score );
   
-  if (DEBUG > 1)
+  if (TRACE > 1)
     fprintf( stderr, "\n" );
 #endif
 
@@ -432,8 +432,8 @@ void scan_through_sources_dp(GArray *features,
 	   and the index that we must not proceed past in each frame. We can now process
 	   the features themselves, in a frame-dependent or frame-independent way */
 	
-#ifdef DEBUG
-	if (DEBUG > 1)
+#ifdef TRACE
+	if (TRACE > 1)
 	  fprintf( stderr, "  %s (fringes: %d %d %d)\n",
 		   g_array_index(gs->feat_dict, char *, src_type ), 
 		   last_idx_for_frame[0], last_idx_for_frame[1], last_idx_for_frame[2] );
@@ -498,8 +498,8 @@ void scan_through_sources_dp(GArray *features,
 	  
 	  src = g_array_index( features, Feature *, src_idx );
 	  
-#ifdef DEBUG
-	  if (DEBUG > 1)
+#ifdef TRACE
+	  if (TRACE > 1)
 	    fprintf( stderr, "     Source %d %s %d %d ", src_idx,
 		     g_array_index(gs->feat_dict, char *, src_type ),
 		     src->real_pos.s, src->real_pos.e );
@@ -510,8 +510,8 @@ void scan_through_sources_dp(GArray *features,
 	    left_pos = src->adj_pos.s;
 	    distance = right_pos - left_pos + 1;
 	    
-#ifdef DEBUG
-	    if (DEBUG > 1)
+#ifdef TRACE
+	    if (TRACE > 1)
 	      fprintf( stderr, "dist=%d  ", distance );
 #endif	    
 
@@ -598,8 +598,8 @@ void scan_through_sources_dp(GArray *features,
 		  
 		  touched_score = TRUE;
 		  
-#ifdef DEBUG
-		  if (DEBUG > 1) 
+#ifdef TRACE
+		  if (TRACE > 1) 
 		    fprintf( stderr, "scre: v=%.3f, f=%.8f (seg:%.3f len:%.3f)\n",
 			     viterbi_temp, forward_temp, seg_score, len_pen );
 #endif
@@ -625,8 +625,8 @@ void scan_through_sources_dp(GArray *features,
 		  if (sum_mode == PRUNED_SUM)
 		    local_fringe = src_idx;
 		  
-#ifdef DEBUG
-		  if (DEBUG > 1)
+#ifdef TRACE
+		  if (TRACE > 1)
 		    fprintf( stderr, "KILLED_BY_DNA\n" );
 #endif
 		}
@@ -636,24 +636,24 @@ void scan_through_sources_dp(GArray *features,
 		if (sum_mode == PRUNED_SUM)
 		  local_fringe = src_idx;
 		
-#ifdef DEBUG
-		if (DEBUG > 1)
+#ifdef TRACE
+		if (TRACE > 1)
 		  fprintf( stderr, "TOO CLOSE\n" );
 #endif
 	      }
 	    } /* if max dist */
 	    else {
-#ifdef DEBUG
-	      if (DEBUG > 1)
+#ifdef TRACE
+	      if (TRACE > 1)
 		fprintf( stderr, "TOO DISTANT\n" );
 #endif
 	      /* we can break out of the loop here; all other sources will be too distant */
 	      break;
 	    }
 	  }
-#ifdef DEBUG
+#ifdef TRACE
 	  else 
-	    if (DEBUG > 1)
+	    if (TRACE > 1)
 	      fprintf( stderr, "INVALID\n" );
 #endif
 	}
@@ -747,7 +747,7 @@ void scan_through_sources_dp(GArray *features,
       else if (trace_mode == MAX_TRACEBACK)
 	g_res->pth_trace = max_index;
       
-#ifdef DEBUG
+#ifdef TRACE
       fprintf(stderr, "  RESULT: v=%.3f, max=%d, f=%.8f\n", 
 	      g_res->pth_score,
 	      max_index,
@@ -757,13 +757,13 @@ void scan_through_sources_dp(GArray *features,
     else {
       tgt->invalid = TRUE;
 
-#ifdef DEBUG
+#ifdef TRACE
       fprintf( stderr, "  *** Invalidating\n");
 #endif      
 
     }
   }
-#ifdef DEBUG
+#ifdef TRACE
   else
     fprintf( stderr, "  *** Invalid\n" );
 #endif  
@@ -824,12 +824,12 @@ void scan_through_targets_dp(GArray *features,
   src_info = g_array_index( gs->feat_info, Feature_Info *, src->feat_idx );
   left_pos = src->adj_pos.s;
 
-#ifdef DEBUG
+#ifdef TRACE
     fprintf( stderr, "Source %d %s %d %d %.3f", src_idx,
 	     g_array_index(gs->feat_dict, char *, src->feat_idx ), 
 	     src->real_pos.s, src->real_pos.e, src->score ); 
     
-    if (DEBUG > 1)
+    if (TRACE > 1)
       fprintf( stderr, "\n" );
 #endif
   
@@ -972,8 +972,8 @@ void scan_through_targets_dp(GArray *features,
 	   and the index that we must not proceed past in each frame. We can now process
 	   the features themselves, in a frame-dependent or frame-independent way */
 
-#ifdef DEBUG
-	if (DEBUG > 1)
+#ifdef TRACE
+	if (TRACE > 1)
 	  fprintf( stderr, "  %s (fringes: %d %d %d)\n",
 		   g_array_index(gs->feat_dict, char *, tgt_type ), 
 		   last_idx_for_frame[0], last_idx_for_frame[1], last_idx_for_frame[2] );
@@ -1038,8 +1038,8 @@ void scan_through_targets_dp(GArray *features,
 
 	  tgt = g_array_index( features, Feature *, tgt_idx );
 	    
-#ifdef DEBUG
-	  if (DEBUG > 1)
+#ifdef TRACE
+	  if (TRACE > 1)
 	    fprintf( stderr, "  Target %d %s %d %d  ", tgt_idx,
 		     g_array_index(gs->feat_dict, char *, tgt->feat_idx ), 
 		     tgt->real_pos.s, tgt->real_pos.e );
@@ -1049,8 +1049,8 @@ void scan_through_targets_dp(GArray *features,
 	    right_pos = tgt->adj_pos.e;
 	    distance = right_pos - left_pos + 1;
 	    
-#ifdef DEBUG
-	    if (DEBUG > 1)
+#ifdef TRACE
+	    if (TRACE > 1)
 	      fprintf( stderr, "dist=%d  ", distance );
 #endif	    
 	    if ((reg_info->max_dist == NULL) || (*(reg_info->max_dist)) >= distance) {
@@ -1112,8 +1112,8 @@ void scan_through_targets_dp(GArray *features,
 		  
 		  touched_score = TRUE;
 		  
-#ifdef DEBUG
-		  if (DEBUG > 1) 
+#ifdef TRACE
+		  if (TRACE > 1) 
 		    fprintf( stderr, "Score: b=%.3f, (seg:%.3f len:%.3f)\n",
 			     backward_temp, seg_score, len_pen );
 #endif
@@ -1124,8 +1124,8 @@ void scan_through_targets_dp(GArray *features,
 		  if (sum_mode == PRUNED_SUM)
 		    local_fringe = tgt_idx;
 
-#ifdef DEBUG
-		  if (DEBUG > 1)
+#ifdef TRACE
+		  if (TRACE > 1)
 		    fprintf( stderr, "KILLED_BY_DNA\n" );
 #endif
 		}  
@@ -1135,24 +1135,24 @@ void scan_through_targets_dp(GArray *features,
 		if (sum_mode == PRUNED_SUM)
 		  local_fringe = tgt_idx;
 
-#ifdef DEBUG		
-		if (DEBUG > 1)
+#ifdef TRACE		
+		if (TRACE > 1)
 		  fprintf( stderr, "TOO CLOSE\n" );
 #endif
 	      }
 	    } /* if max dist */
 	    else {
-#ifdef DEBUG
-	      if (DEBUG > 1)
+#ifdef TRACE
+	      if (TRACE > 1)
 		fprintf( stderr, "TOO DISTANT\n" );
 #endif
 	      /* we can break out of the loop here; they will all be too distant */
 	      break;
 	    }
 	  } /* if valid */
-#ifdef DEBUG
+#ifdef TRACE
 	  else {
-	    if (DEBUG > 1)
+	    if (TRACE > 1)
 	      fprintf( stderr, "INVALID\n" );
 	  }
 #endif
@@ -1209,7 +1209,7 @@ void scan_through_targets_dp(GArray *features,
       }
       g_res->score = log( g_res->score ) + max_backward;
       
-#ifdef DEBUG
+#ifdef TRACE
       fprintf(stderr, "  RESULT: b=%.8f\n", 
 		g_res->score );
 #endif      
@@ -1217,13 +1217,13 @@ void scan_through_targets_dp(GArray *features,
     else {
       src->invalid = TRUE;
 
-#ifdef DEBUG
+#ifdef TRACE
       fprintf( stderr, "  *** Invalidating\n");
 #endif      
     }
 
   }
-#ifdef DEBUG
+#ifdef TRACE
   else
     fprintf( stderr, "  *** Invalid\n" );
 #endif
