@@ -104,12 +104,14 @@ typedef struct {
   double *per_base[3];
 } Segment_list;
 
+
+void append_to_Segment_list( Segment_list *, Segment *);
+void free_Segment_list( Segment_list * );
 void index_Segment_list (Segment_list * );
+Segment_list *new_Segment_list( int, int );
 void project_Segment_list( Segment_list * );
 void scale_Segment_list( Segment_list *, double );
 void sort_Segment_list ( Segment_list *);
-void free_Segment_list( Segment_list * );
-Segment_list *new_Segment_list( int, int );
 
 
 #endif

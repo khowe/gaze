@@ -59,20 +59,14 @@ static void convert_gff_line_to_feats_and_segs(Gaze_Sequence *g_seq,
 	
 	/* ...whereas all overlapping segments are added */
 	for(j=0; j < con->segments->len; j++) {
-	  Segment *sg1, *sg2;
-	  Segment_list *correct_list;
-	  
-	  sg1 = clone_Segment( index_Array( con->segments, Segment *, j ));
-	  sg1->pos.s = gff_line->start;
-	  sg1->pos.e = gff_line->end;
-	  /* make the segment score per-base */
-	  sg1->score = gff_line->score / (gff_line->end - gff_line->start + 1);
-	  sg2 = clone_Segment( sg1 );
-	  
-	  correct_list = index_Array( g_seq->segment_lists, Segment_list *, sg1->seg_idx );
-	  append_val_Array( index_Array( correct_list->orig, Array *, sg1->pos.s % 3 ), sg1 );
-	  append_val_Array( index_Array( correct_list->orig, Array *, 3 ), sg2 );
-	  
+	  Segment *seg = clone_Segment( index_Array( con->segments, Segment *, j ));
+	  seg->pos.s = gff_line->start;
+	  seg->pos.e = gff_line->end;
+	  seg->score = gff_line->score;
+
+	  append_to_Segment_list( index_Array( g_seq->segment_lists, Segment_list *, seg->seg_idx ), 
+				  seg );
+
 	  /********************************************************************************/
 	  /*  the following was some attempt to get per_base scoring working. It 
 	      worked, bit it was not general enough to fit in with the GAZE way 
@@ -510,17 +504,13 @@ void convert_dna_Gaze_Sequence ( Gaze_Sequence *g_seq,
       }
 
       for(j=0; j < con->segments->len; j++) {
-	Segment *sg1, *sg2;
-	Segment_list *correct_list;
+	Segment *seg = clone_Segment( index_Array( con->segments, Segment *, j ));
+	seg->pos.s = start_match;
+	seg->pos.e = end_match;
+	seg->score = con->has_score ? con->score : 0;
 
-	sg1 = clone_Segment( index_Array( con->segments, Segment *, j ));
-	sg1->pos.s = start_match;
-	sg1->pos.e = end_match;
-	sg2 = clone_Segment( sg1 );
-
-	correct_list = index_Array( g_seq->segment_lists, Segment_list *, sg1->seg_idx );
-	append_val_Array( index_Array( correct_list->orig, Array *, start_match % 3 ), sg1 );
-	append_val_Array( index_Array( correct_list->orig, Array *, 3 ), sg2 );
+	append_to_Segment_list( index_Array( g_seq->segment_lists, Segment_list *, seg->seg_idx ),
+				seg );
       }
 
       *match = save;
@@ -1200,6 +1190,24 @@ boolean get_correct_feats_Gaze_Sequence_list( Gaze_Sequence_list *glist,
 /**************** Segment_list **************************************/
 /********************************************************************/
 
+/*********************************************************************
+ FUNCTION: append_to_Segment_list
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void append_to_Segment_list( Segment_list *sl, Segment *seg ) {
+  Segment *sg2;
+  
+  /* make the segment score per-base */
+  seg->score /= (seg->pos.e - seg->pos.s + 1);
+  sg2 = clone_Segment( seg );
+  
+  append_val_Array( index_Array( sl->orig, Array *, seg->pos.s % 3 ), seg );
+  append_val_Array( index_Array( sl->orig, Array *, 3 ), sg2 );
+ 
+}
 
 /*********************************************************************
  FUNCTION: free_Segment_list
