@@ -431,6 +431,8 @@ Gaze_entity *new_Gaze_entity( ) {
   ge->entity_idx = 0;
   ge->has_score = FALSE;
   ge->score = 0.0;
+  ge->offsets.s = 0;
+  ge->offsets.e = 0;
 
   return ge;
 }

@@ -25,15 +25,15 @@
    - convert_gff_Gaze_Sequence_list
  *********************************************************************/
 static void convert_gff_line_to_Gaze_entities(Gaze_Sequence *g_seq,
-					     GFF_line *gff_line,
-					     Array *gff2fts) {
+					      GFF_line *gff_line,
+					      Array *gff2fts) {
   int i, j;
 
-  if ((gff_line->end >= g_seq->seq_region.s) && (gff_line->start <= g_seq->seq_region.e)) {
+  if ((gff_line->start >= g_seq->seq_region.s) && (gff_line->end <= g_seq->seq_region.e)) {
     /* we have a partial overlap */
     for(i=0; i < gff2fts->len; i++) {
       GFF_to_Gaze_entities *con = index_Array( gff2fts, GFF_to_Gaze_entities *, i);
-      
+
       if (((con->gff_source == NULL) || strcmp(con->gff_source, gff_line->source) == 0) &&
 	  ((con->gff_feature == NULL) || strcmp(con->gff_feature, gff_line->type) == 0) &&
 	  ((con->gff_strand == NULL) || strcmp(con->gff_strand, gff_line->strand) == 0) &&
@@ -46,8 +46,8 @@ static void convert_gff_line_to_Gaze_entities(Gaze_Sequence *g_seq,
 	    Feature *ft = new_Feature();
 
 	    ft->feat_idx = ge->entity_idx;
-	    ft->real_pos.s = gff_line->start;
-	    ft->real_pos.e = gff_line->end;
+	    ft->real_pos.s = gff_line->start + ge->offsets.s;
+	    ft->real_pos.e = gff_line->end - ge->offsets.e;
 	    ft->score = gff_line->score;
 	    if (ge->has_score)
 	      ft->score = ge->score;
@@ -65,15 +65,30 @@ static void convert_gff_line_to_Gaze_entities(Gaze_Sequence *g_seq,
 	  Segment *seg = new_Segment();
 
 	  seg->seg_idx = ge->entity_idx;
-	  seg->pos.s = gff_line->start;
-	  seg->pos.e = gff_line->end;
+	  seg->pos.s = gff_line->start + ge->offsets.s;
+	  seg->pos.e = gff_line->end - ge->offsets.e;
 	  seg->score = gff_line->score;
 	  if (ge->has_score)
 	    seg->score = ge->score;
 
-	  append_to_Segment_list( index_Array( g_seq->segment_lists, Segment_list *, seg->seg_idx ), 
-				  seg );
-
+	  if (seg->pos.s < g_seq->seq_region.s) {
+	    int trimmed = g_seq->seq_region.s - seg->pos.s;
+	    double trimmed_score = trimmed * (seg->score / (seg->pos.e - seg->pos.s + 1));
+	    seg->pos.s = g_seq->seq_region.s;
+	    seg->score -= trimmed_score;
+	  }
+	  if (seg->pos.e > g_seq->seq_region.e) {
+	    int trimmed = seg->pos.e - g_seq->seq_region.s;
+	    double trimmed_score = trimmed * (seg->score / (seg->pos.e - seg->pos.s + 1));
+	    seg->pos.e = g_seq->seq_region.e;
+	    seg->score -= trimmed_score;
+	  }
+	  if (seg->pos.e <= g_seq->seq_region.e &&
+	      seg->pos.s >= g_seq->seq_region.s &&
+	      seg->pos.e >= seg->pos.s)
+	    append_to_Segment_list( index_Array( g_seq->segment_lists, Segment_list *, seg->seg_idx ),
+				    seg );
+	  
 	  /********************************************************************************/
 	  /*  the following was some attempt to get per_base scoring working. It 
 	      worked, bit it was not general enough to fit in with the GAZE way 
@@ -504,11 +519,14 @@ void convert_dna_Gaze_Sequence ( Gaze_Sequence *g_seq,
 	Feature *ft = new_Feature();
 
 	ft->feat_idx = ge->entity_idx;
-	ft->real_pos.s = start_match;
-	ft->real_pos.e = end_match;
+	ft->real_pos.s = start_match + ge->offsets.s;
+	ft->real_pos.e = end_match - ge->offsets.e;
 
 	ft->score = ge->has_score ? ge->score : index_Array( g_seq->min_scores, double, ft->feat_idx );
-	append_val_Array( g_seq->features, ft );
+
+	/* only add the feature if its adjusted position lies within the sequence */
+	if (ft->real_pos.s >= g_seq->seq_region.s && ft->real_pos.e <= g_seq->seq_region.e)
+	  append_val_Array( g_seq->features, ft );
       }
 
       for(j=0; j < con->segments->len; j++) {
@@ -516,12 +534,28 @@ void convert_dna_Gaze_Sequence ( Gaze_Sequence *g_seq,
 	Segment *seg = new_Segment(); 
 
 	seg->seg_idx = ge->entity_idx;
-	seg->pos.s = start_match;
-	seg->pos.e = end_match;
+	seg->pos.s = start_match + ge->offsets.s; 
+	seg->pos.e = end_match - ge->offsets.e;
 	seg->score = ge->has_score ? ge->score : 0.0;
 
-	append_to_Segment_list( index_Array( g_seq->segment_lists, Segment_list *, seg->seg_idx ),
-				seg );
+	/* May need to trim back the segment so that it fits inside the sequence */
+	if (seg->pos.s < g_seq->seq_region.s) {
+	  int trimmed = g_seq->seq_region.s - seg->pos.s;
+	  double trimmed_score = trimmed * (seg->score / (seg->pos.e - seg->pos.s + 1));
+	  seg->pos.s = g_seq->seq_region.s;
+	  seg->score -= trimmed_score;
+	}
+	if (seg->pos.e > g_seq->seq_region.e) {
+	  int trimmed = seg->pos.e - g_seq->seq_region.s;
+	  double trimmed_score = trimmed * (seg->score / (seg->pos.e - seg->pos.s + 1));
+	  seg->pos.e = g_seq->seq_region.e;
+	  seg->score -= trimmed_score;
+	}
+	if (seg->pos.e <= g_seq->seq_region.e &&
+	    seg->pos.s >= g_seq->seq_region.s &&
+	    seg->pos.e >= seg->pos.s)
+	  append_to_Segment_list( index_Array( g_seq->segment_lists, Segment_list *, seg->seg_idx ),
+				  seg );
       }
 
       *match = save;

@@ -89,6 +89,7 @@ typedef struct {
   int entity_idx;
   boolean has_score;
   double score;
+  StartEnd offsets;
 } Gaze_entity;
 
 void free_Gaze_entity(Gaze_entity *);

@@ -316,9 +316,10 @@ static void parse_Gaze_Structure_dnafeat( struct Parse_context *state,
 static void parse_Gaze_Structure_feat( struct Parse_context *state, 
 				       const char **attr ) {
   int i, index = 0;
-  Gaze_entity *ent;
   double score = 0.0;
   boolean has_score = FALSE;
+  int start_off = 0;
+  int end_off = 0;
 
   for( i=0; attr[i]; i += 2 ) {
     if (! strcmp( attr[i], "id" )) {
@@ -332,6 +333,10 @@ static void parse_Gaze_Structure_feat( struct Parse_context *state,
       score = atof( attr[i+1] );
       has_score = TRUE;
     }
+    else if (! strcmp( attr[i], "st_off" ))
+      start_off = atoi( attr[i+1] );
+    else if (! strcmp( attr[i], "en_off" ))
+      end_off = 0;	     
     else {
       /* unrecognised attribute */
       fprintf(stderr, "In tag 'feat', attr '%s' not recognised\n", attr[i]); 
@@ -346,14 +351,15 @@ static void parse_Gaze_Structure_feat( struct Parse_context *state,
 				 state->tag_stack->len - 1), 
 		   tag_map[GFFLINE].tag)) {
 	
-	GFF_to_Gaze_entities *gff2fts;
-	gff2fts = index_Array( state->gs->gff_to_feats, 
-			       GFF_to_Gaze_entities *,
-			       state->gs->gff_to_feats->len - 1);
-	ent = new_Gaze_entity();
+	GFF_to_Gaze_entities *gff2fts = index_Array( state->gs->gff_to_feats, 
+						     GFF_to_Gaze_entities *,
+						     state->gs->gff_to_feats->len - 1);
+	Gaze_entity *ent = new_Gaze_entity();
 	ent->entity_idx = index;
 	ent->has_score = has_score;
 	ent->score = score;
+	ent->offsets.s = start_off;
+	ent->offsets.e = end_off;
 	append_val_Array( gff2fts->features, ent );
       }
       else if (! strcmp(index_Array(state->tag_stack, 
@@ -361,14 +367,15 @@ static void parse_Gaze_Structure_feat( struct Parse_context *state,
 				      state->tag_stack->len - 1), 
 			tag_map[DNAFEAT].tag)) {
 	
-	DNA_to_Gaze_entities *dna2fts;
-	dna2fts = index_Array( state->gs->dna_to_feats, 
-			       DNA_to_Gaze_entities *,
-			       state->gs->dna_to_feats->len - 1);
-	ent = new_Gaze_entity();
+	DNA_to_Gaze_entities *dna2fts = index_Array( state->gs->dna_to_feats, 
+						     DNA_to_Gaze_entities *,
+						     state->gs->dna_to_feats->len - 1);
+	Gaze_entity *ent = new_Gaze_entity();
 	ent->entity_idx = index;
 	ent->score = score;
 	ent->has_score = has_score;
+	ent->offsets.s = start_off;
+	ent->offsets.e = end_off;
 	append_val_Array( dna2fts->features, ent );
       }
       else {
