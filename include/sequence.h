@@ -33,30 +33,33 @@ typedef struct Gaze_Sequence{
   Array *min_scores;
 
   char *dna_file_name;
-  char *correct_feats_file_name;
+  char *gene_file_name;
   Array *gff_file_names;
+  Array *selected_file_names;
 
 } Gaze_Sequence;
 
 
-void free_Gaze_Sequence( Gaze_Sequence * );
+void free_Gaze_Sequence( Gaze_Sequence *, boolean );
 void initialise_Gaze_Sequence( Gaze_Sequence *, Gaze_Structure * );
 Gaze_Sequence *new_Gaze_Sequence( char *, 
 				  int, 
 				  int ); 
 				  
-
-void get_features_from_dna( Gaze_Sequence *,
-			    Array * );
-
-void get_dna_for_features( Gaze_Sequence *,
-			   Array *,
-			   Dict * );
-
 void convert_dna_Gaze_Sequence ( Gaze_Sequence *,
 				 Array *,
 				 Array *, 
 				 Dict *);
+
+void convert_gff_Gaze_Sequence( Gaze_Sequence *,
+				Array *,
+				Array * ); 
+
+
+boolean get_correct_feats_Gaze_Sequence( Gaze_Sequence *,
+					 Array *, 
+					 Dict *,
+					 boolean);
 
 void read_dna_Gaze_Sequence( Gaze_Sequence *, Array * );
 

@@ -36,7 +36,7 @@ Input files:\n\
  -gff_file <s>          name of a GFF file containing the features (can give many)\n\
  -dna_file <s>          name of a DNA file in fasta format (can give many)\n\
  -gene_file <s>         name of a GFF file containing a user-specified gene structure\n\
- -selected_file <s>     name of file containinf features that should be Selected/Not selected\n\
+ -selected_file <s>     name of file containing features that should be Selected/Not selected\n\
  -id_file <s>           name of a file containing a list of name/start-ends to process\n\
  -defaults <s>          name of the file of default options (def: './gaze.defaults')\n\
 \n\
@@ -418,6 +418,137 @@ static int parse_command_line( int argc, char *argv[] ) {
 
 
 
+
+/*********************************************************************
+ FUNCTION: prepare_Gaze_Sequence_for_work
+    This function basically fills in the Sequence by reading the
+    GFF and dna files, and then sorting and scaling the features etc.
+
+ *********************************************************************/
+static void prepare_Gaze_Sequence_for_work( Gaze_Sequence *g_seq ) {
+  int i;
+
+  /*******************************************************************/
+  /* get the dna sequences *******************************************/
+  /*******************************************************************/  
+    
+  if (gaze_options.verbose)
+    fprintf(stderr, "Getting for DNA for %s...\n", g_seq->seq_name);
+  
+  read_dna_Gaze_Sequence( g_seq,
+			  gaze_options.dna_file_names );
+  
+  /* sequences are intialised after reading the DNA, just in case
+     the user did not supply start-end information in which case
+     we have to serive it from the DNA */
+  initialise_Gaze_Sequence( g_seq, gazeStructure );
+  
+  /******************************************************************/
+  /* First, obtain and set up all the Features and Segments *********/
+  /******************************************************************/
+  
+  if (gaze_options.verbose)
+    fprintf(stderr, "Reading the gff files...\n");
+  convert_gff_Gaze_Sequence( g_seq,
+			       gaze_options.gff_file_names,
+			     gazeStructure->gff_to_feats ); 
+  
+  if (gaze_options.verbose)
+    fprintf(stderr, "Getting features from dna...\n");
+  
+  if (g_seq->dna_seq != NULL) {
+    convert_dna_Gaze_Sequence( g_seq,
+			       gazeStructure->dna_to_feats,
+			       gazeStructure->take_dna, 
+			       gazeStructure->motif_dict );
+    
+    /* we never need the sequence itself again */
+    free_util( g_seq->dna_seq );
+    g_seq->dna_seq = NULL;
+  } 
+  
+  /******************************************************************/
+  /*** Sorting and scaling of feature and segments ******************/
+  /******************************************************************/
+  
+  if (gaze_options.verbose)
+    fprintf(stderr, "Sorting, and scaling of features and segments...\n");
+  
+  /* first the features */
+  qsort( g_seq->features->data, g_seq->features->len, sizeof(Feature *), &order_features); 
+  remove_duplicate_features( g_seq );     
+  
+  for( i=0; i < g_seq->features->len; i++ ) {
+    Feature *ft = index_Array( g_seq->features, Feature *, i );
+    ft->score *= index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->multiplier;
+      ft->score *= gaze_options.sigma;
+      
+      ft->adj_pos.s = ft->real_pos.s 
+	+ index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->start_offset;
+      
+      ft->adj_pos.e = ft->real_pos.e 
+	- index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->end_offset;
+  }
+    
+  /* now the segments..*/
+  for( i=0; i < g_seq->segment_lists->len; i++ ) {
+    Segment_list *seg_list = index_Array( g_seq->segment_lists, Segment_list *, i);
+    double multiplier = index_Array( gazeStructure->seg_info, Segment_Info *, i )->multiplier;
+    
+    scale_Segment_list( seg_list, multiplier * gaze_options.sigma );
+    sort_Segment_list ( seg_list );
+    project_Segment_list( seg_list );
+    index_Segment_list( seg_list );
+  }
+  
+  /******************************************************************/
+  /** Obtain the given paths, if there are any **********************/
+  /******************************************************************/
+  
+  if ( gaze_options.gene_file_names->len > 0) {
+    if (gaze_options.verbose)
+      fprintf(stderr, "Reading the gff correct path files...\n");
+    
+    if (! get_correct_feats_Gaze_Sequence( g_seq,
+					     gaze_options.gene_file_names, 
+					   gazeStructure->feat_dict, 
+					   TRUE))
+      fatal_util( "There was a problem reading in the correct paths\n" );
+    
+    /* check that any paths that were given are actually legal paths */
+    
+    if (g_seq->path != NULL && ! is_legal_path( g_seq->path, gazeStructure ))
+      fatal_util( "For sequence %s, the given \"correct\" path was illegal according to the model",
+		  g_seq->seq_name);
+  }
+
+  
+  if ( gaze_options.selected_file_names->len > 0) {
+    if (gaze_options.verbose)
+      fprintf(stderr, "Reading selected feature files...\n");
+    
+    if (! get_correct_feats_Gaze_Sequence( g_seq,
+					   gaze_options.selected_file_names, 
+					   gazeStructure->feat_dict, 
+					   FALSE))
+      fatal_util( "There was a problem reading in the selected features\n" );
+  }
+}
+
+
+/*********************************************************************
+ FUNCTION: cleanup_Gaze_Sequence_after_work
+    This function frees the parts of the Gaze_Sequence that
+    are not needed any more
+
+ *********************************************************************/
+static void cleanup_Gaze_Sequence_after_work ( Gaze_Sequence *g_seq ) {
+
+  free_Gaze_Sequence( g_seq, FALSE );
+}
+
+
+
 /*********************************************************************
  *********************************************************************
                         MAIN
@@ -425,7 +556,8 @@ static int parse_command_line( int argc, char *argv[] ) {
  *********************************************************************/
 int main (int argc, char *argv[]) {
 
-  int i,s = 0;
+  int i = 0;
+  Gaze_Sequence *g_seq;
 
   if (! parse_command_line(argc, argv) )
     fatal_util( "use \"gaze -h\" to find out about usage");
@@ -436,90 +568,6 @@ int main (int argc, char *argv[]) {
   if ((gazeStructure = parse_Gaze_Structure( gaze_options.structure_file_name )) == NULL)
     exit(1);
 	    
-
-  allGazeSequences = new_Gaze_Sequence_list( gaze_options.sequence_names );
-
-  /*******************************************************************/
-  /* get the dna sequences *******************************************/
-  /*******************************************************************/  
-
-  for (s=0; s < allGazeSequences->num_seqs; s++)
-    allGazeSequences->seq_list[s] = new_Gaze_Sequence( index_Array( gaze_options.sequence_names, char *, s),
-						       index_Array( gaze_options.sequence_starts, int, s),
-						       index_Array( gaze_options.sequence_ends, int, s) );
-  if (gaze_options.verbose)
-    fprintf(stderr, "Reading the dna files...\n");
-  read_dna_Gaze_Sequence_list(allGazeSequences,
-			      gaze_options.dna_file_names );
-    
-  for (s=0; s < allGazeSequences->num_seqs; s++)
-    initialise_Gaze_Sequence( allGazeSequences->seq_list[s], gazeStructure );
-
-  /******************************************************************/
-  /* First, obtain and set up all the Features and Segments *********/
-  /******************************************************************/
-    
-  if (gaze_options.verbose)
-    fprintf(stderr, "Reading the gff files...\n");
-  convert_gff_Gaze_Sequence_list( allGazeSequences,
-				  gaze_options.gff_file_names,
-				  gazeStructure->gff_to_feats ); 
-  
-  if (gaze_options.verbose)
-    fprintf(stderr, "Getting features from dna...\n");
-  
-  for (s=0; s < allGazeSequences->num_seqs; s++) {
-    if (allGazeSequences->seq_list[s]->dna_seq != NULL) {
-
-      convert_dna_Gaze_Sequence( allGazeSequences->seq_list[s], 
-				 gazeStructure->dna_to_feats,
-				 gazeStructure->take_dna, 
-				 gazeStructure->motif_dict );
-
-      /* we never need the sequence itself again */
-      free_util( allGazeSequences->seq_list[s]->dna_seq );
-    } 
-  }
-
-
-  /******************************************************************/
-  /*** Sorting and scaling of feature and segments ******************/
-  /******************************************************************/
-
-  if (gaze_options.verbose)
-    fprintf(stderr, "Sorting, and scaling of features and segments...\n");
-
-  for (s=0; s < allGazeSequences->num_seqs; s++) {
-    Gaze_Sequence *g_seq = allGazeSequences->seq_list[s];
-
-    /* first the features */
-    qsort( g_seq->features->data, g_seq->features->len, sizeof(Feature *), &order_features); 
-    remove_duplicate_features( g_seq );     
-
-    for( i=0; i < g_seq->features->len; i++ ) {
-      Feature *ft = index_Array( g_seq->features, Feature *, i );
-      ft->score *= index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->multiplier;
-      ft->score *= gaze_options.sigma;
-      
-      ft->adj_pos.s = ft->real_pos.s 
-	+ index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->start_offset;
-      
-      ft->adj_pos.e = ft->real_pos.e 
-	- index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->end_offset;
-    }
-
-    /* now the segments..*/
-    for( i=0; i < g_seq->segment_lists->len; i++ ) {
-      Segment_list *seg_list = index_Array( g_seq->segment_lists, Segment_list *, i);
-      double multiplier = index_Array( gazeStructure->seg_info, Segment_Info *, i )->multiplier;
-
-      scale_Segment_list( seg_list, multiplier * gaze_options.sigma );
-      sort_Segment_list ( seg_list );
-      project_Segment_list( seg_list );
-      index_Segment_list( seg_list );
-    }
-  }
-
   /******************************/
   /* Scale the length penalties */
   /******************************/
@@ -527,45 +575,6 @@ int main (int argc, char *argv[]) {
     Length_Function *lf = index_Array( gazeStructure->length_funcs, Length_Function *, i );
     scale_Length_Function( lf, lf->multiplier * gaze_options.sigma );
   }
-
-  /******************************************************************/
-  /** Obtain the given paths, if there are any **********************/
-  /******************************************************************/
-
-  if ( gaze_options.gene_file_names->len > 0) {
-    if (gaze_options.verbose)
-      fprintf(stderr, "Reading the gff correct path files...\n");
-  
-    if (! get_correct_feats_Gaze_Sequence_list( allGazeSequences,
-						gaze_options.gene_file_names, 
-						gazeStructure->feat_dict, 
-						TRUE))
-	fatal_util( "There was a problem reading in the correct paths\n" );
-
-    /* check that any paths that were given are actually legal paths */
-    for (s=0; s < allGazeSequences->num_seqs; s++) {
-      Array *path = allGazeSequences->seq_list[s]->path;
-      if (path != NULL && ! is_legal_path( path, gazeStructure ))
-	fatal_util( "For sequence %s, the given \"correct\" path was illegal according to the model",
-		     allGazeSequences->seq_list[s]->seq_name);
-    }
-  }
-
-  if ( gaze_options.selected_file_names->len > 0) {
-    if (gaze_options.verbose)
-      fprintf(stderr, "Reading selected feature files...\n");
-    
-    if (! get_correct_feats_Gaze_Sequence_list( allGazeSequences,
-						gaze_options.selected_file_names, 
-						gazeStructure->feat_dict, 
-						FALSE))
-      fatal_util( "There was a problem reading in the selected features\n" );
-  }
-  
-    
-  /************************************************************************/
-  /* Finally, do the work                                                 */
-  /************************************************************************/
 
   gazeOutput = new_Gaze_Output(gaze_options.out_file,
 			       gaze_options.probability,
@@ -575,9 +584,17 @@ int main (int argc, char *argv[]) {
 			       gaze_options.use_threshold,
 			       gaze_options.threshold);
 
-  for (s=0; s < allGazeSequences->num_seqs; s++) {
-    Gaze_Sequence *g_seq = allGazeSequences->seq_list[s];
+  allGazeSequences = new_Gaze_Sequence_list( gaze_options.sequence_names );
+  for (i=0; i < allGazeSequences->num_seqs; i++) 
+    allGazeSequences->seq_list[i] = new_Gaze_Sequence( index_Array( gaze_options.sequence_names, char *, i),
+						       index_Array( gaze_options.sequence_starts, int, i),
+						       index_Array( gaze_options.sequence_ends, int, i) );
 
+  for (i=0; i < allGazeSequences->num_seqs; i++) {
+    g_seq = allGazeSequences->seq_list[i];
+
+    prepare_Gaze_Sequence_for_work ( g_seq );
+      
     if(gaze_options.verbose)
       fprintf(stderr, "Running GAZE for sequence %s (%d-%d), %d feats\n", 
 	      g_seq->seq_name, 
@@ -619,6 +636,7 @@ int main (int argc, char *argv[]) {
       write_Gaze_path( gazeOutput, g_seq, gazeStructure );
     }
 
+    cleanup_Gaze_Sequence_after_work( g_seq );
   }
 
   free_Gaze_Output( gazeOutput );

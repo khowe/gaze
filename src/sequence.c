@@ -10,6 +10,310 @@
 
 #define ALLOC_STEP 100
 
+/********************************************************************/
+/**************** static functions **********************************/
+/********************************************************************/
+
+
+/*********************************************************************
+ FUNCTION: convert_gff_line_to_feats_and_segs
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES: Helper to:
+   - convert_gff_Gaze_Sequence
+   - convert_gff_Gaze_Sequence_list
+ *********************************************************************/
+static void convert_gff_line_to_feats_and_segs(Gaze_Sequence *g_seq,
+					       GFF_line *gff_line,
+					       Array *gff2fts) {
+  int i, j;
+
+  if ((gff_line->end >= g_seq->seq_region.s) && (gff_line->start <= g_seq->seq_region.e)) {
+    /* we have a partial overlap */
+    for(i=0; i < gff2fts->len; i++) {
+      GFF_to_features *con = index_Array( gff2fts, GFF_to_features *, i);
+      
+      if (((con->gff_source == NULL) || strcmp(con->gff_source, gff_line->source) == 0) &&
+	  ((con->gff_feature == NULL) || strcmp(con->gff_feature, gff_line->type) == 0) &&
+	  ((con->gff_strand == NULL) || strcmp(con->gff_strand, gff_line->strand) == 0) &&
+	  ((con->gff_frame == NULL) || strcmp(con->gff_frame, gff_line->frame) == 0)) {
+	
+	if ((gff_line->start >= g_seq->seq_region.s) && (gff_line->end <= g_seq->seq_region.e)) {
+	  /* only features completly within the given region are considered */
+	  for(j=0; j < con->features->len; j++) {
+	    
+	    Feature *ft = clone_Feature( index_Array( con->features,
+						      Feature *,
+						      j ));
+	    ft->real_pos.s = gff_line->start;
+	    ft->real_pos.e = gff_line->end;
+	    ft->score = gff_line->score;
+	    
+	    if (ft->score < index_Array( g_seq->min_scores, double, ft->feat_idx ))
+	      index_Array( g_seq->min_scores, double, ft->feat_idx ) = ft->score;
+	    
+	    append_val_Array( g_seq->features, ft );
+	  }
+	}
+	
+	/* ...whereas all overlapping segments are added */
+	for(j=0; j < con->segments->len; j++) {
+	  Segment *sg1, *sg2;
+	  Segment_list *correct_list;
+	  
+	  sg1 = clone_Segment( index_Array( con->segments, Segment *, j ));
+	  sg1->pos.s = gff_line->start;
+	  sg1->pos.e = gff_line->end;
+	  /* make the segment score per-base */
+	  sg1->score = gff_line->score / (gff_line->end - gff_line->start + 1);
+	  sg2 = clone_Segment( sg1 );
+	  
+	  correct_list = index_Array( g_seq->segment_lists, Segment_list *, sg1->seg_idx );
+	  append_val_Array( index_Array( correct_list->orig, Array *, sg1->pos.s % 3 ), sg1 );
+	  append_val_Array( index_Array( correct_list->orig, Array *, 3 ), sg2 );
+	  
+	  /********************************************************************************/
+	  /*  the following was some attempt to get per_base scoring working. It 
+	      worked, bit it was not general enough to fit in with the GAZE way 
+	      of doing things. In particular, it makes heavy use of the real meaning
+	      frame and strand fields of the gff file, which is not how GAZE
+	      has done things in the past. Things to point out:
+	      
+	      1. By convention, I assume that for non unity-width per-base scores, 
+	      the last base of the region is the "base" (first base on rev strand), 
+	      and the previous n bases are dependency bases. This allows hexamers, 
+	      pentamers etc to be given. However, the given "frame" arguement is the 
+	      codon position of the *first* base of the region, so we need to convert 
+	      this into a codon position of the base of interest. 
+	      
+	      2. A trick is employed to convert a reverse strand codon-position, which 
+	      run 2->1->0 along the length of the sequence when viewing from the forward 
+	      strand, to a "virtual forward strand codon-postion", which run 0->1->2 along 
+	      the length of the sequence. This is a semantinc convenience that makes the 
+	      lookup of the correct list consistent with that of normal segments
+	      
+	      3. By using the modulo position of the start (or end for reverse strand) of 
+	      the segments to determine where in the list they go, they can be retrieved 
+	      in a simple fashion in the segment score calculation; this way, the position 
+	      (mod 3) gives the index of the zeroth codon position, and the other two codon 
+	      positions are obtained by subtraction
+	  */
+	  
+	  /*
+	    int cod_pos = atoi( gff_line->frame );
+	    int pos = gff_line->end;
+	    
+	    if ((gff_line->end > g_seq->seq_region.e) || (gff_line->start < g_seq->seq_region.s))
+	    continue;
+	    
+	    correct_list = index_Array( g_seq->segment_lists, 
+					Segment_list *, 
+					index_Array( con->segments, Segment *, j)->seg_idx );
+					  
+	    cod_pos = (cod_pos + gff_line->end - gff_line->start) % 3;
+					  
+	    if (! strcmp(gff_line->strand, "-")) {
+		 cod_pos = 3 - cod_pos - 1;
+		 pos = gff_line->start;
+	    }
+	    correct_list->per_base[(pos - cod_pos + 3)%3][pos - g_seq->seq_region.s] = gff_line->score;
+	  */
+	  /*********************************************************************************/
+	}
+      }
+    }
+  }
+}
+
+
+
+/*********************************************************************
+ FUNCTION: get_correct_feature_from_gff_line
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES: Helper to:
+   - get_correct_features_Gaze_Sequence
+   - get_correct_features_Gaze_Sequence_list
+ *********************************************************************/
+static boolean get_correct_feature_from_gff_line( Gaze_Sequence *g_seq,
+						  GFF_line *gff_line,
+						  Array *given_list,
+						  Dict *feat_dict,
+						  boolean define_paths ) {
+  int feat_idx, l, j, k;
+  
+  boolean no_problem = TRUE;
+
+  if ((feat_idx = dict_lookup( feat_dict, gff_line->type )) >= 0) {	  
+    if (gff_line->start >= g_seq->seq_region.s && gff_line->end <= g_seq->seq_region.e) {
+      
+      Feature *feat = new_Feature();
+      
+      feat->feat_idx = feat_idx;
+      feat->real_pos.s = gff_line->start;
+      feat->real_pos.e = gff_line->end;
+      
+      if (! define_paths) {
+	/* 9th field is used to determine what sort of "correct" feature this is :
+	   Selected   => this features should be used all paths during the DP
+	   Antiselected => this feature should be used in NO paths during the DP
+	   Path => this feature should be trated as belonging to the single correct
+	   path (along with all other "Path" features given for the sequence)
+	   If nothing appears in the 9th field, "Path" is assumed 
+	*/
+	boolean is_selected = TRUE;
+	boolean is_antiselected = FALSE;
+	
+	if (gff_line->group != NULL) {
+	  do {
+	    for (l=strlen(gff_line->group); gff_line->group[l] != ';' && l > 0; l--);
+	    for (j=l; isspace( (int) gff_line->group[j] ) || gff_line->group[j] == ';' ; j++); 
+	    for (k=j; gff_line->group[k] != '\0' && ! isspace( (int) gff_line->group[k] ); k++); 
+	    gff_line->group[k] = '\0';
+	    if (strcmp( &(gff_line->group[j]), "Selected") == 0)
+	      ; /* default - do nothing */
+	    else if (strcmp( &(gff_line->group[j]), "Antiselected") == 0) {
+	      is_selected = FALSE;
+	      is_antiselected = TRUE;
+	  }
+	    if (l > 0)
+	      gff_line->group[l] = '\0';
+	  } while (l > 0);
+	}
+	
+	feat->is_selected = is_selected;
+	feat->is_antiselected = is_antiselected;
+      }
+      
+      append_val_Array( given_list, feat );
+    }
+  }	
+  else {
+    fprintf(stderr, "In path for %s, feature '%s' not recognised\n", 
+	    g_seq->seq_name, 
+	    gff_line->type );
+    no_problem = FALSE;
+  }
+
+  return no_problem;
+}
+
+
+
+/*********************************************************************
+ FUNCTION: transfer_correct_features_Gaze_Sequence
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES: Helper to:
+   - get_correct_features_Gaze_Sequence
+   - get_correct_features_Gaze_Sequence_list
+ *********************************************************************/
+
+static boolean transfer_correct_features_Gaze_Sequence( Gaze_Sequence *g_seq,
+							Array *this_list,
+							Dict *feat_dict,
+							boolean define_paths) {
+  int i, j;
+  boolean no_problem = TRUE;
+
+  if ( this_list->len != 0) {
+    
+    qsort( this_list->data,
+	   this_list->len, 
+	   sizeof(Feature *), 
+	   &order_features );
+    
+    for (i=j=0; i < this_list->len; i++) {
+      Feature *f1 = index_Array( this_list, Feature *, i);
+      boolean match = FALSE;
+      
+      for (; j < g_seq->features->len && ! match; j++) {
+	Feature *f2 = index_Array( g_seq->features, Feature *, j );
+	if ((f1->real_pos.s == f2->real_pos.s) &&  
+	    (f1->real_pos.e == f2->real_pos.e) && 
+	    (f1->feat_idx == f2->feat_idx)) {
+	  
+	  for (j++; j < g_seq->features->len; j++) {
+	    Feature *f3 = index_Array(g_seq->features, Feature *, j );
+	    
+	    if ((f3->feat_idx == f2->feat_idx) && 
+		(f3->real_pos.s == f2->real_pos.s) &&
+		(f3->real_pos.e == f2->real_pos.e)) { 
+	      
+	      if (f3->score > f2->score)
+		f2 = f3;
+	    }
+	    else {
+	      j--;
+	      break;
+	    }
+	  }
+	  
+	  if (define_paths) {
+	    f2->is_correct = TRUE;
+	    
+	    if (g_seq->path == NULL)
+	      g_seq->path = new_Array( sizeof( Feature *), TRUE );
+	    append_val_Array( g_seq->path, f2 );
+	  }
+	  else {
+	    f2->is_selected = f1->is_selected;
+	    f2->is_antiselected = f1->is_antiselected;
+	    
+	    /* all selected features must belong the correct path, and furthermore
+	       no selected feature can. Otherwise, forward score is meaningless, and
+	       correct path could be invalidated (for example) by a forced in-frame
+	       stop codon! */
+	    
+	    if ( g_seq->path != NULL && 
+		 ( (f2->is_selected && ! f2->is_correct) ||
+		   (f2->is_antiselected && f2->is_correct) )) {
+	      
+	      fprintf (stderr, 
+		       "In sequence %s, inconsistency between selected/antiselected feat and path\n",
+		       g_seq->seq_name );
+	      no_problem = FALSE;
+	    }
+	  }
+	  
+	  free_Feature( f1 );
+	  match = TRUE;
+	}
+      }
+      
+      if (! match) {
+	fprintf (stderr, 
+		 "In sequence %s, selected/antselected/correct feature not in list: %s %d %d\n",
+		 g_seq->seq_name,
+		 index_Array( feat_dict, char *, f1->feat_idx ),
+		 f1->real_pos.s, f1->real_pos.e);
+	no_problem = FALSE;
+	j = 0;
+      }
+    }
+  }
+  
+  if (define_paths && no_problem) {
+    /* begin and end features to the path */
+    Feature *ft;
+
+    if (g_seq->path == NULL)
+      g_seq->path = new_Array( sizeof( Feature *), TRUE );
+    
+    ft = g_seq->end_ft;
+    ft->is_correct = TRUE;
+    append_val_Array( g_seq->path, ft );
+    ft = g_seq->beg_ft;
+    ft->is_correct = TRUE;
+    prepend_val_Array( g_seq->path, ft );
+  }
+  
+  return no_problem;
+}
+
 
 /********************************************************************/
 /**************** Gaze_Sequence *************************************/
@@ -23,43 +327,53 @@
  ARGS: 
  NOTES:
  *********************************************************************/
-void free_Gaze_Sequence( Gaze_Sequence *g_seq ) {
+void free_Gaze_Sequence( Gaze_Sequence *g_seq, boolean free_all ) {
   int i;
   
   if (g_seq != NULL) {
-    if (g_seq->seq_name != NULL)
+    if (g_seq->seq_name != NULL && free_all)
       free_util( g_seq->seq_name );
-    
+
     if (g_seq->features != NULL) {
       for(i=0; i < g_seq->features->len; i++)
 	free_Feature( index_Array( g_seq->features, Feature *, i));
       free_Array( g_seq->features, TRUE);
+      g_seq->features = NULL;
     }
     if (g_seq->segment_lists != NULL) {
       for(i=0; i < g_seq->segment_lists->len; i++)
 	free_Segment_list( index_Array( g_seq->segment_lists, Segment_list *, i ));
       free_Array( g_seq->segment_lists, TRUE);
+      g_seq->segment_lists = NULL;
     }
 
-    if (g_seq->min_scores != NULL)
+    if (g_seq->min_scores != NULL) {
       free_Array( g_seq->min_scores, TRUE );
+      g_seq->min_scores = NULL;
+    }
 
     if (g_seq->path != NULL) {
       /* the features themselved belong to the main feature
 	 list, so we don't free them */
       free_Array( g_seq->path, TRUE );
+      g_seq->path = NULL;
     }
 
-    if (g_seq->gff_file_names != NULL)
+    if (g_seq->gff_file_names != NULL && free_all)
       free_Array( g_seq->gff_file_names, TRUE );
+
+    if (g_seq->selected_file_names != NULL && free_all)
+      free_Array( g_seq->selected_file_names, TRUE );
 
     /* freed elsewhere: dna_seq */ 
     /* freed elsewhere: beg_ft */    
     /* freed elsewhere: end_ft */    
 
-    free_util( g_seq );
+    if (free_all)
+      free_util( g_seq );
   }
 }
+
 
 
 /*********************************************************************
@@ -81,7 +395,7 @@ void initialise_Gaze_Sequence( Gaze_Sequence *g_seq,
   g_seq->beg_ft->real_pos.e = g_seq->seq_region.s;  
   g_seq->beg_ft->is_selected = TRUE;
   append_val_Array( g_seq->features, g_seq->beg_ft );
-
+    
   g_seq->end_ft = new_Feature();
   g_seq->end_ft->feat_idx = dict_lookup( gs->feat_dict, "END" );
   g_seq->end_ft->real_pos.s = g_seq->seq_region.e;  
@@ -98,11 +412,6 @@ void initialise_Gaze_Sequence( Gaze_Sequence *g_seq,
 
   g_seq->min_scores = new_Array( sizeof( double ), TRUE );
   set_size_Array( g_seq->min_scores, gs->feat_dict->len );
-
-  g_seq->gff_file_names = new_Array( sizeof( char *), FALSE );
-  g_seq->dna_file_name = NULL;
-  g_seq->correct_feats_file_name = NULL;
-
 }
 
 
@@ -133,8 +442,9 @@ Gaze_Sequence *new_Gaze_Sequence( char *seq_name,
   g_seq->beg_ft = NULL;
   g_seq->end_ft = NULL;
   g_seq->dna_file_name = NULL;
+  g_seq->gene_file_name = NULL;
   g_seq->gff_file_names = NULL;
-  g_seq->correct_feats_file_name = NULL;
+  g_seq->selected_file_names = NULL;
 
   return g_seq;
 }
@@ -232,112 +542,183 @@ void convert_dna_Gaze_Sequence ( Gaze_Sequence *g_seq,
       }
     }
   }
-
 }
 
 
 /*********************************************************************
- FUNCTION: get_dna_for_features
+ FUNCTION: convert_gff_Gaze_Sequence
  DESCRIPTION:
  RETURNS:
  ARGS: 
- NOTES: DEPRECATED
+ NOTES:
  *********************************************************************/
-void get_dna_for_features( Gaze_Sequence *g_seq,			  
-			   Array *offsets, 
-			   Dict *motif_dict ) {
-
-  int i,j,k; 
-  StartEnd *off;
-
-  for (i=0; i < g_seq->features->len; i++) {
-    Feature *feat = index_Array( g_seq->features, Feature *, i); 
-
-    if ((off = index_Array( offsets, StartEnd *, feat->feat_idx)) != NULL) {
-      int dna_start = feat->real_pos.s + off->s;
-      int dna_end = feat->real_pos.e - off->e;
-      if ( (dna_start >= g_seq->seq_region.s && dna_end <= g_seq->seq_region.e) &&
-	   (dna_end - dna_start + 1 > 0) ) {
-	char *temp = (char *) malloc_util( (dna_end - dna_start + 2) * sizeof( char ) + 1);
-	for(j = dna_start, k=0; j <= dna_end; j++, k++)
-	  temp[k] = g_seq->dna_seq[j - g_seq->seq_region.s];
-	temp[k] = '\0';
-
-	feat->dna = dict_lookup( motif_dict, temp );
-	free_util( temp );
-      }
-    }
-  }
-}
-
-
-
-
-/*********************************************************************
- FUNCTION: get_features_from_dna
- DESCRIPTION:
- RETURNS:
- ARGS: 
- NOTES: DEPRECATED
- *********************************************************************/
-void get_features_from_dna( Gaze_Sequence *g_seq,
-			    Array *dna2fts ) {
-  int i,j,offset;
-
-  /* dna_str[i] = residue (dna_off + i) */
+void convert_gff_Gaze_Sequence( Gaze_Sequence *g_seq,
+				Array *full_file_list,
+				Array *gff2fts ) {
   
-  if (g_seq->dna_seq == NULL)
-    return;
+  int f_idx;
 
-  for (i=0; i < dna2fts->len; i++) {
-    DNA_to_features *con = index_Array(dna2fts, DNA_to_features *, i);
-    char *pattern = con->dna_motif;
-    int pattern_len = strlen( pattern );
-    char *match, *ptr;
+  GFF_line *gff_line = new_GFF_line();
+  Array *useful_files = NULL;
 
-    ptr = g_seq->dna_seq;
-    offset = 0;
-    while ((match = strstr( ptr, pattern )) != NULL) {
-      char save = *match;
-      int start_match, end_match;
+  Array *file_list = g_seq->gff_file_names == NULL ? full_file_list : g_seq->gff_file_names;
 
-      *match = '\0';
-      offset += strlen( ptr );
+  for(f_idx=0; f_idx < file_list->len; f_idx++) {
+    char *this_file_name = index_Array( file_list, char *, f_idx );
+    FILE *file = fopen (this_file_name, "r" );
+    boolean useful_data = FALSE;
 
-      start_match = g_seq->seq_region.s + offset;
-      end_match = start_match + pattern_len - 1;
-
-      for(j=0; j < con->features->len; j++) {
-	Feature *ft = clone_Feature( index_Array( con->features,
-						  Feature *,
-						  j ));
-	ft->real_pos.s = start_match;
-	ft->real_pos.e = end_match;
-
-	ft->score = con->has_score ? con->score : index_Array( g_seq->min_scores, double, ft->feat_idx );
-	append_val_Array( g_seq->features, ft );
+    while( read_GFF_line( file, gff_line ) != 0 ) {
+      /* First check that we reading annotation for the same sequence that we've
+	 doing so all along */
+      if (strcmp( g_seq->seq_name, gff_line->seqname))
+	continue;
+      else {
+	useful_data = TRUE;
+	convert_gff_line_to_feats_and_segs( g_seq,
+					    gff_line,
+					    gff2fts );
+	
       }
+    }
+    fclose( file );
 
-      for(j=0; j < con->segments->len; j++) {
-	Segment *sg1, *sg2;
-	Segment_list *correct_list;
-
-	sg1 = clone_Segment( index_Array( con->segments, Segment *, j ));
-	sg1->pos.s = start_match;
-	sg1->pos.e = end_match;
-	sg2 = clone_Segment( sg1 );
-
-	correct_list = index_Array( g_seq->segment_lists, Segment_list *, sg1->seg_idx );
-	append_val_Array( index_Array( correct_list->orig, Array *, start_match % 3 ), sg1 );
-	append_val_Array( index_Array( correct_list->orig, Array *, 3 ), sg2 );
-      }
-
-      /* and restore */
-
-      *match = save;
-      ptr = match + 1; offset++;
+    if (useful_data && g_seq->gff_file_names == NULL) {
+      /* register this file as useful */
+      if (useful_files == NULL)
+	useful_files = new_Array( sizeof( char *), TRUE );
+      append_val_Array( useful_files, this_file_name );
     }
   }
+
+  if (g_seq->gff_file_names == NULL)
+    g_seq->gff_file_names = useful_files;
+
+  free_GFF_line( gff_line );
+} 
+
+
+
+
+
+
+/*********************************************************************
+ FUNCTION: get_correct_feats_Gaze_Sequence
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+   This function converts the given GFF file into a list
+   of features that GAZE knows about (i.e. those defined in
+   the given feature dictionary). Returns true iff everything went okay
+ *********************************************************************/
+boolean get_correct_feats_Gaze_Sequence( Gaze_Sequence *g_seq,
+					 Array *total_file_list,
+					 Dict *feat_dict,
+					 boolean define_paths) {
+
+  int f_idx = 0;
+  GFF_line *gff_line;
+  boolean no_problem = TRUE;
+  boolean no_more_files = FALSE;
+  
+  Array *feat_list = new_Array( sizeof( Feature *), TRUE );
+  Array *useful_files = NULL;
+
+  gff_line = new_GFF_line();
+
+  while (! no_more_files) {
+    FILE *gff_file;
+    char *this_file_name;
+    boolean useful_data = FALSE;
+
+    if ( define_paths) {
+      this_file_name = g_seq->gene_file_name;
+
+      if (this_file_name == NULL) {
+	if (f_idx > total_file_list->len - 1) {
+	  no_more_files = TRUE;
+	  continue;
+	}
+	else
+	  this_file_name = index_Array( total_file_list, char *, f_idx++ );
+      }
+      else
+	no_more_files = TRUE;
+    }
+    else {
+      if (g_seq->selected_file_names != NULL) {
+	if (f_idx > g_seq->selected_file_names->len - 1) {
+	  no_more_files = TRUE;
+	  continue;
+	}
+	else
+	  this_file_name = index_Array( g_seq->selected_file_names, char *, f_idx++ );
+      }
+      else {
+	if (f_idx > total_file_list->len - 1) {
+	  no_more_files = TRUE;
+	  continue;
+	}
+	else
+	  this_file_name = index_Array( total_file_list, char *, f_idx++ );
+      }
+    }
+
+    gff_file = fopen( this_file_name, "r");
+
+    while( read_GFF_line( gff_file, gff_line ) != 0 ){
+
+      if (strcmp( g_seq->seq_name, gff_line->seqname))
+	continue;
+      else {
+	useful_data = TRUE;
+	no_problem = get_correct_feature_from_gff_line( g_seq,
+							gff_line,
+							feat_list,
+							feat_dict,
+							define_paths );
+      }      
+    }
+
+    fclose( gff_file );
+
+    /* need to register this file as having the path/correct features for this */
+    if (useful_data) {
+      if (define_paths) {
+	if (g_seq->gene_file_name == NULL) {
+	  g_seq->gene_file_name = this_file_name;
+	  no_more_files = TRUE;
+	}
+      }
+      else {	  
+	if (g_seq->selected_file_names == NULL) {
+	  if (useful_files == NULL)
+	    useful_files = new_Array( sizeof( char *), TRUE );
+      
+	  append_val_Array( useful_files, this_file_name );
+	}
+      }
+    }
+  }
+
+  /* now locate "correct path" features in the complete list */
+
+  if (no_problem )
+    no_problem = transfer_correct_features_Gaze_Sequence( g_seq,
+							  feat_list,
+							  feat_dict,
+							  define_paths );
+
+  if (! define_paths && g_seq->selected_file_names == NULL) 
+    g_seq->selected_file_names = useful_files;
+
+  /* features themselves will have been freed during the transfer */
+  free_Array(feat_list, TRUE );
+  free_GFF_line( gff_line );
+
+  return no_problem;
+
 }
 
 
@@ -360,7 +741,6 @@ void read_dna_Gaze_Sequence( Gaze_Sequence *g_seq,
   int num_bases = 0;
   int line_len, i, f_idx = 0;
   boolean no_more_files = FALSE;
-  char *this_file_name = NULL;
 
   if (g_seq->dna_seq != NULL) {
     free_util( g_seq->dna_seq );
@@ -369,6 +749,7 @@ void read_dna_Gaze_Sequence( Gaze_Sequence *g_seq,
 
   while (! no_more_files) {
     FILE *dna_file;
+    char *this_file_name;
 
     this_file_name = g_seq->dna_file_name;
     if (this_file_name == NULL) {
@@ -379,6 +760,8 @@ void read_dna_Gaze_Sequence( Gaze_Sequence *g_seq,
       else
 	this_file_name = index_Array( total_file_list, char *, f_idx++ );
     }
+    else
+      no_more_files = TRUE;
 
     dna_file = fopen( this_file_name, "r");
 
@@ -545,7 +928,7 @@ void free_Gaze_Sequence_list ( Gaze_Sequence_list *list ) {
 
   if (list != NULL) {
     for (i=0; i < list->num_seqs; i++) {
-      free_Gaze_Sequence( list->seq_list[i] );
+      free_Gaze_Sequence( list->seq_list[i], TRUE );
       free_util( index_Array( list->seq_id_dict, char *, i ) );
     }
 
@@ -698,8 +1081,6 @@ void read_dna_Gaze_Sequence_list( Gaze_Sequence_list *glist,
 
 
 
-
-
 /*********************************************************************
  FUNCTION: convert_gff_Gaze_Sequence_list
  DESCRIPTION:
@@ -711,7 +1092,7 @@ void convert_gff_Gaze_Sequence_list( Gaze_Sequence_list *glist,
 				     Array *file_list,
 				     Array *gff2fts ) {
   
-  int i, j, f, g_seq_idx;
+  int f, g_seq_idx;
   Gaze_Sequence *g_seq;
 
   GFF_line *gff_line = new_GFF_line();
@@ -727,102 +1108,11 @@ void convert_gff_Gaze_Sequence_list( Gaze_Sequence_list *glist,
 	g_seq = glist->seq_list[g_seq_idx];
       else
 	continue;
+
+      convert_gff_line_to_feats_and_segs( g_seq,
+					  gff_line,
+					  gff2fts );
       
-      if ((gff_line->end >= g_seq->seq_region.s) && (gff_line->start <= g_seq->seq_region.e)) {
-	/* we have a partial overlap */
-	for(i=0; i < gff2fts->len; i++) {
-	  GFF_to_features *con = index_Array( gff2fts, GFF_to_features *, i);
-	  
-	  if (((con->gff_source == NULL) || strcmp(con->gff_source, gff_line->source) == 0) &&
-	      ((con->gff_feature == NULL) || strcmp(con->gff_feature, gff_line->type) == 0) &&
-	      ((con->gff_strand == NULL) || strcmp(con->gff_strand, gff_line->strand) == 0) &&
-	      ((con->gff_frame == NULL) || strcmp(con->gff_frame, gff_line->frame) == 0)) {
-
-	    if ((gff_line->start >= g_seq->seq_region.s) && (gff_line->end <= g_seq->seq_region.e)) {
-	      /* only features completly within the given region are considered */
-	      for(j=0; j < con->features->len; j++) {
-		
-		Feature *ft = clone_Feature( index_Array( con->features,
-							  Feature *,
-							  j ));
-		ft->real_pos.s = gff_line->start;
-		ft->real_pos.e = gff_line->end;
-		ft->score = gff_line->score;
-
-		if (ft->score < index_Array( g_seq->min_scores, double, ft->feat_idx ))
-		  index_Array( g_seq->min_scores, double, ft->feat_idx ) = ft->score;
-
-		append_val_Array( g_seq->features, ft );
-	      }
-	    }
-	    
-	    /* ...whereas all overlapping segments are added */
-	    for(j=0; j < con->segments->len; j++) {
-	      Segment *sg1, *sg2;
-	      Segment_list *correct_list;
-
-	      sg1 = clone_Segment( index_Array( con->segments, Segment *, j ));
-	      sg1->pos.s = gff_line->start;
-	      sg1->pos.e = gff_line->end;
-	      /* make the segment score per-base */
-	      sg1->score = gff_line->score / (gff_line->end - gff_line->start + 1);
-	      sg2 = clone_Segment( sg1 );
-
-	      correct_list = index_Array( g_seq->segment_lists, Segment_list *, sg1->seg_idx );
-	      append_val_Array( index_Array( correct_list->orig, Array *, sg1->pos.s % 3 ), sg1 );
-	      append_val_Array( index_Array( correct_list->orig, Array *, 3 ), sg2 );
-	      
-	      /********************************************************************************/
-	      /*  the following was some attempt to get per_base scoring working. It 
-		  worked, bit it was not general enough to fit in with the GAZE way 
-		  of doing things. In particular, it makes heavy use of the real meaning
-		  frame and strand fields of the gff file, which is not how GAZE
-		  has done things in the past. Things to point out:
-		  
-		  1. By convention, I assume that for non unity-width per-base scores, 
-		  the last base of the region is the "base" (first base on rev strand), 
-		  and the previous n bases are dependency bases. This allows hexamers, 
-		  pentamers etc to be given. However, the given "frame" arguement is the 
-		  codon position of the *first* base of the region, so we need to convert 
-		  this into a codon position of the base of interest. 
-		  
-		  2. A trick is employed to convert a reverse strand codon-position, which 
-		  run 2->1->0 along the length of the sequence when viewing from the forward 
-		  strand, to a "virtual forward strand codon-postion", which run 0->1->2 along 
-		  the length of the sequence. This is a semantinc convenience that makes the 
-		  lookup of the correct list consistent with that of normal segments
-
-		  3. By using the modulo position of the start (or end for reverse strand) of 
-		  the segments to determine where in the list they go, they can be retrieved 
-		  in a simple fashion in the segment score calculation; this way, the position 
-		  (mod 3) gives the index of the zeroth codon position, and the other two codon 
-		  positions are obtained by subtraction
-	      */
-	      
-	      /*
-	      int cod_pos = atoi( gff_line->frame );
-	      int pos = gff_line->end;
-	      
-	      if ((gff_line->end > g_seq->seq_region.e) || (gff_line->start < g_seq->seq_region.s))
-		continue;
-	      
-	      correct_list = index_Array( g_seq->segment_lists, 
-					  Segment_list *, 
-					  index_Array( con->segments, Segment *, j)->seg_idx );
-	      
-	      cod_pos = (cod_pos + gff_line->end - gff_line->start) % 3;
-	      
-	      if (! strcmp(gff_line->strand, "-")) {
-		cod_pos = 3 - cod_pos - 1;
-		pos = gff_line->start;
-	      }
-	      correct_list->per_base[(pos - cod_pos + 3)%3][pos - g_seq->seq_region.s] = gff_line->score;
-	      */
-	      /*********************************************************************************/
-	    }
-	  }
-	}
-      }
     }
     fclose( file );
   }
@@ -846,13 +1136,11 @@ void convert_gff_Gaze_Sequence_list( Gaze_Sequence_list *glist,
 boolean get_correct_feats_Gaze_Sequence_list( Gaze_Sequence_list *glist,
 					      Array *file_list,
 					      Dict *feat_dict,
-					      boolean features_define_paths) {
+					      boolean define_paths) {
   
-  int i, j, k, l, seq_idx, feat_idx;
+  int i, seq_idx;
   GFF_line *gff_line;
-  boolean match;
   boolean no_problem = TRUE;
-  Feature *ft;
 
   Array *all_lists = new_Array( sizeof( Array *), TRUE );
   set_size_Array( all_lists, glist->num_seqs );
@@ -865,61 +1153,16 @@ boolean get_correct_feats_Gaze_Sequence_list( Gaze_Sequence_list *glist,
     FILE *file = fopen( index_Array( file_list, char *, i), "r" );
 
     while( read_GFF_line( file, gff_line ) != 0 ){
-      if ( (seq_idx = dict_lookup( glist->seq_id_dict, gff_line->seqname )) >= 0) {
-	Gaze_Sequence *g_seq = glist->seq_list[seq_idx];
+      if ( (seq_idx = dict_lookup( glist->seq_id_dict, gff_line->seqname )) >= 0)
+	no_problem = get_correct_feature_from_gff_line( glist->seq_list[seq_idx], 
+							gff_line,
+							index_Array( all_lists, Array *, seq_idx ),
+							feat_dict,
+							define_paths );
+      
 
-	if ((feat_idx = dict_lookup( feat_dict, gff_line->type )) >= 0) {
-	  if (gff_line->start >= g_seq->seq_region.s && gff_line->end <= g_seq->seq_region.e) {
-	    
-	    Feature *feat = new_Feature();
-	    
-	    feat->feat_idx = feat_idx;
-	    feat->real_pos.s = gff_line->start;
-	    feat->real_pos.e = gff_line->end;
-
-	    if (! features_define_paths) {
-	      /* 9th field is used to determine what sort of "correct" feature this is :
-		 Selected   => this features should be used all paths during the DP
-		 Antiselected => this feature should be used in NO paths during the DP
-		 Path => this feature should be trated as belonging to the single correct
-		 path (along with all other "Path" features given for the sequence)
-		 If nothing appears in the 9th field, "Path" is assumed 
-	      */
-	      boolean is_selected = TRUE;
-	      boolean is_antiselected = FALSE;
- 
-	      if (gff_line->group != NULL) {
-		do {
-		  for (l=strlen(gff_line->group); gff_line->group[l] != ';' && l > 0; l--);
-		  for (j=l; isspace( (int) gff_line->group[j] ) || gff_line->group[j] == ';' ; j++); 
-		  for (k=j; gff_line->group[k] != '\0' && ! isspace( (int) gff_line->group[k] ); k++); 
-		  gff_line->group[k] = '\0';
-		  if (strcmp( &(gff_line->group[j]), "Selected") == 0)
-		    ; /* default - do nothing */
-		  else if (strcmp( &(gff_line->group[j]), "Antiselected") == 0) {
-		    is_selected = FALSE;
-		    is_antiselected = TRUE;
-		  }
-		  if (l > 0)
-		    gff_line->group[l] = '\0';
-		} while (l > 0);
-	      }
-
-	      feat->is_selected = is_selected;
-	      feat->is_antiselected = is_antiselected;
-	    }
-
-	    append_val_Array( index_Array( all_lists, Array *, seq_idx), feat );
-	  }
-	}
-	else {
-	  fprintf(stderr, "In path for %s, feature '%s' not recognised\n", 
-		  g_seq->seq_name, 
-		  gff_line->type );
-	  no_problem = FALSE;
-	}
-      }
     }
+
     fclose( file );
   }
 
@@ -927,100 +1170,13 @@ boolean get_correct_feats_Gaze_Sequence_list( Gaze_Sequence_list *glist,
 
   if (no_problem ) {
 
-    for(seq_idx=0; seq_idx < glist->num_seqs; seq_idx++) { 
-      Gaze_Sequence *g_seq = glist->seq_list[seq_idx];
-      Array *this_list = index_Array( all_lists, Array *, seq_idx );
-
-      if ( this_list->len != 0) {
-
-	qsort( this_list->data,
-	       this_list->len, 
-	       sizeof(Feature *), 
-	       &order_features );
-
-	for (i=j=0; i < this_list->len; i++) {
-	  Feature *f1 = index_Array( this_list, Feature *, i);
-	  match = FALSE;
-
-	  for (; j < g_seq->features->len && ! match; j++) {
-	    Feature *f2 = index_Array( g_seq->features, Feature *, j );
-	    if ((f1->real_pos.s == f2->real_pos.s) &&  
-		(f1->real_pos.e == f2->real_pos.e) && 
-		(f1->feat_idx == f2->feat_idx)) {
-	      
-	      for (j++; j < g_seq->features->len; j++) {
-		Feature *f3 = index_Array(g_seq->features, Feature *, j );
-		
-		if ((f3->feat_idx == f2->feat_idx) && 
-		    (f3->real_pos.s == f2->real_pos.s) &&
-		    (f3->real_pos.e == f2->real_pos.e)) { 
-		  
-		  if (f3->score > f2->score)
-		    f2 = f3;
-		}
-		else {
-		  j--;
-		  break;
-		}
-	      }
-
-	      if (features_define_paths) {
-		f2->is_correct = TRUE;
-
-		if (g_seq->path == NULL)
-		  g_seq->path = new_Array( sizeof( Feature *), TRUE );
-		append_val_Array( g_seq->path, f2 );
-	      }
-	      else {
-		f2->is_selected = f1->is_selected;
-		f2->is_antiselected = f1->is_antiselected;
-
-		/* all selected features must belong the correct path, and furthermore
-		   no selected feature can. Otherwise, forward score is meaningless, and
-		   correct path could be invalidated (for example) by a forced in-frame
-		   stop codon! */
-
-		if ( g_seq->path != NULL && 
-		     ( (f2->is_selected && ! f2->is_correct) ||
-		       (f2->is_antiselected && f2->is_correct) )) {
-
-		  fprintf (stderr, 
-			   "In sequence %s, inconsistency between selected/antiselected feat and path\n",
-			   g_seq->seq_name );
-		  no_problem = FALSE;
-		}
-	      }
-	      
-	      free_Feature( f1 );
-	      match = TRUE;
-	    }
-	  }
-	  
-	  if (! match) {
-	    fprintf (stderr, 
-		     "In sequence %s, selected/antselected/correct feature not in list: %s %d %d\n",
-		     g_seq->seq_name,
-		     index_Array( feat_dict, char *, f1->feat_idx ),
-		     f1->real_pos.s, f1->real_pos.e);
-	    no_problem = FALSE;
-	    j = 0;
-	  }
-	}
-      }
-
-      if (features_define_paths ) {
-	/* begin and end features to the path */
-	if (g_seq->path == NULL)
-	  g_seq->path = new_Array( sizeof( Feature *), TRUE );
-	
-	ft = g_seq->end_ft;
-	ft->is_correct = TRUE;
-	append_val_Array( g_seq->path, ft );
-	ft = g_seq->beg_ft;
-	ft->is_correct = TRUE;
-	prepend_val_Array( g_seq->path, ft );
-      }
-    }
+    for(seq_idx=0; seq_idx < glist->num_seqs; seq_idx++) 
+      no_problem = transfer_correct_features_Gaze_Sequence( glist->seq_list[seq_idx],
+							    index_Array( all_lists, 
+									 Array *, 
+									 seq_idx ),
+							    feat_dict,
+							    define_paths );
   }
 
   for(i=0; i < all_lists->len; i++)
