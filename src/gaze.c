@@ -44,17 +44,18 @@ Output files:\n\
  -out_file <s>          print gene structure to given file (def: stdout)\n\
 \n\
 Output options:\n\
- -sample_gene           use posterior sampling to obtain gene structure (default: max)\n\
  -regions               show region candidates (for regions indicated in structure file)\n\
  -feature               show feature candidates (most sensibly used with -probability)\n\
-    (If none of the above is supplied, the highest scoring gene structure is obtained)\n\
+ -cutoff <f>            only report features/regions with score/probability exceeding this number\n\
+                          (ignored if neither -regions nor -feature is specified)\n\
+ -sample_gene           use posterior sampling to obtain gene structure (default: max)\n\
+ -probability           show output scores as posterior probabilities\n\
 \n\
 Other options:\n\
-\
- -probability           show output scores as posterior probabilities\n\
+\n\
  -full_calc             perform full dynamic programming (as opposed to faster heurstic method)\n\
  -verbose               write basic progess information to stderr\n\
- -help                  show this message\n" ;
+ -help                  show this message\n";
 
 static Option options[] = {
   { "-dna_file", STRING_ARG },
@@ -72,6 +73,7 @@ static Option options[] = {
   { "-verbose", NO_ARGS },
   { "-probability", NO_ARGS },
   { "-full_calc", NO_ARGS },
+  { "-threshold", FLOAT_ARG },
   { "-sigma", FLOAT_ARG }
 };
 

@@ -194,7 +194,7 @@ void write_Gaze_Features( Gaze_Output *out,
 		   g_seq->beg_ft->backward_score );
     }
 
-    if (! out->use_threshold || score > out->threshold) 
+    if (! out->use_threshold || ! score < out->threshold) 
       write_GFF_line( out->fh,
 		      g_seq->seq_name,
 		      "GAZE",		      
