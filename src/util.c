@@ -1,4 +1,4 @@
-/*  Last edited: Jul 22 11:42 2002 (klh) */
+/*  Last edited: Jul 23 10:05 2002 (klh) */
 /**********************************************************************
  ** FILE: util.c
  ** NOTES:
@@ -42,7 +42,7 @@ void fatal_util( char *fmt, ... ) {
   va_list args;
   
   va_start( args, fmt );
-  fprintf( stderr, "\nA Fatal Error occurred: ");
+  fprintf( stderr, "\nFatal: ");
   vfprintf( stderr, fmt, args);
   fprintf( stderr,"\n");
   va_end( args );
@@ -65,7 +65,7 @@ void warning_util( char *fmt, ...) {
   va_list args;
 	
   va_start( args, fmt );
-  fprintf( stderr, "\nWARNING: " );
+  fprintf( stderr, "\nWarning: " );
   vfprintf( stderr, fmt, args );
   fprintf( stderr, "\n" );
   va_end( args );
