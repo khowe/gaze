@@ -1,4 +1,4 @@
-/*  Last edited: Jul 26 15:59 2002 (klh) */
+/*  Last edited: Jul 26 16:29 2002 (klh) */
 /**********************************************************************
  ** File: gff.c
  ** Author : Kevin Howe
@@ -145,8 +145,8 @@ void write_GFF_line( FILE *fh,
 	   score,
 	   strand != NULL ? strand : ".",
 	   frame != NULL ? frame : "." );
-  if ( group != NULL ? group : "" )
-    fprintf( fh, "\t%s\n", group );
+  if ( group != NULL )
+    fprintf( fh, "\t%s", group );
   fprintf( fh, "\n");
 
 }
