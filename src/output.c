@@ -1,4 +1,4 @@
-/*  Last edited: Apr 27 11:31 2002 (klh) */
+/*  Last edited: Jul 13 12:40 2002 (klh) */
 /**********************************************************************
  ** File: output.c
  ** Author : Kevin Howe
@@ -19,7 +19,7 @@
  NOTES:
  *********************************************************************/
 Gaze_Output *new_Gaze_Output( void ) {
-  Gaze_Output *out = (Gaze_Output *) g_malloc( sizeof( Gaze_Output ) );
+  Gaze_Output *out = (Gaze_Output *) malloc_util( sizeof( Gaze_Output ) );
 
   out->fh = NULL;
   out->seq_name = NULL;    
@@ -43,9 +43,9 @@ Gaze_Output *new_Gaze_Output( void ) {
 void free_Gaze_Output( Gaze_Output *out ) {
   if (out != NULL) {
     if (out->seq_name != NULL)
-      g_free( out->seq_name );
+      free_util( out->seq_name );
 
-    g_free( out );
+    free_util( out );
   }
 }
 

@@ -1,4 +1,4 @@
-/*  Last edited: Apr 23 16:56 2002 (klh) */
+/*  Last edited: Jul 13 14:32 2002 (klh) */
 /**********************************************************************
  ** File: str_parse.c
  ** Author : Kevin Howe
@@ -189,7 +189,7 @@ static void end_tag_structure(void *data, const char *el) {
 	int index =  state->tag_stack->len - 1;
 	char *temp = g_array_index( state->tag_stack, char *, index );
 	g_array_remove_index( state->tag_stack, index );
-	g_free( temp );
+	free_util( temp );
 	
 	if (! state->tag_stack->len) 
 	  state->finished_parsing = TRUE;
@@ -629,7 +629,7 @@ static void parse_Gaze_Structure_killdna( struct Parse_context *state,
 	    src_dna_idx = state->gs->motif_dict->len - 1;
 	  }
 	  else 
-	    g_free( new_motif );
+	    free_util( new_motif );
 	}
       }
       else if (! strcmp( attr[i], "target_dna" )) {
@@ -647,7 +647,7 @@ static void parse_Gaze_Structure_killdna( struct Parse_context *state,
 	    tgt_dna_idx = state->gs->motif_dict->len - 1;
 	  }
 	  else 
-	    g_free( new_motif );
+	    free_util( new_motif );
 	}
       }
       else {
@@ -869,7 +869,7 @@ static void parse_Gaze_Structure_lengthfunc( struct Parse_context *state,
 	calc_Length_Function( lf );
       }
 
-      g_free( file );
+      free_util( file );
     }
   }
   else {
@@ -1312,7 +1312,7 @@ static void parse_Gaze_Structure_source( struct Parse_context *state,
 	}
       }
       else if (! strcmp( attr[i], "phase" )) {
-	phase = (int *) g_malloc( sizeof(int) );
+	phase = (int *) malloc_util( sizeof(int) );
         *phase = atoi( attr[i+1] ); 
 	if (*phase < 0 || *phase > 2) {
 	  fprintf(stderr, "In tag 'source' attr 'phase' has illegal value"); 
@@ -1320,16 +1320,16 @@ static void parse_Gaze_Structure_source( struct Parse_context *state,
 	}
       }
       else if (! strcmp( attr[i], "mindis" )) {
-	mindist = (int *) g_malloc( sizeof(int) );
+	mindist = (int *) malloc_util( sizeof(int) );
         *mindist = atoi( attr[i+1] ); 
       }
       else if (! strcmp( attr[i], "maxdis" )) {
-	maxdist = (int *) g_malloc( sizeof(int) );
+	maxdist = (int *) malloc_util( sizeof(int) );
         *maxdist = atoi( attr[i+1] ); 
       }
       else if (! strcmp( attr[i], "len_fun" )) {
 	if ((len_fun_idx = dict_lookup( state->gs->len_fun_dict, attr[i+1])) >= 0) {
-	  len_fun = (int *) g_malloc( sizeof(int) );
+	  len_fun = (int *) malloc_util( sizeof(int) );
 	  *len_fun = len_fun_idx;
 	}
 	else {
@@ -1731,7 +1731,7 @@ Gaze_Structure *parse_Gaze_Structure( FILE *structure_file ) {
   }
 
   gs = new_Gaze_Structure();
-  state = (struct Parse_context *) g_malloc ( sizeof( struct Parse_context ) );
+  state = (struct Parse_context *) malloc_util ( sizeof( struct Parse_context ) );
   state->finished_parsing = FALSE;
   state->error = 0;
   state->the_parser = p;
@@ -1786,10 +1786,10 @@ Gaze_Structure *parse_Gaze_Structure( FILE *structure_file ) {
 
   for(i=0; i < state->tag_stack->len; i++) {
     /* stack should be empty, but just in case ... */
-    g_free( g_array_index( state->tag_stack, char *, i));
+    free_util( g_array_index( state->tag_stack, char *, i));
   }
   g_array_free( state->tag_stack, TRUE);
-  g_free( state );
+  free_util( state );
 
   /* free the parse state object */
     

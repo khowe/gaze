@@ -1,4 +1,4 @@
-/*  Last edited: Apr 25 14:06 2002 (klh) */
+/*  Last edited: Jul 13 12:42 2002 (klh) */
 /**********************************************************************
  ** File: info.c
  ** Author : Kevin Howe
@@ -22,7 +22,7 @@
 Feature_Info *empty_Feature_Info(void) {
   Feature_Info *temp;
 
-  temp = (Feature_Info *) g_malloc( sizeof(Feature_Info) );
+  temp = (Feature_Info *) malloc_util( sizeof(Feature_Info) );
   temp->start_offset = 0;
   temp->end_offset = 0;
   temp->is_killer_feat = FALSE;
@@ -75,7 +75,7 @@ void free_Feature_Info(Feature_Info *ft_info) {
       g_array_free( ft_info->seg_quals, TRUE);
     }
   
-    g_free( ft_info );
+    free_util( ft_info );
   }
 }
 
@@ -114,33 +114,33 @@ Feature_Relation *clone_Feature_Relation(Feature_Relation *src) {
   Feature_Relation *dest = NULL;
 
   if (src != NULL) {
-    dest = (Feature_Relation *) g_malloc( sizeof(Feature_Relation) );
+    dest = (Feature_Relation *) malloc_util( sizeof(Feature_Relation) );
     dest->target = src->target;
     dest->source = src->source;
 
     if (src->min_dist != NULL) {
-      dest->min_dist = (int *) g_malloc( sizeof( int ) );
+      dest->min_dist = (int *) malloc_util( sizeof( int ) );
       *(dest->min_dist) = *(src->min_dist);
     }
     else
       dest->min_dist = NULL;
 
     if (src->max_dist != NULL) {
-      dest->max_dist = (int *) g_malloc( sizeof( int ) );
+      dest->max_dist = (int *) malloc_util( sizeof( int ) );
       *(dest->max_dist) = *(src->max_dist);
     }
     else
       dest->max_dist = NULL;
     
     if (src->phase != NULL) {
-      dest->phase = (int *) g_malloc( sizeof( int ) );
+      dest->phase = (int *) malloc_util( sizeof( int ) );
       *(dest->phase) = *(src->phase);
     }
     else
       dest->phase =NULL;
  
     if (src->len_fun != NULL) {
-      dest->len_fun = (int *) g_malloc( sizeof( int ) );
+      dest->len_fun = (int *) malloc_util( sizeof( int ) );
       *(dest->len_fun) = *(src->len_fun);
     }
     else
@@ -199,13 +199,13 @@ void free_Feature_Relation(Feature_Relation *ft_src) {
 
   if (ft_src != NULL) {
     if (ft_src->min_dist != NULL)
-      g_free(ft_src->min_dist);
+      free_util(ft_src->min_dist);
     if (ft_src->max_dist != NULL)
-      g_free(ft_src->max_dist);
+      free_util(ft_src->max_dist);
     if (ft_src->phase != NULL) 
-      g_free(ft_src->phase);
+      free_util(ft_src->phase);
     if (ft_src->len_fun != NULL)
-      g_free( ft_src->len_fun );
+      free_util( ft_src->len_fun );
 
     if (ft_src->seg_quals != NULL) {
       for (i=0; i < ft_src->seg_quals->len; i++)
@@ -228,7 +228,7 @@ void free_Feature_Relation(Feature_Relation *ft_src) {
     if (ft_src->out_qual != NULL)
       free_Output_Qualifier( ft_src->out_qual );
 
-    g_free( ft_src );
+    free_util( ft_src );
   }
 }
 
@@ -243,7 +243,7 @@ void free_Feature_Relation(Feature_Relation *ft_src) {
 Feature_Relation *new_Feature_Relation(void) {
   Feature_Relation *temp;
 
-  temp = (Feature_Relation *) g_malloc( sizeof(Feature_Relation) );
+  temp = (Feature_Relation *) malloc_util( sizeof(Feature_Relation) );
   temp->target = 0;
   temp->source = 0;
   temp->min_dist = NULL;
@@ -349,7 +349,7 @@ void free_Length_Function(Length_Function *len_fun) {
       g_array_free( len_fun->raw_y_vals, TRUE );
     }
     
-    g_free( len_fun );
+    free_util( len_fun );
   }
 }
 
@@ -365,7 +365,7 @@ void free_Length_Function(Length_Function *len_fun) {
 Length_Function *new_Length_Function( double multiplier) {
   Length_Function *temp;
 
-  temp = (Length_Function *) g_malloc( sizeof(Length_Function));
+  temp = (Length_Function *) malloc_util( sizeof(Length_Function));
   temp->value_map = NULL;
   temp->raw_x_vals = g_array_new( FALSE, TRUE, sizeof(int) );
   temp->raw_y_vals = g_array_new( FALSE, TRUE, sizeof(double) );
@@ -409,7 +409,7 @@ Killer_DNA_Qualifier *clone_Killer_DNA_Qualifier(Killer_DNA_Qualifier *src) {
  *********************************************************************/
 void free_Killer_DNA_Qualifier(Killer_DNA_Qualifier *kill_qual) {
   if (kill_qual != NULL)
-    g_free( kill_qual );
+    free_util( kill_qual );
 }
 
 
@@ -424,7 +424,7 @@ void free_Killer_DNA_Qualifier(Killer_DNA_Qualifier *kill_qual) {
 Killer_DNA_Qualifier *new_Killer_DNA_Qualifier(void) {
   Killer_DNA_Qualifier *temp;
   
-  temp = (Killer_DNA_Qualifier *) g_malloc( sizeof(Killer_DNA_Qualifier) );
+  temp = (Killer_DNA_Qualifier *) malloc_util( sizeof(Killer_DNA_Qualifier) );
   temp->src_dna = -1;
   temp->tgt_dna = -1;
   
@@ -468,7 +468,7 @@ Killer_Feature_Qualifier *clone_Killer_Feature_Qualifier(Killer_Feature_Qualifie
  *********************************************************************/
 void free_Killer_Feature_Qualifier(Killer_Feature_Qualifier *kill_qual) {
   if (kill_qual != NULL)
-    g_free( kill_qual );
+    free_util( kill_qual );
 }
 
 
@@ -483,7 +483,7 @@ void free_Killer_Feature_Qualifier(Killer_Feature_Qualifier *kill_qual) {
 Killer_Feature_Qualifier *new_Killer_Feature_Qualifier(void) {
   Killer_Feature_Qualifier *temp;
   
-  temp = (Killer_Feature_Qualifier *) g_malloc( sizeof(Killer_Feature_Qualifier) );
+  temp = (Killer_Feature_Qualifier *) malloc_util( sizeof(Killer_Feature_Qualifier) );
   temp->feat_idx = 0;
   temp->has_tgt_phase = FALSE;
   temp->has_src_phase = FALSE;
@@ -530,13 +530,13 @@ Output_Qualifier *clone_Output_Qualifier( Output_Qualifier *src ) {
 void free_Output_Qualifier( Output_Qualifier *oq ) {
   if (oq != NULL) {
     if (oq->feature != NULL)
-      g_free( oq->feature );
+      free_util( oq->feature );
     if (oq->strand != NULL) 
-      g_free( oq->strand );
+      free_util( oq->strand );
     if (oq-> frame != NULL) 
-      g_free( oq->frame );
+      free_util( oq->frame );
 
-    g_free( oq );
+    free_util( oq );
   }
 }
 
@@ -550,7 +550,7 @@ void free_Output_Qualifier( Output_Qualifier *oq ) {
  *********************************************************************/
 
 Output_Qualifier *new_Output_Qualifier( void ) {
-  Output_Qualifier *oq = (Output_Qualifier *) g_malloc( sizeof( Output_Qualifier ) );
+  Output_Qualifier *oq = (Output_Qualifier *) malloc_util( sizeof( Output_Qualifier ) );
 
   oq->feature = NULL;
   oq->strand = NULL;
@@ -575,7 +575,7 @@ Output_Qualifier *new_Output_Qualifier( void ) {
 Segment_Info *empty_Segment_Info(void) {
   Segment_Info *temp;
   
-  temp = (Segment_Info *) g_malloc( sizeof(Segment_Info) );
+  temp = (Segment_Info *) malloc_util( sizeof(Segment_Info) );
 
   return temp;
 }
@@ -592,7 +592,7 @@ Segment_Info *empty_Segment_Info(void) {
  *********************************************************************/
 void free_Segment_Info(Segment_Info *seg_info) {
   if (seg_info != NULL)
-    g_free( seg_info );
+    free_util( seg_info );
 }
 
 
@@ -652,7 +652,7 @@ Segment_Qualifier *clone_Segment_Qualifier(Segment_Qualifier *src) {
  *********************************************************************/
 void free_Segment_Qualifier(Segment_Qualifier *seg_qual) {
   if (seg_qual != NULL)
-    g_free( seg_qual );
+    free_util( seg_qual );
 }
 
 
@@ -667,7 +667,7 @@ void free_Segment_Qualifier(Segment_Qualifier *seg_qual) {
 Segment_Qualifier *new_Segment_Qualifier(void) {
   Segment_Qualifier *temp;
   
-  temp = (Segment_Qualifier *) g_malloc( sizeof(Segment_Qualifier) );
+  temp = (Segment_Qualifier *) malloc_util( sizeof(Segment_Qualifier) );
 
   temp->seg_idx = 0;
   temp->use_projected = FALSE;

@@ -1,4 +1,4 @@
-/*  Last edited: May 28 09:53 2002 (klh) */
+/*  Last edited: Jul 13 14:54 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -153,7 +153,7 @@ static gboolean process_Gaze_Options(char *optname,
     }
     else {
       if (gaze_options.out_file_name != NULL)
-	g_free( gaze_options.out_file_name );
+	free_util( gaze_options.out_file_name );
       gaze_options.out_file_name = g_strdup( optarg );
     }
   }
@@ -164,7 +164,7 @@ static gboolean process_Gaze_Options(char *optname,
     }
     else {
       if (gaze_options.dna_file_name != NULL)
-	g_free( gaze_options.dna_file_name );
+	free_util( gaze_options.dna_file_name );
       gaze_options.dna_file_name = g_strdup( optarg );
     }
   }
@@ -175,7 +175,7 @@ static gboolean process_Gaze_Options(char *optname,
     }
     else {
       if (gaze_options.structure_file_name != NULL)
-	g_free( gaze_options.structure_file_name );
+	free_util( gaze_options.structure_file_name );
       gaze_options.structure_file_name = g_strdup( optarg );
     }
   }
@@ -186,7 +186,7 @@ static gboolean process_Gaze_Options(char *optname,
     }
     else {
       if (gaze_options.gene_file_name != NULL)
-	g_free( gaze_options.gene_file_name );
+	free_util( gaze_options.gene_file_name );
       gaze_options.gene_file_name = g_strdup( optarg );
     }
   }
@@ -434,7 +434,7 @@ int main (int argc, char *argv[]) {
       get_dna_for_features( dna_seq, features, gs->take_dna, gs->motif_dict,
 			    gaze_options.begin_dna, gaze_options.end_dna );
     }
-    g_free( dna_seq );
+    free_util( dna_seq );
   }
   
   g_array_free( min_scores, TRUE );
@@ -462,6 +462,8 @@ int main (int argc, char *argv[]) {
   }
 
   qsort( features->data, features->len, sizeof(Feature *), &order_features_forwards); 
+
+  /* fprintf(stderr, "Removed duplicates\n"); */
   features = remove_duplicate_features( features );
 
   if (gaze_options.verbose)
@@ -517,8 +519,6 @@ int main (int argc, char *argv[]) {
 	g_array_index( lf->value_map, double, j ) * gaze_options.sigma;
     }
   }
-  
-
   
   /************************************************************************
          Dynamic programming

@@ -1,4 +1,4 @@
-/*  Last edited: Apr 25 15:46 2002 (klh) */
+/*  Last edited: Jul 13 14:02 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -27,24 +27,24 @@ void free_Gaze_DP_struct( Gaze_DP_struct *g_res, int feat_types ) {
 	if ( g_res->feats[i] != NULL) {
 	  for (j=0; j < 3; j++)
 	    g_array_free( g_res->feats[i][j], TRUE );
-	  g_free( g_res->feats[i] );
+	  free_util( g_res->feats[i] );
 	}
       }
 
-      g_free( g_res->feats);
+      free_util( g_res->feats);
     }
 
     /* The fringe indices that were kept during the dp */
     if (g_res->fringes != NULL) {
       for (i=0; i < feat_types; i++) {
 	for (j=0; j < feat_types; j++)
-	  g_free( g_res->fringes[i][j] );		
-	g_free( g_res->fringes[i] );
+	  free_util( g_res->fringes[i][j] );		
+	free_util( g_res->fringes[i] );
       }
-      g_free( g_res->fringes );
+      free_util( g_res->fringes );
     }
 
-    g_free( g_res );
+    free_util( g_res );
   }  
 }
 
@@ -60,25 +60,25 @@ Gaze_DP_struct *new_Gaze_DP_struct( int feat_dict_size, int fringe_init ) {
   Gaze_DP_struct *g_res;
   int i, j, k;
 
-  g_res = (Gaze_DP_struct *) g_malloc (sizeof(Gaze_DP_struct));
+  g_res = (Gaze_DP_struct *) malloc_util (sizeof(Gaze_DP_struct));
 
   g_res->pth_score = g_res->score = 0.0;
   g_res->last_selected = -1;
  
   /* The lists of features that will be kept during the dp */
-  g_res->feats = (GArray ***) g_malloc( feat_dict_size * sizeof( GArray ** ));
+  g_res->feats = (GArray ***) malloc_util( feat_dict_size * sizeof( GArray ** ));
   for(i=0; i < feat_dict_size; i++) {
-    g_res->feats[i] = (GArray **) g_malloc( 3 * sizeof( GArray * ) );
+    g_res->feats[i] = (GArray **) malloc_util( 3 * sizeof( GArray * ) );
     for(j=0; j < 3; j++) 
       g_res->feats[i][j] = g_array_new( FALSE, TRUE, sizeof(int) );
   }
 
   /* The indices of the fringes */
-  g_res->fringes = (int ***) g_malloc( feat_dict_size * sizeof( int **) );
+  g_res->fringes = (int ***) malloc_util( feat_dict_size * sizeof( int **) );
   for (i=0; i < feat_dict_size; i++) {
-    g_res->fringes[i] = (int **) g_malloc( feat_dict_size * sizeof( int *) );
+    g_res->fringes[i] = (int **) malloc_util( feat_dict_size * sizeof( int *) );
     for( j=0; j < feat_dict_size; j++) {
-      g_res->fringes[i][j] = (int *) g_malloc( 3 * sizeof( int ) );
+      g_res->fringes[i][j] = (int *) malloc_util( 3 * sizeof( int ) );
       for( k=0; k < 3; k++ )
 	g_res->fringes[i][j][k] = fringe_init;
     }
@@ -296,7 +296,6 @@ void scan_through_sources_dp(GArray *features,
   if (TRACE > 1)
     fprintf( stderr, "\n" );
 #endif
-
   seg_res = new_Seg_Results( gs->seg_dict->len );
 
   if (sum_mode == STANDARD_SUM || sum_mode == PRUNED_SUM || trace_mode == SAMPLE_TRACEBACK) {
@@ -390,7 +389,7 @@ void scan_through_sources_dp(GArray *features,
 	   dna entries that will cause problems */
 	
 	if (reg_info->kill_dna_quals != NULL) {
-	  danger_source_dna = (int *) g_malloc0( gs->motif_dict->len * sizeof(int) );
+	  danger_source_dna = (int *) malloc0_util( gs->motif_dict->len * sizeof(int) );
 	  
 	  for(k=0; k < reg_info->kill_dna_quals->len; k++) {
 	    Killer_DNA_Qualifier *kdq = g_array_index( reg_info->kill_dna_quals, 
@@ -401,7 +400,7 @@ void scan_through_sources_dp(GArray *features,
 	    
 	    if (tgt->dna >= 0 && tgt->dna == kdq->tgt_dna) {
 	      if (killer_source_dna == NULL) 
-		killer_source_dna = (int *) g_malloc0( gs->motif_dict->len * sizeof(int) );
+		killer_source_dna = (int *) malloc0_util( gs->motif_dict->len * sizeof(int) );
 	      killer_source_dna[kdq->src_dna] = 1;
 	    }
 	  }
@@ -672,11 +671,11 @@ void scan_through_sources_dp(GArray *features,
 	}
 	
 	if (danger_source_dna != NULL) {
-	  g_free( danger_source_dna );
+	  free_util( danger_source_dna );
 	  danger_source_dna = NULL;
 	}
 	if (killer_source_dna != NULL) {
-	  g_free( killer_source_dna );
+	  free_util( killer_source_dna );
 	  killer_source_dna = NULL;
 	}
       }  
@@ -930,7 +929,7 @@ void scan_through_targets_dp(GArray *features,
 	   dna entries that will cause problems */
 	
 	if (reg_info->kill_dna_quals != NULL) {
-	  danger_target_dna = (int *) g_malloc0( gs->motif_dict->len * sizeof(int) );
+	  danger_target_dna = (int *) malloc0_util( gs->motif_dict->len * sizeof(int) );
 	  
 	  for(k=0; k < reg_info->kill_dna_quals->len; k++) {
 	    Killer_DNA_Qualifier *kdq = g_array_index( reg_info->kill_dna_quals, 
@@ -941,7 +940,7 @@ void scan_through_targets_dp(GArray *features,
 	    
 	    if (src->dna >= 0 && src->dna == kdq->src_dna) {
 	      if (killer_target_dna == NULL)
-		killer_target_dna = (int *) g_malloc0( gs->motif_dict->len * sizeof(int) );
+		killer_target_dna = (int *) malloc0_util( gs->motif_dict->len * sizeof(int) );
 	      killer_target_dna[kdq->tgt_dna] = 1;
 	    }
 	  }
@@ -1162,11 +1161,11 @@ void scan_through_targets_dp(GArray *features,
 	}
 
 	if (danger_target_dna != NULL) {
-	  g_free( danger_target_dna );
+	  free_util( danger_target_dna );
 	  danger_target_dna = NULL;
 	}
 	if (killer_target_dna != NULL) {
-	  g_free( killer_target_dna );
+	  free_util( killer_target_dna );
 	  killer_target_dna = NULL;
 	}
       }      

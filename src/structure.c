@@ -1,4 +1,4 @@
-/*  Last edited: Apr 25 15:44 2002 (klh) */
+/*  Last edited: Jul 13 12:58 2002 (klh) */
 /**********************************************************************
  ** File: structure.c
  ** Author : Kevin Howe
@@ -31,22 +31,22 @@ void free_Gaze_Structure( Gaze_Structure *gs ) {
   if (gs != NULL) {
     if (gs->feat_dict != NULL) {
       for(i=0; i < gs->feat_dict->len; i++) 
-	g_free( g_array_index( gs->feat_dict, char *, i));
+	free_util( g_array_index( gs->feat_dict, char *, i));
       g_array_free( gs->feat_dict, TRUE );
     }
     if (gs->seg_dict != NULL) {
       for(i=0; i < gs->seg_dict->len; i++) 
-	g_free( g_array_index( gs->seg_dict, char *, i));
+	free_util( g_array_index( gs->seg_dict, char *, i));
       g_array_free( gs->seg_dict, TRUE );
     }
     if (gs->len_fun_dict != NULL) {
       for(i=0; i < gs->len_fun_dict->len; i++) 
-	g_free( g_array_index( gs->len_fun_dict, char *, i));
+	free_util( g_array_index( gs->len_fun_dict, char *, i));
       g_array_free( gs->len_fun_dict, TRUE );
     }
     if (gs->motif_dict != NULL) {
       for(i=0; i < gs->motif_dict->len; i++) 
-	g_free( g_array_index( gs->motif_dict, char *, i));
+	free_util( g_array_index( gs->motif_dict, char *, i));
       g_array_free( gs->motif_dict, TRUE );
     }
     if (gs->feat_info != NULL) {
@@ -80,7 +80,7 @@ void free_Gaze_Structure( Gaze_Structure *gs ) {
       g_array_free( gs->gff_to_feats, TRUE );
     }
 
-    g_free( gs );
+    free_util( gs );
   }
 }
 
@@ -99,7 +99,7 @@ Gaze_Structure *new_Gaze_Structure( void ) {
   Feature_Info *begin_info = new_Feature_Info( 0, 0, 0.0 );
   Feature_Info *end_info = new_Feature_Info( 0, 0, 0.0 );
 
-  g_str = (Gaze_Structure *) g_malloc( sizeof( Gaze_Structure ) );
+  g_str = (Gaze_Structure *) malloc_util( sizeof( Gaze_Structure ) );
   g_str->feat_dict = g_array_new( FALSE, TRUE, sizeof( char *));
   g_str->seg_dict = g_array_new( FALSE, TRUE, sizeof( char *));
   g_str->len_fun_dict = g_array_new( FALSE, TRUE, sizeof( char *));
