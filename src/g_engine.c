@@ -1,4 +1,4 @@
-/*  Last edited: Apr 23 15:35 2002 (klh) */
+/*  Last edited: Apr 24 09:44 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -596,15 +596,15 @@ void scan_through_sources_dp(GArray *features,
 					 tgt->backward_score - 
 					 g_array_index( features, Feature *, 0)->backward_score );
 		      
-		      
-		      fprintf(g_out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.5f\t%s\t%s\t\n",
-			      g_out->seq_name, 
-			      reg_info->out_qual->feature,
-			      left_pos, 
-			      right_pos, 
-			      reg_score,
-			      reg_info->out_qual->strand, 
-			      reg_info->out_qual->frame );
+		      if (! g_out->use_threshold || reg_score >= g_out->threshold)
+			fprintf(g_out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.5f\t%s\t%s\t\n",
+				g_out->seq_name, 
+				reg_info->out_qual->feature,
+				left_pos, 
+				right_pos, 
+				reg_score,
+				reg_info->out_qual->strand, 
+				reg_info->out_qual->frame );
 		      
 		    }
 		  }
