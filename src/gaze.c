@@ -527,9 +527,6 @@ int main (int argc, char *argv[]) {
   for (s=0; s < allGazeSequences->num_seqs; s++) {
     Gaze_Sequence *g_seq = allGazeSequences->seq_list[s];
 
-    /* the features need to be sorted in a non-standsrd way for the dynamic programming */
-    qsort( g_seq->features->data, g_seq->features->len, sizeof(Feature *), &order_features_for_dp); 
-
     for( i=0; i < g_seq->features->len; i++ ) {
       Feature *ft = index_Array( g_seq->features, Feature *, i );
       ft->score *= index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->multiplier;
@@ -541,6 +538,9 @@ int main (int argc, char *argv[]) {
       ft->adj_pos.e = ft->real_pos.e 
 	- index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->end_offset;
     }
+
+    /* the features need to be sorted in a non-standsrd way for the dynamic programming */
+    qsort( g_seq->features->data, g_seq->features->len, sizeof(Feature *), &order_features_for_dp); 
     
     /***************************************/
     /* scale, sort and index segments ******/
