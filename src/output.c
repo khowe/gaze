@@ -1,4 +1,4 @@
-/*  Last edited: Feb 20 13:35 2002 (klh) */
+/*  Last edited: Feb 22 14:29 2002 (klh) */
 /**********************************************************************
  ** File: output.c
  ** Author : Kevin Howe
@@ -144,10 +144,10 @@ void print_post_probs( FILE *fh,
 		       Gaze_Structure *gs, 
 		       char *seq_name) {
 
-  int i;
+  int i, discarded = 0;
 
   fprintf( fh, "##gff-version 2\n");
-  fprintf( fh, "## GAZE posterior probabilities of features from %s\n", seq_name);
+  fprintf( fh, "## GAZE posterior feeature probabilities above %.2f for %s\n", thresh, seq_name);
   fprintf( fh, "##     Fend = %.10f,     Bbegin = %.10f\n", 
 	   g_array_index( fts, Feature *, fts->len - 1)->forward_score,
 	   g_array_index( fts, Feature *, 0)->backward_score );
@@ -161,10 +161,15 @@ void print_post_probs( FILE *fh,
     double sum = g_array_index(fts, Feature *, 0)->backward_score;
     double prob = exp( fw + bk - sum );
     
-    fprintf(fh, "%s\tGAZE\t%s\t%d\t%d\t%.8f\t.\t.\t%s\n", 
-	    seq_name, g_array_index( gs->feat_dict,
-				     char *,
-				     f->feat_idx ),
-	    f->real_pos.s, f->real_pos.e, prob, f->is_correct?"TRUE":"");
+    if (prob > thresh) 
+      fprintf(fh, "%s\tGAZE\t%s\t%d\t%d\t%.8f\t.\t.\t%s\n", 
+	      seq_name, g_array_index( gs->feat_dict,
+				       char *,
+				       f->feat_idx ),
+	      f->real_pos.s, f->real_pos.e, prob, f->is_correct?"TRUE":"");
+    else
+      discarded++;
+
   }
+  fprintf( fh, "## Discarded %d features with post. probs. %.2f or below\n", discarded, thresh );
 }
