@@ -1,4 +1,4 @@
-/*  Last edited: Jul 15 11:49 2002 (klh) */
+/*  Last edited: Jul 15 13:18 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -342,7 +342,7 @@ void scan_through_sources_dp(Array *features,
 		   new feature ordering */
 		
 		if (kq->has_tgt_phase) {
-		  Array *apt_list = (Array *) g_res->feats[kq->feat_idx][(right_pos - kq->phase + 1) % 3];
+		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(right_pos - kq->phase + 1) % 3];
 		  /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
 		     (right_pos - {left_pos % 3} + 1) % 3 == phase -->
 		     (right_pos - {left_pos % 3} + 1) % 3 - phase == 0 -->
@@ -359,7 +359,7 @@ void scan_through_sources_dp(Array *features,
 		       BUT the the killers are stored by the frame of their adjusted START, 
 		       rather than their end. So, we rely on the fact that all killers that have
 		       a phase are width 3, which might not be so unreasonable */
-		  Array *apt_list = (Array *) g_res->feats[kq->feat_idx][(frame + kq->phase) % 3];
+		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + kq->phase) % 3];
 		  if (apt_list->len > 0 
 		      && index_Array( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame] )
 		    last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
@@ -367,7 +367,7 @@ void scan_through_sources_dp(Array *features,
 		else {
 		  /* phaseless killer - need to check all frames */
 		  for (k=0; k < 3; k++) {
-		    Array *apt_list = (Array *) g_res->feats[kq->feat_idx][k];
+		    Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][k];
 		    if (apt_list->len > 0 
 			&& index_Array( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame]) {
 		      last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
@@ -381,8 +381,8 @@ void scan_through_sources_dp(Array *features,
 	  
 	  /* finally, make sure that we do not proceed past the fringe for
 	     this feature pair */
-	  if (g_res->fringes[tgt->feat_idx][src_type][tgt->real_pos.s % 3] > last_idx_for_frame[frame])
-	    last_idx_for_frame[frame] = g_res->fringes[tgt->feat_idx][src_type][tgt->real_pos.s % 3];
+	  if (g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3] > last_idx_for_frame[frame])
+	    last_idx_for_frame[frame] = g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3];
 	}
 	
 	/* Before actually scanning through the features themselves, we need to check
@@ -397,12 +397,12 @@ void scan_through_sources_dp(Array *features,
 						       Killer_DNA_Qualifier *,
 						       k );
 	    
-	    danger_source_dna[kdq->src_dna] = 1; 
+	    danger_source_dna[(int)kdq->src_dna] = 1; 
 	    
 	    if (tgt->dna >= 0 && tgt->dna == kdq->tgt_dna) {
 	      if (killer_source_dna == NULL) 
 		killer_source_dna = (int *) malloc0_util( gs->motif_dict->len * sizeof(int) );
-	      killer_source_dna[kdq->src_dna] = 1;
+	      killer_source_dna[(int)kdq->src_dna] = 1;
 	    }
 	  }
 	}
@@ -498,7 +498,7 @@ void scan_through_sources_dp(Array *features,
 	      
 	      if ((reg_info->min_dist == NULL) || (*(reg_info->min_dist)) <= distance) {
 		/* Finally, if this source does not result in a DNA kill, we can calc the score */
-		if (killer_source_dna == NULL || src->dna < 0 || ! killer_source_dna[src->dna]) {
+		if (killer_source_dna == NULL || src->dna < 0 || ! killer_source_dna[(int)src->dna]) {
 		  double trans_score, len_pen, seg_score, forward_temp, viterbi_temp;
 		  Length_Function *lf = NULL;
 		  trans_score = len_pen = forward_temp = viterbi_temp = 0.0;
@@ -552,7 +552,7 @@ void scan_through_sources_dp(Array *features,
 			
 			if (danger_source_dna == NULL 
 			    || src->dna < 0  
-			    || ! danger_source_dna[src->dna]) {
+			    || ! danger_source_dna[(int)src->dna]) {
 
 			  /* strictly speaking, it is only sound to register this source
 			     as "dominant" if we are into the monotonic part of the length
@@ -578,7 +578,7 @@ void scan_through_sources_dp(Array *features,
 			if (forward_temp + len_pen > max_forpluslen 
 			    && (danger_source_dna == NULL 
 				|| src->dna < 0  
-				|| ! danger_source_dna[src->dna]))
+				|| ! danger_source_dna[(int)src->dna]))
 			  max_forpluslen = forward_temp + len_pen;
 			
 			if ( max_forpluslen - (forward_temp + len_pen) < 25.0)
@@ -663,11 +663,11 @@ void scan_through_sources_dp(Array *features,
 	     killers (which also might have a phase constraint). Otherwise, 
 	     prune in all frames */
 	  if (reg_info->phase != NULL || reg_info->kill_feat_quals != NULL) {
-	    g_res->fringes[tgt->feat_idx][src_type][tgt->real_pos.s % 3] = local_fringe;
+	    g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3] = local_fringe;
 	  }
 	  else {
 	    for(k=0; k < 3; k++)
-	      g_res->fringes[tgt->feat_idx][src_type][k] = local_fringe;
+	      g_res->fringes[(int)tgt->feat_idx][src_type][k] = local_fringe;
 	  }
 	}
 	
@@ -878,7 +878,7 @@ void scan_through_targets_dp(Array *features,
 		   new feature ordering */
 		
 		if (kq->has_src_phase) {
-		  Array *apt_list = (Array *) g_res->feats[kq->feat_idx][(left_pos + kq->phase - 1) % 3];
+		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(left_pos + kq->phase - 1) % 3];
 		  /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
 	                  (right_pos - left_pos + 1) % 3 - phase == 0 -->
 			  (right_pos - left_pos + 1 - phase) % 3 == 0 -->
@@ -897,7 +897,7 @@ void scan_through_targets_dp(Array *features,
 		     BUT, the the killers are stored by the frame of their adjusted END, 
 		     rather than their start. So, we rely on the fact that all killers that have 
 		     a phase are width 3, which might not be so unreasonable */
-		  Array *apt_list = (Array *) g_res->feats[kq->feat_idx][(frame + 3 - kq->phase) % 3];
+		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + 3 - kq->phase) % 3];
 		  if (apt_list->len > 0 
 		      && index_Array( apt_list, int, apt_list->len - 1) < last_idx_for_frame[frame] ) {
 		    last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
@@ -919,8 +919,8 @@ void scan_through_targets_dp(Array *features,
 
 	  /* finally, make sure that we do not proceed past the fringe for
 	     this feature pair */
-	  if (g_res->fringes[src->feat_idx][tgt_type][src->real_pos.s % 3] < last_idx_for_frame[frame])
-	    last_idx_for_frame[frame] = g_res->fringes[src->feat_idx][tgt_type][src->real_pos.s % 3];
+	  if (g_res->fringes[(int)src->feat_idx][tgt_type][src->real_pos.s % 3] < last_idx_for_frame[frame])
+	    last_idx_for_frame[frame] = g_res->fringes[(int)src->feat_idx][tgt_type][src->real_pos.s % 3];
 	}
 
 
@@ -936,12 +936,12 @@ void scan_through_targets_dp(Array *features,
 						       Killer_DNA_Qualifier *,
 						       k );
 	    
-	    danger_target_dna[kdq->tgt_dna] = 1;
+	    danger_target_dna[(int)kdq->tgt_dna] = 1;
 	    
 	    if (src->dna >= 0 && src->dna == kdq->src_dna) {
 	      if (killer_target_dna == NULL)
 		killer_target_dna = (int *) malloc0_util( gs->motif_dict->len * sizeof(int) );
-	      killer_target_dna[kdq->tgt_dna] = 1;
+	      killer_target_dna[(int)kdq->tgt_dna] = 1;
 	    }
 	  }
 	}
@@ -1036,7 +1036,7 @@ void scan_through_targets_dp(Array *features,
 	      if ((reg_info->min_dist == NULL) || (*(reg_info->min_dist)) <= distance) {
 
 		/* Finally, if this source does not result in a DNA kill, we can calc the score */
-		if (killer_target_dna == NULL || tgt->dna < 0 || ! killer_target_dna[tgt->dna]) {
+		if (killer_target_dna == NULL || tgt->dna < 0 || ! killer_target_dna[(int)tgt->dna]) {
 		  double trans_score, len_pen, seg_score, backward_temp;
 		  Length_Function *lf = NULL;
 		  trans_score = len_pen = 0.0;
@@ -1066,7 +1066,7 @@ void scan_through_targets_dp(Array *features,
 
 		      if (danger_target_dna == NULL 
 			  || tgt->dna < 0  
-			  || ! danger_target_dna[src->dna]) {
+			  || ! danger_target_dna[(int)src->dna]) {
 
 			/* strictly speaking, it is only sound to register this source
 			   as "dominant" if we are into the monotonic part of the length
@@ -1090,7 +1090,7 @@ void scan_through_targets_dp(Array *features,
 		      if (backward_temp + len_pen > max_backpluslen
 			  && (danger_target_dna == NULL 
 			      || tgt->dna < 0  
-			      || ! danger_target_dna[tgt->dna])) 
+			      || ! danger_target_dna[(int)tgt->dna])) 
 			max_backpluslen = backward_temp + len_pen;
 		      
 		      if ( max_backpluslen - (backward_temp + len_pen) < 25.0)
@@ -1152,11 +1152,11 @@ void scan_through_targets_dp(Array *features,
 	     killers (which also might have a phase constraint). Otherwise, 
 	     prune in all frames */
 	  if (reg_info->phase != NULL || reg_info->kill_feat_quals != NULL) {
-	    g_res->fringes[src->feat_idx][tgt_type][src->real_pos.s % 3] = local_fringe;
+	    g_res->fringes[(int)src->feat_idx][tgt_type][src->real_pos.s % 3] = local_fringe;
 	  }
 	  else {
 	    for(k=0; k < 3; k++)
-	      g_res->fringes[src->feat_idx][tgt_type][k] = local_fringe;
+	      g_res->fringes[(int)src->feat_idx][tgt_type][k] = local_fringe;
 	  }
 	}
 
