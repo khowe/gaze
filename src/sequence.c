@@ -50,8 +50,11 @@ void free_Gaze_Sequence( Gaze_Sequence *g_seq ) {
       free_Array( g_seq->path, TRUE );
     }
 
+    if (g_seq->gff_file_names != NULL)
+      free_Array( g_seq->gff_file_names, TRUE );
+
     /* freed elsewhere: dna_seq */ 
-    /* freed elsewhere: beg_dt */    
+    /* freed elsewhere: beg_ft */    
     /* freed elsewhere: end_ft */    
 
     free_util( g_seq );
@@ -96,6 +99,10 @@ void initialise_Gaze_Sequence( Gaze_Sequence *g_seq,
   g_seq->min_scores = new_Array( sizeof( double ), TRUE );
   set_size_Array( g_seq->min_scores, gs->feat_dict->len );
 
+  g_seq->gff_file_names = new_Array( sizeof( char *), FALSE );
+  g_seq->dna_file_name = NULL;
+  g_seq->correct_feats_file_name = NULL;
+
 }
 
 
@@ -125,10 +132,108 @@ Gaze_Sequence *new_Gaze_Sequence( char *seq_name,
   g_seq->min_scores = NULL;
   g_seq->beg_ft = NULL;
   g_seq->end_ft = NULL;
+  g_seq->dna_file_name = NULL;
+  g_seq->gff_file_names = NULL;
+  g_seq->correct_feats_file_name = NULL;
 
   return g_seq;
 }
 
+
+/*********************************************************************
+ FUNCTION: convert_dna_Gaze_Sequence
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void convert_dna_Gaze_Sequence ( Gaze_Sequence *g_seq,
+				 Array *dna2fts, 
+				 Array *offsets, 
+				 Dict *motif_dict ) {
+
+  int i,j,k,offset;
+  StartEnd *off;
+
+  /* dna_str[i] = residue (dna_off + i) */
+  
+  if (g_seq->dna_seq == NULL)
+    return;
+
+  /* first get the features from the DNA... */
+
+  for (i=0; i < dna2fts->len; i++) {
+    DNA_to_features *con = index_Array(dna2fts, DNA_to_features *, i);
+    char *pattern = con->dna_motif;
+    int pattern_len = strlen( pattern );
+    char *match, *ptr;
+
+    ptr = g_seq->dna_seq;
+    offset = 0;
+    while ((match = strstr( ptr, pattern )) != NULL) {
+      char save = *match;
+      int start_match, end_match;
+
+      *match = '\0';
+      offset += strlen( ptr );
+
+      start_match = g_seq->seq_region.s + offset;
+      end_match = start_match + pattern_len - 1;
+
+      for(j=0; j < con->features->len; j++) {
+	Feature *ft = clone_Feature( index_Array( con->features,
+						  Feature *,
+						  j ));
+	ft->real_pos.s = start_match;
+	ft->real_pos.e = end_match;
+
+	ft->score = con->has_score ? con->score : index_Array( g_seq->min_scores, double, ft->feat_idx );
+	append_val_Array( g_seq->features, ft );
+      }
+
+      for(j=0; j < con->segments->len; j++) {
+	Segment *sg1, *sg2;
+	Segment_list *correct_list;
+
+	sg1 = clone_Segment( index_Array( con->segments, Segment *, j ));
+	sg1->pos.s = start_match;
+	sg1->pos.e = end_match;
+	sg2 = clone_Segment( sg1 );
+
+	correct_list = index_Array( g_seq->segment_lists, Segment_list *, sg1->seg_idx );
+	append_val_Array( index_Array( correct_list->orig, Array *, start_match % 3 ), sg1 );
+	append_val_Array( index_Array( correct_list->orig, Array *, 3 ), sg2 );
+      }
+
+      *match = save;
+      ptr = match + 1; offset++;
+    }
+  }
+
+  /* and then get the DNA for the features... */
+
+  if (offsets != NULL) {
+    for (i=0; i < g_seq->features->len; i++) {
+      Feature *feat = index_Array( g_seq->features, Feature *, i); 
+      
+      if ((off = index_Array( offsets, StartEnd *, feat->feat_idx)) != NULL) {
+	int dna_start = feat->real_pos.s + off->s;
+	int dna_end = feat->real_pos.e - off->e;
+	if ( (dna_start >= g_seq->seq_region.s && dna_end <= g_seq->seq_region.e) &&
+	     (dna_end - dna_start + 1 > 0) ) {
+	  char *temp = (char *) malloc_util( (dna_end - dna_start + 2) * sizeof( char ) + 1);
+	  for(j = dna_start, k=0; j <= dna_end; j++, k++)
+	    temp[k] = g_seq->dna_seq[j - g_seq->seq_region.s];
+	  temp[k] = '\0';
+	  
+	  feat->dna = dict_lookup( motif_dict, temp );
+	  free_util( temp );
+	}
+      }
+    }
+  }
+
+}
 
 
 /*********************************************************************
@@ -136,7 +241,7 @@ Gaze_Sequence *new_Gaze_Sequence( char *seq_name,
  DESCRIPTION:
  RETURNS:
  ARGS: 
- NOTES:
+ NOTES: DEPRECATED
  *********************************************************************/
 void get_dna_for_features( Gaze_Sequence *g_seq,			  
 			   Array *offsets, 
@@ -173,7 +278,7 @@ void get_dna_for_features( Gaze_Sequence *g_seq,
  DESCRIPTION:
  RETURNS:
  ARGS: 
- NOTES:
+ NOTES: DEPRECATED
  *********************************************************************/
 void get_features_from_dna( Gaze_Sequence *g_seq,
 			    Array *dna2fts ) {
@@ -234,6 +339,137 @@ void get_features_from_dna( Gaze_Sequence *g_seq,
     }
   }
 }
+
+
+
+/*********************************************************************
+ FUNCTION: read_dna_Gaze_Sequence
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+   This routine changes the value of offset_dna for each Gaze_Sequence,
+   but since thisis the only routine that makes use of it, this is
+   not harmful
+ *********************************************************************/
+void read_dna_Gaze_Sequence( Gaze_Sequence *g_seq,
+			     Array *total_file_list ) {
+  
+  char *name, c;
+  Line *ln = new_Line(); 
+  int num_bases = 0;
+  int line_len, i, f_idx = 0;
+  boolean no_more_files = FALSE;
+  char *this_file_name = NULL;
+
+  if (g_seq->dna_seq != NULL) {
+    free_util( g_seq->dna_seq );
+    g_seq->dna_seq = NULL;
+  }
+
+  while (! no_more_files) {
+    FILE *dna_file;
+
+    this_file_name = g_seq->dna_file_name;
+    if (this_file_name == NULL) {
+      if (f_idx > total_file_list->len - 1) {
+	no_more_files = TRUE;
+	continue;
+      }
+      else
+	this_file_name = index_Array( total_file_list, char *, f_idx++ );
+    }
+
+    dna_file = fopen( this_file_name, "r");
+
+    while( (line_len = read_Line( dna_file, ln )) != 0) {
+      int idx = 0;
+
+      if (ln->buf[idx] == '>') {
+	/* skip to first non-white-space character */
+	while ( isspace( (int) ln->buf[++idx] ) );
+	name = &(ln->buf[idx++]); 
+	/* skip to end of name */
+	while ( ln->buf[idx] != '\0' && !isspace( (int) ln->buf[++idx] ) );
+	ln->buf[idx] = '\0';
+
+	if (strcmp( name, g_seq->seq_name ) == 0) {
+
+	  g_seq->dna_seq = (char *) malloc_util (ALLOC_STEP * sizeof( char ) );
+	    
+	  if (g_seq->seq_region.s == 0)
+	    g_seq->seq_region.s = g_seq->offset_dna;
+	  	  
+	  num_bases = 0;
+	}
+	else {
+	  /* we've come across another sequence, so if we've already read our sequence, we're done */
+	  if (g_seq->dna_seq != NULL)
+	    break;
+	}
+      }
+      else {
+	/* this is a DNA line */
+	if (g_seq->dna_seq != NULL) {
+	  for(i=0; i < line_len; i++) {
+	    if (! isspace( (int) ln->buf[i] )) {
+	      c = tolower( (int) ln->buf[i]);
+	      
+	      if ( g_seq->offset_dna < g_seq->seq_region.s )
+		; /* do nothing */
+	      else if (g_seq->seq_region.e && (g_seq->offset_dna > g_seq->seq_region.e)) {
+		/* we've gone past the end of the region of interest for this sequence */
+		g_seq->offset_dna++;
+		break;
+	      }
+	      else {
+		/* store the base - increase memory if necessary */
+		if ( (num_bases % ALLOC_STEP) == 0 ) 
+		  if (num_bases != 0)
+		    g_seq->dna_seq = (char *) realloc_util( g_seq->dna_seq, 
+							    (num_bases + ALLOC_STEP) * sizeof(char) );
+
+		g_seq->dna_seq[num_bases++] = c;
+	      }
+
+	      g_seq->offset_dna++;
+	    }
+	  }
+	}
+      }
+    }
+    fclose( dna_file );
+
+    if (g_seq->dna_seq != NULL && g_seq->dna_file_name == NULL) {
+      /* register this file as having the DNA for this seq */
+      g_seq->dna_file_name = this_file_name;
+      no_more_files = TRUE;
+    }
+  }
+
+  /* finally, clean up and check */
+    
+  if (g_seq->dna_seq != NULL) {
+    if (g_seq->seq_region.e == 0)
+      g_seq->seq_region.e = g_seq->offset_dna - 1;
+      
+    num_bases = g_seq->seq_region.e - g_seq->seq_region.s + 1;
+    /* The following is not technically necessary but is done for consistency */
+    g_seq->offset_dna = g_seq->seq_region.s;
+    
+    g_seq->dna_seq = (char *) realloc_util( g_seq->dna_seq, num_bases + 1 );
+    g_seq->dna_seq[num_bases] = '\0';
+    
+  }
+  else {
+    /* we have a sequence for which ther was no DNA in any of the files */
+    fprintf(stderr, "Warning: no DNA found for %s\n", g_seq->seq_name );
+  } 
+
+  free_Line( ln );
+
+}
+
 
 
 
@@ -344,7 +580,7 @@ Gaze_Sequence_list *new_Gaze_Sequence_list ( Array *names ) {
 
 
 /*********************************************************************
- FUNCTION: read_dna_seqs
+ FUNCTION: read_dna_Gaze_Sequence_list
  DESCRIPTION:
  RETURNS:
  ARGS: 
@@ -353,9 +589,9 @@ Gaze_Sequence_list *new_Gaze_Sequence_list ( Array *names ) {
    but since thisis the only routine that makes use of it, this is
    not harmful
  *********************************************************************/
-void read_dna_seqs( Gaze_Sequence_list *glist,
-		    Array *file_list ) {
-		   
+void read_dna_Gaze_Sequence_list( Gaze_Sequence_list *glist,
+				  Array *file_list ) {
+  
   char *name, c;
   Line *ln = new_Line(); 
   boolean interested = FALSE;
@@ -442,7 +678,9 @@ void read_dna_seqs( Gaze_Sequence_list *glist,
 	g_seq->seq_region.e = g_seq->offset_dna - 1;
       
       num_bases = g_seq->seq_region.e - g_seq->seq_region.s + 1;
-      
+      /* The following is not technically necessary but is done for consistency */
+      g_seq->offset_dna = g_seq->seq_region.s;
+
       g_seq->dna_seq = (char *) realloc_util( g_seq->dna_seq, num_bases + 1 );
       g_seq->dna_seq[num_bases] = '\0';
 
@@ -463,16 +701,16 @@ void read_dna_seqs( Gaze_Sequence_list *glist,
 
 
 /*********************************************************************
- FUNCTION: get_features_from_gff
+ FUNCTION: convert_gff_Gaze_Sequence_list
  DESCRIPTION:
  RETURNS:
  ARGS: 
  NOTES:
  *********************************************************************/
-void get_features_from_gff( Gaze_Sequence_list *glist,
-			    Array *file_list,
-			    Array *gff2fts ) {
-
+void convert_gff_Gaze_Sequence_list( Gaze_Sequence_list *glist,
+				     Array *file_list,
+				     Array *gff2fts ) {
+  
   int i, j, f, g_seq_idx;
   Gaze_Sequence *g_seq;
 
@@ -596,7 +834,7 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
 
 
 /*********************************************************************
- FUNCTION: get_correct_features
+ FUNCTION: get_correct_feats_Gaze_Sequence_list
  DESCRIPTION:
  RETURNS:
  ARGS: 
@@ -605,10 +843,10 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
    of features that GAZE knows about (i.e. those defined in
    the given feature dictionary). Returns true iff everything went okay
  *********************************************************************/
-boolean get_correct_features( Gaze_Sequence_list *glist,
-			      Array *file_list,
-			      Dict *feat_dict,
-			      boolean features_define_paths) {
+boolean get_correct_feats_Gaze_Sequence_list( Gaze_Sequence_list *glist,
+					      Array *file_list,
+					      Dict *feat_dict,
+					      boolean features_define_paths) {
   
   int i, j, k, l, seq_idx, feat_idx;
   GFF_line *gff_line;

@@ -449,8 +449,8 @@ int main (int argc, char *argv[]) {
 						       index_Array( gaze_options.sequence_ends, int, s) );
   if (gaze_options.verbose)
     fprintf(stderr, "Reading the dna files...\n");
-  read_dna_seqs(allGazeSequences,
-		gaze_options.dna_file_names );
+  read_dna_Gaze_Sequence_list(allGazeSequences,
+			      gaze_options.dna_file_names );
     
   for (s=0; s < allGazeSequences->num_seqs; s++)
     initialise_Gaze_Sequence( allGazeSequences->seq_list[s], gazeStructure );
@@ -461,26 +461,21 @@ int main (int argc, char *argv[]) {
     
   if (gaze_options.verbose)
     fprintf(stderr, "Reading the gff files...\n");
-  get_features_from_gff( allGazeSequences,
-			 gaze_options.gff_file_names,
-			 gazeStructure->gff_to_feats ); 
-      
+  convert_gff_Gaze_Sequence_list( allGazeSequences,
+				  gaze_options.gff_file_names,
+				  gazeStructure->gff_to_feats ); 
+  
   if (gaze_options.verbose)
     fprintf(stderr, "Getting features from dna...\n");
   
   for (s=0; s < allGazeSequences->num_seqs; s++) {
     if (allGazeSequences->seq_list[s]->dna_seq != NULL) {
 
-      get_features_from_dna( allGazeSequences->seq_list[s], 
-			     gazeStructure->dna_to_feats );
+      convert_dna_Gaze_Sequence( allGazeSequences->seq_list[s], 
+				 gazeStructure->dna_to_feats,
+				 gazeStructure->take_dna, 
+				 gazeStructure->motif_dict );
 
-      if (gazeStructure->take_dna != NULL) {
-	get_dna_for_features( allGazeSequences->seq_list[s], 
-			      gazeStructure->take_dna, 
-			      gazeStructure->motif_dict );
-
-      }
-      
       /* we never need the sequence itself again */
       free_util( allGazeSequences->seq_list[s]->dna_seq );
     } 
@@ -541,10 +536,10 @@ int main (int argc, char *argv[]) {
     if (gaze_options.verbose)
       fprintf(stderr, "Reading the gff correct path files...\n");
   
-    if (! get_correct_features( allGazeSequences,
-				gaze_options.gene_file_names, 
-				gazeStructure->feat_dict, 
-				TRUE))
+    if (! get_correct_feats_Gaze_Sequence_list( allGazeSequences,
+						gaze_options.gene_file_names, 
+						gazeStructure->feat_dict, 
+						TRUE))
 	fatal_util( "There was a problem reading in the correct paths\n" );
 
     /* check that any paths that were given are actually legal paths */
@@ -560,10 +555,10 @@ int main (int argc, char *argv[]) {
     if (gaze_options.verbose)
       fprintf(stderr, "Reading selected feature files...\n");
     
-    if (! get_correct_features( allGazeSequences,
-				gaze_options.selected_file_names, 
-				gazeStructure->feat_dict, 
-				FALSE))
+    if (! get_correct_feats_Gaze_Sequence_list( allGazeSequences,
+						gaze_options.selected_file_names, 
+						gazeStructure->feat_dict, 
+						FALSE))
       fatal_util( "There was a problem reading in the selected features\n" );
   }
   

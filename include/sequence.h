@@ -32,6 +32,10 @@ typedef struct Gaze_Sequence{
 
   Array *min_scores;
 
+  char *dna_file_name;
+  char *correct_feats_file_name;
+  Array *gff_file_names;
+
 } Gaze_Sequence;
 
 
@@ -48,6 +52,13 @@ void get_features_from_dna( Gaze_Sequence *,
 void get_dna_for_features( Gaze_Sequence *,
 			   Array *,
 			   Dict * );
+
+void convert_dna_Gaze_Sequence ( Gaze_Sequence *,
+				 Array *,
+				 Array *, 
+				 Dict *);
+
+void read_dna_Gaze_Sequence( Gaze_Sequence *, Array * );
 
 void remove_duplicate_features( Gaze_Sequence *);
 
@@ -67,16 +78,16 @@ typedef struct {
 void free_Gaze_Sequence_list ( Gaze_Sequence_list * );
 Gaze_Sequence_list *new_Gaze_Sequence_list ( Array * );
 
-void read_dna_seqs( Gaze_Sequence_list *, Array * );
+void read_dna_Gaze_Sequence_list( Gaze_Sequence_list *, Array * );
 
-void get_features_from_gff( Gaze_Sequence_list *,
-			    Array *,
-			    Array * ); 
+void convert_gff_Gaze_Sequence_list( Gaze_Sequence_list *,
+				     Array *,
+				     Array * ); 
 
-boolean get_correct_features( Gaze_Sequence_list *,
-			      Array *, 
-			      Dict *,
-			      boolean);
+boolean get_correct_feats_Gaze_Sequence_list( Gaze_Sequence_list *,
+					      Array *, 
+					      Dict *,
+					      boolean);
 
 /********************************************************************/
 /********************** Segment_list ********************************/
