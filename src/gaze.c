@@ -1,4 +1,4 @@
-/*  Last edited: Apr 23 13:32 2002 (klh) */
+/*  Last edited: May  7 09:44 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -27,7 +27,7 @@ Options are:\n\
 Input files:\n\
 \
  -structure_file <s>    XML file containing the gaze structure\n\
- -features_file <s>     name of the GFF file containing the features\n\
+ -gff_file <s>          name of the GFF file containing the features\n\
  -dna_file <s>          file containing the DNA sequence\n\
  -gene_file <s>         name of a GFF file containing a user-specified gene structure\n\
  -defaults <s>          name of the file of default options (def: './gaze.defaults')\n\
@@ -61,7 +61,7 @@ static Option options[] = {
   { "-offset_dna", INT_ARG },
   { "-dna_file", STRING_ARG },
   { "-structure_file", STRING_ARG },
-  { "-feature_file", STRING_ARG },
+  { "-gff_file", STRING_ARG },
   { "-out_file", STRING_ARG },
   { "-gene_file", STRING_ARG },
   { "-defaults_file", STRING_ARG },
@@ -81,8 +81,8 @@ static struct {
   double sigma;
   char *structure_file_name;
   FILE *structure_file;
-  GArray *feature_file_names; /* of string */
-  GArray *feature_files;      /* of FILE */
+  GArray *gff_file_names; /* of string */
+  GArray *gff_files;      /* of FILE */
   char *dna_file_name;
   FILE *dna_file;
   char *out_file_name;
@@ -190,13 +190,13 @@ static gboolean process_Gaze_Options(char *optname,
       gaze_options.gene_file_name = g_strdup( optarg );
     }
   }
-  else if (strcmp(optname, "-feature_file") == 0) {
+  else if (strcmp(optname, "-gff_file") == 0) {
     /* I allow multiple gff files to be specified. So, fo each one, 
        we have to check that it hasn't already been opened, and
        if it hasn't, open it and store it in the file name list */
     gboolean match = FALSE;
-    for (i=0; i < gaze_options.feature_file_names->len; i++) {
-      if (! strcmp( optarg, g_array_index( gaze_options.feature_file_names, char *, i)))
+    for (i=0; i < gaze_options.gff_file_names->len; i++) {
+      if (! strcmp( optarg, g_array_index( gaze_options.gff_file_names, char *, i)))
 	match = TRUE;
     }
     
@@ -213,8 +213,8 @@ static gboolean process_Gaze_Options(char *optname,
       }
       else {
 	char *tmp_f_name = g_strdup( optarg );
-	g_array_append_val( gaze_options.feature_file_names, tmp_f_name );
-	g_array_append_val( gaze_options.feature_files, tmp_f );
+	g_array_append_val( gaze_options.gff_file_names, tmp_f_name );
+	g_array_append_val( gaze_options.gff_files, tmp_f );
       }
     } 
   }
@@ -286,8 +286,8 @@ static int parse_command_line( int argc, char *argv[] ) {
   gaze_options.sigma = 1.0;
   gaze_options.dna_file_name = NULL;
   gaze_options.dna_file = NULL;
-  gaze_options.feature_file_names = g_array_new( FALSE, TRUE, sizeof( char *) );
-  gaze_options.feature_files = g_array_new( FALSE, TRUE, sizeof( FILE *) );
+  gaze_options.gff_file_names = g_array_new( FALSE, TRUE, sizeof( char *) );
+  gaze_options.gff_files = g_array_new( FALSE, TRUE, sizeof( FILE *) );
   gaze_options.structure_file_name = NULL;
   gaze_options.structure_file = NULL;
   gaze_options.out_file_name = g_strdup( "stdout ");
@@ -327,7 +327,7 @@ static int parse_command_line( int argc, char *argv[] ) {
     else if (gaze_options.dna_file == NULL) {
       fprintf( stderr, "Warning: You have not specified a DNA file\n");
     }
-    else if (gaze_options.feature_files->len == 0) {
+    else if (gaze_options.gff_files->len == 0) {
       fprintf( stderr, "You have not specified a GFF feature file\n");
       options_error = TRUE;
     }
@@ -410,7 +410,7 @@ int main (int argc, char *argv[]) {
   
   if (gaze_options.verbose)
     fprintf(stderr, "Reading the gff files...\n");
-  g_out->seq_name = get_features_from_gff( gaze_options.feature_files, features, segments, 
+  g_out->seq_name = get_features_from_gff( gaze_options.gff_files, features, segments, 
 					   gs->gff_to_feats, min_scores, 
 					   gaze_options.begin_dna, gaze_options.end_dna, 
 					   gaze_options.use_selected ); 
