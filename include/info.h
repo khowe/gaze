@@ -1,4 +1,4 @@
-/*  Last edited: Nov 22 11:48 2001 (klh) */
+/*  Last edited: Jan 14 16:40 2002 (klh) */
 /**********************************************************************
  ** File: info.h
  ** Author : Kevin Howe
@@ -9,8 +9,8 @@
 #ifndef _GAZE_INFO
 #define _GAZE_INFO
 
-#include <stdio.h>
 #include <glib.h>
+#include <stdio.h>
 
 
 /*************************** data types  **********************/

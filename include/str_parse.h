@@ -1,4 +1,4 @@
-/*  Last edited: Aug 30 15:15 2000 (klh) */
+/*  Last edited: Jan 14 16:39 2002 (klh) */
 /**********************************************************************
  ** File: str_parse.h
  ** Author : Kevin Howe
@@ -12,8 +12,8 @@
 #define _GAZE_STR_PARSE
 
 
-#include <stdlib.h>
 #include <glib.h>
+#include <stdlib.h>
 
 #include "structure.h"
 #include "info.h"

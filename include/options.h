@@ -1,4 +1,4 @@
-/*  Last edited: Sep 14 14:19 2000 (klh) */
+/*  Last edited: Jan 14 16:39 2002 (klh) */
 /**********************************************************************
  ** FILE: options.h
  ** DESCRIPTION:
@@ -8,10 +8,10 @@
 #ifndef _GETOPTIONS
 #define _GETOPTIONS 
 
+#include <glib.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
-#include <glib.h>
 
 /************************** constants *********************************/
 
