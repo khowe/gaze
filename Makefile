@@ -25,7 +25,7 @@ OBJS =	$(OBJ)/util.o \
 	$(OBJ)/engine.o \
 	$(OBJ)/info.o \
 	$(OBJ)/output.o \
-	$(OBJ)/features.o \
+	$(OBJ)/g_features.o \
 	$(OBJ)/g_engine.o \
 	$(OBJ)/gaze.o
 
@@ -58,8 +58,8 @@ $(OBJ)/str_parse.o : $(SRC)/str_parse.c $(INC)/str_parse.h
 $(OBJ)/options.o : $(SRC)/options.c $(INC)/options.h 
 	$(CC) $(CFLAGS) $(INCPATH) -o $(OBJ)/options.o $(SRC)/options.c
 
-$(OBJ)/features.o : $(SRC)/features.c $(INC)/features.h 
-	$(CC) $(CFLAGS) $(INCPATH) -c -o $(OBJ)/features.o $(SRC)/features.c
+$(OBJ)/g_features.o : $(SRC)/g_features.c $(INC)/g_features.h 
+	$(CC) $(CFLAGS) $(INCPATH) -c -o $(OBJ)/g_features.o $(SRC)/g_features.c
 
 $(OBJ)/engine.o : $(SRC)/engine.c $(INC)/engine.h
 	$(CC) $(CFLAGS) $(INCPATH) -o $(OBJ)/engine.o $(SRC)/engine.c
