@@ -1,4 +1,4 @@
-/*  Last edited: Jul 22 14:39 2002 (klh) */
+/*  Last edited: Jul 23 10:38 2002 (klh) */
 /**********************************************************************
  ** File: sequence.h
  ** Author : Kevin Howe
@@ -58,7 +58,7 @@ void remove_duplicate_features( Gaze_Sequence *);
 typedef struct {
   Gaze_Sequence **seq_list;
   int num_seqs;
-  Array *seq_id_dict;
+  Dict *seq_id_dict;
 
 } Gaze_Sequence_list;
 
