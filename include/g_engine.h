@@ -1,4 +1,4 @@
-/*  Last edited: Nov  3 16:36 2001 (klh) */
+/*  Last edited: Jan 24 15:56 2002 (klh) */
 /**********************************************************************
  ** File: engine.h
  ** Author : Kevin Howe
@@ -16,7 +16,6 @@ typedef struct {
   int    pth_trace;
   double score;
   int last_selected;
-  GArray *fringe_idx;
 
   GArray ***feats;   /* indices of features processed so far, organised by type */
   int ***fringes;    /* indices of last "significant" feature, organised first by
@@ -33,6 +32,7 @@ void forwards_calc(GArray *,
 		   GArray *,
 		   Gaze_Structure *,
 		   enum DP_Calc_Mode,
+		   FILE *,
 		   int,
 		   FILE *);
 
@@ -52,6 +52,7 @@ void scan_through_sources_dp(GArray *,
 			     Gaze_Structure *,
 			     enum DP_Calc_Mode,
 			     enum DP_Traceback_Mode,
+			     FILE *,
 			     int,
 			     FILE *);
 
