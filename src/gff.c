@@ -1,4 +1,4 @@
-/*  Last edited: Jul 24 14:52 2002 (klh) */
+/*  Last edited: Jul 26 15:59 2002 (klh) */
 /**********************************************************************
  ** File: gff.c
  ** Author : Kevin Howe
@@ -136,7 +136,7 @@ void write_GFF_line( FILE *fh,
 		     char *frame,
 		     char *group) {
 
-  fprintf( fh, "%s\t%s\t%s\t%d\t%d\t%.4f\t%s\t%s\t%s\n",
+  fprintf( fh, "%s\t%s\t%s\t%d\t%d\t%.4f\t%s\t%s", 
 	   seq != NULL ? seq : "Not_given",
 	   source != NULL ? source : "Not_given",
 	   feature != NULL ? feature : "Not_given",
@@ -144,8 +144,10 @@ void write_GFF_line( FILE *fh,
 	   end,
 	   score,
 	   strand != NULL ? strand : ".",
-	   frame != NULL ? frame : ".",
-	   group != NULL ? frame : "" );
+	   frame != NULL ? frame : "." );
+  if ( group != NULL ? group : "" )
+    fprintf( fh, "\t%s\n", group );
+  fprintf( fh, "\n");
 
 }
 
