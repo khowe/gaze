@@ -1745,11 +1745,12 @@ static void parse_Gaze_Structure_useseg( struct Parse_context *state,
  NOTES:
  *********************************************************************/
 
-Gaze_Structure *parse_Gaze_Structure( FILE *structure_file ) {
+Gaze_Structure *parse_Gaze_Structure( char *structure_file_nm ) {
   int i;
   boolean end_of_file = FALSE;
   struct Parse_context *state;
   Gaze_Structure *gs;
+  FILE *structure_file;
 
   XML_Parser p = XML_ParserCreate(NULL);
   if (! p) {
@@ -1768,6 +1769,8 @@ Gaze_Structure *parse_Gaze_Structure( FILE *structure_file ) {
 
   XML_SetElementHandler(p, &start_tag_structure, &end_tag_structure);
   XML_SetUserData( p,  state );
+
+  structure_file = fopen( structure_file_nm, "r" );
 
   while (! end_of_file && ! state->finished_parsing && ! state->error ) {
     int len;
@@ -1791,6 +1794,7 @@ Gaze_Structure *parse_Gaze_Structure( FILE *structure_file ) {
       exit(-1);
     }
   }
+  fclose( structure_file );
 
   if (state->error) {
     fprintf(stderr, "Error occurred at line %d\n", state->error);

@@ -21,7 +21,7 @@
 
 
 
-Gaze_Structure *parse_Gaze_Structure( FILE * );
+Gaze_Structure *parse_Gaze_Structure( char * );
 
 
 #endif

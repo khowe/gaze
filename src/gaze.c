@@ -38,6 +38,7 @@ Input files:\n\
  -gff_file <s>          name of a GFF file containing the features (can give many)\n\
  -dna_file <s>          name of a DNA file in fasta format (can give many)\n\
  -gene_file <s>         name of a GFF file containing a user-specified gene structure\n\
+ -id_file <s>           name of a file containing a list of name/start-ends to process\n\
  -defaults <s>          name of the file of default options (def: './gaze.defaults')\n\
 \n\
 Output files:\n\
@@ -63,6 +64,7 @@ static Option options[] = {
   { "-structure_file", STRING_ARG },
   { "-gff_file", STRING_ARG },
   { "-out_file", STRING_ARG },
+  { "-id_file", STRING_ARG },
   { "-gene_file", STRING_ARG },
   { "-defaults_file", STRING_ARG },
   { "-output", CHAR_ARG },
@@ -76,7 +78,7 @@ static Option options[] = {
 
 static struct {
   char *structure_file_name;
-  FILE *structure_file;
+  char *id_file_name;
   char *out_file_name;
   FILE *out_file;
 
@@ -85,11 +87,8 @@ static struct {
   Array *sequence_ends;    /* of int */
 
   Array *gff_file_names;  /* of string */
-  Array *gff_files;       /* of FILE */
   Array *dna_file_names;  /* of string */
-  Array *dna_files;       /* of FILE */
   Array *gene_file_names; /* of string */
-  Array *gene_files;      /* of FILE */
 
   enum {
     BEST_PATH,
@@ -142,14 +141,29 @@ static boolean process_Gaze_Options(char *optname,
     gaze_options.threshold = atof( optarg );
   }
   else if (strcmp(optname, "-structure_file") == 0) {
-    if ((gaze_options.structure_file = fopen( optarg, "r")) == NULL) {
+    FILE *test = fopen( optarg, "r");
+    if (test == NULL) {
       fprintf( stderr, "Could not open structure file %s for reading\n", optarg );
       options_error = TRUE;
     }
     else {
+      fclose(test);
       if (gaze_options.structure_file_name != NULL)
 	free_util( gaze_options.structure_file_name );
       gaze_options.structure_file_name = strdup_util( optarg );
+    }
+  }
+  else if (strcmp(optname, "-id_file") == 0) {
+    FILE *test = fopen( optarg, "r");
+    if (test == NULL) {
+      fprintf( stderr, "Could not open ID file %s for reading\n", optarg );
+      options_error = TRUE;
+    }
+    else {
+      fclose(test);
+      if (gaze_options.id_file_name != NULL)
+	free_util( gaze_options.id_file_name );
+      gaze_options.id_file_name = strdup_util( optarg );
     }
   }
   else if (strcmp(optname, "-out_file") == 0) {
@@ -163,23 +177,18 @@ static boolean process_Gaze_Options(char *optname,
       gaze_options.out_file_name = strdup_util( optarg );
     }
   }
+
   else if (strcmp(optname, "-gff_file") == 0 || 
 	   strcmp(optname, "-dna_file") == 0 ||
 	   strcmp(optname, "-gene_file") == 0 ) {
     Array *file_names, *files;
 
-    if (strcmp(optname, "-gff_file") == 0) {
+    if (strcmp(optname, "-gff_file") == 0)
       file_names = gaze_options.gff_file_names;
-      files = gaze_options.gff_files;
-    }
-    else if (strcmp(optname, "-dna_file") == 0) {
+    else if (strcmp(optname, "-dna_file") == 0)
       file_names = gaze_options.dna_file_names;
-      files = gaze_options.dna_files;
-    }
-    else if (strcmp(optname, "-gene_file") == 0) {
+    else if (strcmp(optname, "-gene_file") == 0)
       file_names = gaze_options.gene_file_names;
-      files = gaze_options.gene_files;
-    }
     
     if (dict_lookup( file_names, optarg ) >= 0)
       /* need to warn about duplicate feature file */
@@ -187,15 +196,15 @@ static boolean process_Gaze_Options(char *optname,
     else {
       /* Try to open the file, and if success, store both the file name
 	 and the file handle */
-      FILE *tmp_f = fopen( optarg, "r");
-      if (tmp_f == NULL) {
+      FILE *test_f = fopen( optarg, "r");
+      if (test_f == NULL) {
 	fprintf( stderr, "Could not open file %s for reading\n", optarg );
 	options_error = TRUE;
       }
       else {
 	char *tmp_f_name = strdup_util( optarg );
 	append_val_Array( file_names, tmp_f_name );
-	append_val_Array( files, tmp_f );
+	fclose( test_f );
       }
     }
   }
@@ -268,16 +277,12 @@ static int parse_command_line( int argc, char *argv[] ) {
   gaze_options.sequence_ends = new_Array (sizeof( int ), TRUE);
 
   gaze_options.structure_file_name = NULL;
-  gaze_options.structure_file = NULL;
   gaze_options.out_file_name = strdup_util( "stdout ");
   gaze_options.out_file = stdout;
 
   gaze_options.dna_file_names = new_Array( sizeof( char *), TRUE );
-  gaze_options.dna_files = new_Array( sizeof( FILE *), TRUE );
   gaze_options.gff_file_names = new_Array( sizeof( char *), TRUE );
-  gaze_options.gff_files = new_Array( sizeof( FILE *), TRUE );
   gaze_options.gene_file_names = new_Array( sizeof( char *), TRUE );
-  gaze_options.gene_files = new_Array( sizeof( FILE *), TRUE );
 
   gaze_options.use_selected = FALSE;
   gaze_options.verbose = FALSE;
@@ -304,30 +309,53 @@ static int parse_command_line( int argc, char *argv[] ) {
   /* check that compulsory args were actually given */
 
   if (! options_error ) {
-    if (gaze_options.structure_file == NULL) {
+    if (gaze_options.structure_file_name == NULL) {
       fprintf( stderr, "Error: You have not specified a structure file\n");
       options_error = TRUE;
     }
-    if (gaze_options.gff_files->len == 0) {
+    if (gaze_options.gff_file_names->len == 0) {
       fprintf( stderr, "Warning: You have not specified any GFF files\n");
       options_error = TRUE;
     }
-    if (gaze_options.dna_files->len == 0) {
+    if (gaze_options.dna_file_names->len == 0) {
       fprintf( stderr, "Warning: You have given not any DNA files\n");
       options_error = TRUE;
     }
   }
 
-  /* everything left on the command-line is a list of sequence names to process */
+  /* the list of file names to process is the combination of thise names
+     in the -id_file file, and those left on the command-line */
 
   if (! options_error) {
-    for(; !options_error && optindex < argc; optindex++) {
-      char *seq_id = strdup_util( argv[optindex] );
-      
+    /* first, form list of names */
+    Array *nmstends = new_Array( sizeof( char *), TRUE );
+    boolean dup_found;
+    int nmidx;
+
+    /* first from the file */
+    if (gaze_options.id_file_name != NULL) {
+      FILE *ids = fopen( gaze_options.id_file_name, "r" );
+      Line *ln = new_Line();
+      while( read_Line( ids, ln ) > 0 ) {
+	char *temp = strdup( ln->buf );
+	append_val_Array( nmstends, temp );
+      }
+      fclose(ids);
+      free_Line(ln);
+    }
+    /* the from the command line */
+    for (; optindex < argc; optindex++) {
+      char *temp = strdup( argv[optindex] );
+      append_val_Array( nmstends, temp );
+    }
+
+    for (nmidx = 0; nmidx < nmstends->len; nmidx++) {
       char *st, *en, *ptr;
       int start = 0;
       int i, end = 0;
 
+      char *seq_id = index_Array( nmstends, char *, nmidx );
+      
       if ((ptr = strchr( seq_id, '/')) != NULL) {
 	*ptr = '\0';
 	st = ptr+1;
@@ -335,33 +363,36 @@ static int parse_command_line( int argc, char *argv[] ) {
 	  *ptr = '\0';
 	  en = ptr+1;
 	  
-	  /* ideally, need a check here that start ends are digits, and to allow
-	     the user to specify their own name/start-end format */
-	  start = atoi( st );
-	  end = atoi ( en );
+	    /* ideally, need a check here that start ends are digits, and to allow
+	       the user to specify their own name/start-end format */
+	    start = atoi( st );
+	    end = atoi ( en );
 	}
       }
       
+      dup_found = FALSE;
       for (i=0; i < gaze_options.sequence_names->len; i++)
 	if (! strcmp( seq_id, index_Array( gaze_options.sequence_names, char *, i))) {
-	  fprintf( stderr, "Error: You have given the same sequence more than once (%s)\n", seq_id);
-	  options_error = TRUE;
+	  fprintf( stderr, "Warning: sequence %s given more than one - ignoring\n", seq_id );
+	  dup_found = TRUE;
 	  break;
 	}
       
-      if (! options_error) {	    
+      if (! dup_found) {	    
 	append_val_Array( gaze_options.sequence_names, seq_id );
 	append_val_Array( gaze_options.sequence_starts, start );
 	append_val_Array( gaze_options.sequence_ends, end );
       }
     }
-
-    if ( gaze_options.sequence_names->len == 0 ) {
-      fprintf( stderr, "Error: you have not give any sequences for GAZE to work on\n");
-      options_error = TRUE;
-    }
-  }
     
+    free_Array( nmstends, TRUE );
+  }
+  
+  if ( gaze_options.sequence_names->len == 0 ) {
+    fprintf( stderr, "Error: you have not give any sequences for GAZE to work on\n");
+    options_error = TRUE;
+  } 
+
   return (!options_error);
 }
 
@@ -382,7 +413,7 @@ int main (int argc, char *argv[]) {
   if(gaze_options.verbose)
     fprintf(stderr, "Parsing structure file\n");
   
-  if ((gazeStructure = parse_Gaze_Structure( gaze_options.structure_file )) == NULL)
+  if ((gazeStructure = parse_Gaze_Structure( gaze_options.structure_file_name )) == NULL)
     exit(1);
 	    
 
@@ -399,7 +430,7 @@ int main (int argc, char *argv[]) {
   if (gaze_options.verbose)
     fprintf(stderr, "Reading the dna files...\n");
   read_dna_seqs(allGazeSequences,
-		gaze_options.dna_files );
+		gaze_options.dna_file_names );
     
   for (s=0; s < allGazeSequences->num_seqs; s++)
     initialise_Gaze_Sequence( allGazeSequences->seq_list[s], gazeStructure );
@@ -411,7 +442,7 @@ int main (int argc, char *argv[]) {
   if (gaze_options.verbose)
     fprintf(stderr, "Reading the gff files...\n");
   get_features_from_gff( allGazeSequences,
-			 gaze_options.gff_files,
+			 gaze_options.gff_file_names,
 			 gazeStructure->gff_to_feats, 
 			 gaze_options.use_selected ); 
 
@@ -441,12 +472,12 @@ int main (int argc, char *argv[]) {
   /** Obtain the given paths, if there are any **********************/
   /******************************************************************/
 
-  if ( gaze_options.gene_files->len > 0) {
+  if ( gaze_options.gene_file_names->len > 0) {
     if (gaze_options.verbose)
       fprintf(stderr, "Reading the gff correct path files...\n");
   
     if (! read_in_paths( allGazeSequences,
-			 gaze_options.gene_files, 
+			 gaze_options.gene_file_names, 
 			 gazeStructure->feat_dict ))
 	fatal_util( "There was a problem reading in the correct paths\n" );
 

@@ -83,7 +83,6 @@ void warning_util( char *fmt, ...) {
 /********************************************************************* 
  FUNCTION: new_Line
  DESCRIPTION: 
-    Duplicates the given string and returns it
  RETURNS:
  ARGS:
  NOTES:
@@ -101,7 +100,6 @@ Line *new_Line( void ) {
 /********************************************************************* 
  FUNCTION: free_Line
  DESCRIPTION: 
-    Duplicates the given string and returns it
  RETURNS:
  ARGS:
  NOTES:
@@ -119,7 +117,6 @@ void free_Line( Line *l ) {
 /********************************************************************* 
  FUNCTION: read_Line
  DESCRIPTION: 
-    Duplicates the given string and returns it
  RETURNS:
  ARGS:
  NOTES:

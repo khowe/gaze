@@ -361,7 +361,7 @@ void read_dna_seqs( Gaze_Sequence_list *glist,
   int line_len, g_seq_idx, i, f, num_bases;
 
   for (f=0; f < file_list->len; f++) {
-    FILE *dna_file = index_Array( file_list, FILE *, f );
+    FILE *dna_file = fopen( index_Array( file_list, char *, f ), "r");
 
     while( (line_len = read_Line( dna_file, ln )) != 0) {
       int idx = 0;
@@ -426,6 +426,7 @@ void read_dna_seqs( Gaze_Sequence_list *glist,
 	}
       }
     }
+    fclose( dna_file );
   }
 
   /* finally, clean up and check */
@@ -477,7 +478,7 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
   GFF_line *gff_line = new_GFF_line();
   
   for(f=0; f < file_list->len; f++) {
-    FILE *file = index_Array( file_list, FILE *, f );
+    FILE *file = fopen (index_Array( file_list, char *, f ), "r" );
 
     while( read_GFF_line( file, gff_line ) != 0 ) {
       /* First check that we reading annotation for the same sequence that we've
@@ -607,7 +608,8 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
 	  }
 	}
       }
-    } 
+    }
+    fclose( file );
   }
 
   free_GFF_line( gff_line );
@@ -643,7 +645,7 @@ boolean read_in_paths( Gaze_Sequence_list *glist,
   gff_line = new_GFF_line();
 
   for (i=0; i < file_list->len; i++) {
-    FILE *file = index_Array( file_list, FILE *, i);
+    FILE *file = fopen( index_Array( file_list, char *, i), "r" );
 
     while( read_GFF_line( file, gff_line ) != 0 ){
       
@@ -679,6 +681,7 @@ boolean read_in_paths( Gaze_Sequence_list *glist,
 	}
       }
     }
+    fclose( file );
   }
 
   /* now locate "correct path" features in the complete list */
