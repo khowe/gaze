@@ -1,4 +1,4 @@
-/*  Last edited: Oct 25 14:09 2001 (klh) */
+/*  Last edited: Nov  3 16:36 2001 (klh) */
 /**********************************************************************
  ** File: engine.h
  ** Author : Kevin Howe
@@ -27,7 +27,7 @@ void free_Gaze_DP_struct( Gaze_DP_struct *, int );
 Gaze_DP_struct *new_Gaze_DP_struct( int, int );
 
 
-void calculate_path_score(GArray *, GArray *, Gaze_Structure *);
+gboolean calculate_path_score(GArray *, GArray *, Gaze_Structure *);
 
 void forwards_calc(GArray *, 
 		   GArray *,
