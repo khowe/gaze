@@ -106,7 +106,7 @@ Array *remove_index_Array (Array *, int);
 
 typedef Array Dict;
 
-signed char dict_lookup( Dict *, const char *);
+short int dict_lookup( Dict *, const char *);
 
 
 /*********************************************************************/

@@ -500,18 +500,18 @@ static void _array_expand_if_necessary (RealArray *array,
  ARGS: 
  NOTES:
  *********************************************************************/
-signed char dict_lookup( Dict *dict, const char *name ) {
+short int dict_lookup( Dict *dict, const char *name ) {
   boolean match = FALSE;
-  signed char j;
+  short int j;
 
-  for( j=0; j < ((Array *)dict)->len; j++ ) { 
+  for( j=0; j < ((Array *)dict)->len; j++ ) {
     if (! strcmp( index_Array( (Array *)dict, char *, j), name )) {
       match = TRUE;
       break;
     }
   }
 
-  return (match)?(signed char)j:-1;
+  return (match)?j:-1;
 }
 
 

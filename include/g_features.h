@@ -37,8 +37,8 @@ StartEnd *new_StartEnd(int, int);
 typedef struct {
   StartEnd real_pos;
   StartEnd adj_pos;
-  signed char feat_idx;
-  signed char dna;
+  short int feat_idx;
+  short int dna;
   boolean is_selected;
   boolean is_antiselected;
   boolean is_correct;

@@ -178,7 +178,7 @@ static boolean process_Gaze_Options(char *optname,
       file_names = gaze_options.gene_file_names;
     else if (strcmp(optname, "-selected_file") == 0)
       file_names = gaze_options.selected_file_names;
-    
+
     if (dict_lookup( file_names, optarg ) >= 0)
       /* need to warn about duplicate feature file */
 	fprintf( stderr, "Warning: file %s was given more than once\n", optarg );
@@ -338,8 +338,10 @@ static int parse_command_line( int argc, char *argv[] ) {
       FILE *ids = fopen( gaze_options.id_file_name, "r" );
       Line *ln = new_Line();
       while( read_Line( ids, ln ) > 0 ) {
-	char *temp = strdup_util( ln->buf );
-	append_val_Array( nmstends, temp );
+	if (ln->buf[0] != '#') { 
+	  char *temp = strdup_util( ln->buf );
+	  append_val_Array( nmstends, temp );
+	}
       }
       fclose(ids);
       free_Line(ln);
