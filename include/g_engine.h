@@ -1,4 +1,4 @@
-/*  Last edited: Oct  4 15:08 2001 (klh) */
+/*  Last edited: Oct 15 13:51 2001 (klh) */
 /**********************************************************************
  ** File: engine.h
  ** Author : Kevin Howe
@@ -17,10 +17,10 @@ typedef struct {
   double score;
   int last_selected;
   GArray *fringe_idx;
-} Gaze_Results;
+} Gaze_DP_struct;
 
-void free_Gaze_Results( Gaze_Results * );
-Gaze_Results *new_Gaze_Results( int );
+void free_Gaze_DP_struct( Gaze_DP_struct * );
+Gaze_DP_struct *new_Gaze_DP_struct( int );
 
 
 void calculate_path_score(GArray *, GArray *, Gaze_Structure *);
@@ -42,7 +42,7 @@ void backwards_calc(GArray *,
 void scan_through_sources_dp(GArray *,
 			     GArray *,
 			     int,
-			     Gaze_Results *,
+			     Gaze_DP_struct *,
 			     Gaze_Structure *,
 			     enum DP_Calc_Mode,
 			     enum DP_Traceback_Mode,
@@ -52,7 +52,7 @@ void scan_through_sources_dp(GArray *,
 void scan_through_targets_dp(GArray *,
 			     GArray *,
 			     int,
-			     Gaze_Results *,
+			     Gaze_DP_struct *,
 			     Gaze_Structure *,
 			     enum DP_Calc_Mode,
 			     int,

@@ -1,4 +1,4 @@
-/*  Last edited: Oct 10 13:17 2001 (klh) */
+/*  Last edited: Oct 15 13:52 2001 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -10,13 +10,13 @@
 
 
 /*********************************************************************
- FUNCTION: free_Gaze_Results
+ FUNCTION: free_Gaze_DP_struct
  DESCRIPTION:
  RETURNS:
  ARGS: 
  NOTES:
  *********************************************************************/
-void free_Gaze_Results( Gaze_Results *g_res ) {
+void free_Gaze_DP_struct( Gaze_DP_struct *g_res ) {
   int i;
 
   if (g_res != NULL) { 
@@ -29,17 +29,17 @@ void free_Gaze_Results( Gaze_Results *g_res ) {
 
 
 /*********************************************************************
- FUNCTION: new_Gaze_Results
+ FUNCTION: new_Gaze_DP_struct
  DESCRIPTION:
  RETURNS:
  ARGS: 
  NOTES:
  *********************************************************************/
-Gaze_Results *new_Gaze_Results( int feat_dict_size ) {
-  Gaze_Results *g_res;
+Gaze_DP_struct *new_Gaze_DP_struct( int feat_dict_size ) {
+  Gaze_DP_struct *g_res;
   int i, j;
 
-  g_res = (Gaze_Results *) g_malloc (sizeof(Gaze_Results));
+  g_res = (Gaze_DP_struct *) g_malloc (sizeof(Gaze_DP_struct));
 
   g_res->pth_score = g_res->score = 0.0;
   g_res->last_selected = -1;
@@ -149,7 +149,7 @@ void forwards_calc( GArray *features,
 		    FILE *trace_fh) {
   
   int ft_idx;
-  Gaze_Results *g_res = new_Gaze_Results( gs->feat_dict->len );
+  Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len );
 
   if (trace > 1)
     fprintf(trace_fh, "\nForward calculation:\n\n");
@@ -171,7 +171,7 @@ void forwards_calc( GArray *features,
 #endif
   }
 
-  free_Gaze_Results( g_res );
+  free_Gaze_DP_struct( g_res );
 }
 
 
@@ -192,7 +192,7 @@ void backwards_calc( GArray *features,
 		     int trace,
 		     FILE *trace_fh) {
   int ft_idx, frame;
-  Gaze_Results *g_res = new_Gaze_Results( gs->feat_dict->len );
+  Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len );
 
   /* need to set the fringe indices, because they are not 0 for the
      backward calculation */
@@ -218,7 +218,7 @@ void backwards_calc( GArray *features,
 
   }
 
-  free_Gaze_Results( g_res );
+  free_Gaze_DP_struct( g_res );
 }
 
 
@@ -233,7 +233,7 @@ void backwards_calc( GArray *features,
 void scan_through_sources_dp(GArray *features,
 			     GArray *segments,
 			     int tgt_idx,
-			     Gaze_Results *g_res,
+			     Gaze_DP_struct *g_res,
 			     Gaze_Structure *gs,
 			     enum DP_Calc_Mode sum_mode,
 			     enum DP_Traceback_Mode trace_mode,
@@ -639,7 +639,7 @@ void scan_through_sources_dp(GArray *features,
 void scan_through_targets_dp(GArray *features,
 			     GArray *segments,
 			     int src_idx,
-			     Gaze_Results *g_res,
+			     Gaze_DP_struct *g_res,
 			     Gaze_Structure *gs,
 			     enum DP_Calc_Mode sum_mode,
 			     int trace,
@@ -984,7 +984,7 @@ GArray *trace_back_general ( GArray *feats,
 
   GArray *stack = g_array_new( FALSE, TRUE, sizeof(Feature *));
   GArray *feat_path = g_array_new( FALSE, TRUE, sizeof(Feature *));
-  Gaze_Results *g_res = new_Gaze_Results( gs->feat_dict->len );
+  Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len );
   int pos = feats->len - 1;  
 
   temp = g_array_index( feats, Feature *, pos );
@@ -1024,7 +1024,7 @@ GArray *trace_back_general ( GArray *feats,
     feat_path = NULL;
   }
 
-  free_Gaze_Results( g_res );
+  free_Gaze_DP_struct( g_res );
   g_array_free( stack, TRUE );
 
   return feat_path;
