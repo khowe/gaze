@@ -397,7 +397,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 		    /* now search back for sources beyond the killer of this type that overlap the killer */
 
 		    if (killer_feat != NULL) {
-		      int local_idx = feats[frame]->len - 1;
+		      int local_idx;
 		      
 		      for(local_idx = feats[frame]->len - 1; local_idx >=0; local_idx-- ) {
 			Feature *candidate;
@@ -413,7 +413,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 			if (candidate->adj_pos.s <= killer_feat->real_pos.s)
 			  break;
 			else 
-			  boundary_index = local_idx;
+			  boundary_index = loc_f_idx;
 		      }
 
 		      if (boundary_index > last_idx_for_frame[frame]) 
@@ -963,7 +963,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 		    /* now search forward for targets beyond the killer of this type that overlap the killer */
 		    
 		    if (killer_feat != NULL) {
-		      int local_idx = feats[frame]->len - 1;
+		      int local_idx;
 
 		      for(local_idx = feats[frame]->len - 1; local_idx >=0; local_idx-- ) {
 			Feature *candidate;
@@ -979,7 +979,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 			if (candidate->adj_pos.e >= killer_feat->real_pos.e)
 			  break;
 			else 
-			  boundary_index = local_idx;
+			  boundary_index = loc_f_idx;
 		      }
 		      
 		      if (boundary_index < last_idx_for_frame[frame]) 
@@ -1396,13 +1396,14 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 		    if (k > 2)
 		      more_frames = FALSE;
 		  }
-		  
+
 		  if (apt_list->len > 0) {
 		    /* first search back for the first occurrence that does not overlap with target */
 		    int this_kill_idx = apt_list->len - 1;
 		    int boundary_index = index_Array( apt_list, int, this_kill_idx );
 
 		    Feature *killer_feat = index_Array(g_seq->features, Feature *, boundary_index );
+
 		    while ( killer_feat != NULL && killer_feat->real_pos.e > tgt->adj_pos.e) {
 		      if (--this_kill_idx >= 0) {
 			boundary_index = index_Array( apt_list, int, this_kill_idx );
@@ -1414,12 +1415,12 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 		    /* now search back for sources beyond the killer of this type that overlap the killer */
 
 		    if (killer_feat != NULL) {
-		      int local_idx = feats[frame]->len - 1;
+		      int local_idx;
 		      
 		      for(local_idx = feats[frame]->len - 1; local_idx >=0; local_idx-- ) {
 			Feature *candidate;
 			int loc_f_idx = index_Array( feats[frame], int, local_idx );
-			
+
 			if (loc_f_idx > boundary_index) 
 			  continue;
 			
@@ -1430,11 +1431,13 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 			if (candidate->adj_pos.s <= killer_feat->real_pos.s)
 			  break;
 			else 
-			  boundary_index = local_idx;
+			  boundary_index = loc_f_idx;
 		      }
 		      
-		      if (boundary_index > last_idx_for_frame[frame]) 
+		      if (boundary_index > last_idx_for_frame[frame]) {
 			last_idx_for_frame[frame] = boundary_index;
+		      }
+
 		    }
 		  }
 		}
