@@ -1,4 +1,4 @@
-/*  Last edited: Jul 16 09:15 2002 (klh) */
+/*  Last edited: Jul 16 12:40 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -492,9 +492,7 @@ int main (int argc, char *argv[]) {
   }
 
   qsort( features->data, features->len, sizeof(Feature *), &order_features_forwards); 
-
-  features = remove_duplicate_features( features );
-
+  remove_duplicate_features( features );
 
   if (gaze_options.verbose)
     fprintf(stderr, "%d features left\n", features->len);
