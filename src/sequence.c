@@ -1267,6 +1267,8 @@ Segment_list *new_Segment_list( int start_reg, int end_reg ) {
 
   sl->reg_len = end_reg - start_reg + 1;
 
+
+  sl->proj = NULL;
   for(i=0; i < 3; i++) {
     /*
     sl->per_base[i] = (double *) malloc_util( sl->reg_len * sizeof( double ) );
@@ -1504,7 +1506,7 @@ void project_Segment_list( Segment_list *sl) {
  NOTES:
  *********************************************************************/
 void scale_Segment_list( Segment_list *sl, double scale ) {
-  int lt, i, j;
+  int i, j;
 
   /* first the per-base element, if it exists */
 
@@ -1515,19 +1517,17 @@ void scale_Segment_list( Segment_list *sl, double scale ) {
 	sl->per_base[i][j] *= scale;
   */
 
-   
-  for (lt=0; lt < 2; lt++) {
-    Array *tp = (lt % 2) == 0 ? sl->orig : sl->proj;  
-  
-    if (tp != NULL) {
-      for( i=0; i < tp->len; i++) {      
-	Array *list = index_Array( tp, Array *, i );
-	
-	if (list != NULL) {
-	  for(j=0; j < list->len; j++) {
-	    Segment *seg = index_Array( list, Segment *, j );
-	    seg->score *= scale;
-	  }
+  /* only need to scale the orig list, and this scaling
+     will be propagated when the segments are projected */
+
+  if (sl->orig != NULL) {
+    for( i=0; i < sl->orig->len; i++) {      
+      Array *list = index_Array( sl->orig, Array *, i );
+      
+      if (list != NULL) {
+	for(j=0; j < list->len; j++) {
+	  Segment *seg = index_Array( list, Segment *, j );
+	  seg->score *= scale;
 	}
       }
     }
