@@ -1,4 +1,4 @@
-/*  Last edited: Jul 22 19:01 2002 (klh) */
+/*  Last edited: Jul 23 10:05 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -199,6 +199,15 @@ static boolean process_Gaze_Options(char *optname,
       }
     }
   }
+  else if (strcmp(optname, "-help") == 0 ||
+	   strcmp(optname, "-defaults_file") == 0 ) {
+    /* ignore these options because they have already been dealt with */
+
+  }
+  else {
+    fprintf(stderr, "Unrecognised option: %s\n", optname );
+    options_error = TRUE;
+  }
 
   return options_error;
 }
@@ -360,7 +369,7 @@ int main (int argc, char *argv[]) {
   int i,j,k,s = 0;
 
   if (! parse_command_line(argc, argv) )
-    exit(1);
+    fatal_util( "use \"gaze -h\" to find out about usage");
   
   if(gaze_options.verbose)
     fprintf(stderr, "Parsing structure file\n");
@@ -400,17 +409,21 @@ int main (int argc, char *argv[]) {
 			 gazeStructure->gff_to_feats, 
 			 gaze_options.use_selected ); 
 
-  if (gaze_options.verbose)
-    fprintf(stderr, "Getting features from dna...\n");
   for (i=0; i < allGazeSequences->num_seqs; i++) {
     if (allGazeSequences->seq_list[i]->dna_seq != NULL) {
-    
+
+      
+      if (gaze_options.verbose)
+	fprintf(stderr, "%s: getting features from dna...\n", 
+		allGazeSequences->seq_list[i]->seq_name);
+
       get_features_from_dna( allGazeSequences->seq_list[i], 
 			     gazeStructure->dna_to_feats );
 
       if (gazeStructure->take_dna != NULL) {
 	if (gaze_options.verbose)
-	  fprintf(stderr, "Getting dna for features...\n");
+	  fprintf(stderr, "%s: getting dna for features...\n",
+		  allGazeSequences->seq_list[i]->seq_name);
 
 	get_dna_for_features( allGazeSequences->seq_list[i], 
 			      gazeStructure->take_dna, 
@@ -429,7 +442,7 @@ int main (int argc, char *argv[]) {
 
   if ( gaze_options.gene_files->len > 0) {
     if (gaze_options.verbose)
-      fprintf(stderr, "Reading the gff correct path file...\n");
+      fprintf(stderr, "Reading the gff correct path files...\n");
   
     if (! read_in_paths( allGazeSequences,
 			 gaze_options.gene_files, 
@@ -451,8 +464,7 @@ int main (int argc, char *argv[]) {
 
   for(i=0; i < gazeStructure->length_funcs->len; i++) {
     Length_Function *lf = index_Array( gazeStructure->length_funcs, Length_Function *, i );
-    scale_Length_Function( lf, lf->multiplier );
-    scale_Length_Function( lf, gaze_options.sigma );
+    scale_Length_Function( lf, lf->multiplier * gaze_options.sigma );
   }
   
   /***********************************************/
@@ -463,8 +475,8 @@ int main (int argc, char *argv[]) {
     Gaze_Sequence *g_seq = allGazeSequences->seq_list[s];
 
     if (gaze_options.verbose)
-      fprintf(stderr, "Features: sorting, scaling %d feats for %s...", 
-	      g_seq->features->len, g_seq->seq_name );
+      fprintf(stderr, "%s: Features: sorting, scaling %d feats...", 
+	       g_seq->seq_name, g_seq->features->len );
     
     for( i=0; i < g_seq->features->len; i++ ) {
       Feature *ft = index_Array( g_seq->features, Feature *, i );
@@ -478,7 +490,7 @@ int main (int argc, char *argv[]) {
 	- index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->end_offset;
     }
     
-    qsort( g_seq->features->data, g_seq->features->len, sizeof(Feature *), &order_features_forwards); 
+    qsort( g_seq->features->data, g_seq->features->len, sizeof(Feature *), &order_features_for_dp); 
     remove_duplicate_features( g_seq );
     
     if (gaze_options.verbose)
@@ -489,7 +501,7 @@ int main (int argc, char *argv[]) {
     /***************************************/
     
     if (gaze_options.verbose)
-      fprintf(stderr, "Segments: sorting, scaling, indexing and projecting...\n");
+      fprintf(stderr, "%s: segments (sorting, scaling, indexing and projecting)...\n", g_seq->seq_name);
     
     for( i=0; i < g_seq->segment_lists->len; i++ ) {
       double multiplier = index_Array( gazeStructure->seg_info, Segment_Info *, i )->multiplier;

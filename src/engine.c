@@ -1,4 +1,4 @@
-/*  Last edited: Jul 22 14:45 2002 (klh) */
+/*  Last edited: Jul 23 09:33 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -206,11 +206,10 @@ boolean is_legal_path( Array *path,
 		       Gaze_Structure *gs ) {
 
   int idx, left_pos, right_pos, distance, k; 
-  Feature_Info *tgt_info;
+  Feature_Info *src_info, *tgt_info;
   Feature_Relation *reg_info;
   Feature *src, *tgt;
   boolean legal_path = TRUE;
-
 
   for( idx=0; legal_path && idx < path->len - 1; idx++) { 
     /* for the score to mean anything, all paths must begin with "BEGIN"
@@ -219,12 +218,13 @@ boolean is_legal_path( Array *path,
        (and has to be for the DP to work */
 
     src = index_Array( path, Feature *, idx );
-    
     tgt = index_Array( path, Feature *, idx + 1 );
+
+    src_info = index_Array( gs->feat_info, Feature_Info *, src->feat_idx );
     tgt_info = index_Array( gs->feat_info, Feature_Info *, tgt->feat_idx );
-    
-    left_pos = src->adj_pos.s;
-    right_pos = tgt->adj_pos.e;
+
+    left_pos = src->real_pos.s + src_info->start_offset;
+    right_pos = tgt->real_pos.e - tgt_info->end_offset;
     
     distance = right_pos - left_pos + 1;
 
@@ -252,41 +252,30 @@ boolean is_legal_path( Array *path,
 	      }
 	    }
 
-
 	    if (! killed_by_dna) 
 	      continue;
 	    else { 
-	      /*
-	      if (err != NULL) 
-	      fprintf(err, "The given path is illegal due to DNA constraints\n"); */	      
+	      fprintf(stderr, "The given path is illegal due to DNA constraints\n"); 
 	      legal_path = FALSE;
 	    }
 	  }
 	  else {
-	    /*
-	    if (err != NULL) 
-	    fprintf( err, "The given path is illegal to a maximun distance violation\n" ); */
+	    fprintf( stderr, "The given path is illegal to a maximun distance violation\n" ); 
 	    legal_path = FALSE;
 	  }
 	}
 	else {
-	  /*
-	  if (err != NULL) 
-	  fprintf( err, "The given path is illegal to a minimum distance violation\n" ); */
+	  fprintf( stderr, "The given path is illegal to a minimum distance violation\n" );
 	  legal_path = FALSE;	    
 	}
       }
       else {
-	/*
-	if (err != NULL) 
-	fprintf( err, "The given path is illegal to a phase violation\n" ); */
+	fprintf( stderr, "The given path is illegal to a phase violation\n" );
 	legal_path = FALSE;
       }
     }
     else {
-      /*
-      if (err != NULL) 
-      fprintf( err, "The given path has an illegal pair of features\n" ); */
+      fprintf( stderr, "The given path has an illegal pair of features\n" ); 
       legal_path = FALSE;
     }
   }
