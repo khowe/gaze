@@ -1,4 +1,4 @@
-/*  Last edited: Apr 23 13:00 2002 (klh) */
+/*  Last edited: Apr 26 10:09 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -103,8 +103,10 @@ double calculate_segment_score( Feature *src, Feature *tgt,
   int src_pos = src->adj_pos.s; 
   int tgt_pos = tgt->adj_pos.e; 
 
-  for(i=0; i < s_res->has_score->len; i++) 
+  for(i=0; i < s_res->has_score->len; i++) {
     g_array_index( s_res->has_score, gboolean, i ) = FALSE;
+    g_array_index( s_res->raw_scores, double, i ) = 0.0;
+  }
 
   if ( (seg_quals = tgt_rel->seg_quals) != NULL) {
     for (i=0; i < seg_quals->len; i++) {
@@ -160,16 +162,16 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 	      score = seg->score * (high - low + 1);
 	      	      
 	      if (! g_array_index( s_res->has_score, gboolean, i)) {
-		g_array_index( s_res->raw_scores, double, i) = score;
-		g_array_index( s_res->has_score, gboolean, i) = TRUE;
+		g_array_index( s_res->raw_scores, double, qual->seg_idx) = score;
+		g_array_index( s_res->has_score, gboolean, qual->seg_idx) = TRUE;
 	      }
 	      else {
 		if (qual->score_sum)
 		  /* now sum projected segment scores in a region rather than take max */
-		  g_array_index( s_res->raw_scores, double, i) += score;		  
+		  g_array_index( s_res->raw_scores, double, qual->seg_idx) += score;		  
 		else 
-		  if (score > g_array_index( s_res->raw_scores, double, i ))
-		    g_array_index( s_res->raw_scores, double, i) = score;
+		  if (score > g_array_index( s_res->raw_scores, double, qual->seg_idx ))
+		    g_array_index( s_res->raw_scores, double, qual->seg_idx) = score;
 		
 	      }
 	    }
