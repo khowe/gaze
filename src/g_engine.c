@@ -1,4 +1,4 @@
-/*  Last edited: Oct 25 14:14 2001 (klh) */
+/*  Last edited: Oct 29 14:51 2001 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -200,7 +200,7 @@ void forwards_calc( GArray *features,
 
   Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, 0 );
 
-  if (trace > 1)
+  if (trace)
     fprintf(trace_fh, "\nForward calculation:\n\n");
 
 
@@ -265,8 +265,9 @@ void backwards_calc( GArray *features,
 
   g_res->last_selected = features->len + 1;
 
-  if (trace > 1)
+  if (trace)
     fprintf(trace_fh, "\nBackward calculation:\n\n");
+
   for (ft_idx = features->len-2; ft_idx >= 0; ft_idx--) {
     /* push the index if the last feature onto the list of
        sorted indices */
@@ -326,6 +327,8 @@ void scan_through_sources_dp(GArray *features,
 
   double max_score = NEG_INFINITY;
   double max_forward = NEG_INFINITY;
+  int *killer_source_dna = NULL;
+  int *danger_source_dna = NULL;
 
   g_res->pth_score = 0.0;
   g_res->pth_trace = 0,0;
@@ -452,6 +455,28 @@ void scan_through_sources_dp(GArray *features,
 	  last_idx_for_frame[frame] = g_res->fringes[tgt->feat_idx][src_type][tgt->real_pos.s % 3];
       }
 
+      /* Before actually scanning through the features themselves, we need to check
+	 if there are potential dna killers. If so, set flags for the source
+	 dna entries that will cause problems */
+
+      if (reg_info->kill_dna_quals != NULL) {
+	danger_source_dna = (int *) g_malloc0( gs->motif_dict->len * sizeof(int) );
+
+	for(k=0; k < reg_info->kill_dna_quals->len; k++) {
+	  Killer_DNA_Qualifier *kdq = g_array_index( reg_info->kill_dna_quals, 
+						     Killer_DNA_Qualifier *,
+						     k );
+
+	  danger_source_dna[kdq->src_dna] = 1; 
+
+	  if (tgt->dna >= 0 && tgt->dna == kdq->tgt_dna) {
+	    if (killer_source_dna == NULL) 
+	      killer_source_dna = (int *) g_malloc0( gs->motif_dict->len * sizeof(int) );
+	    killer_source_dna[kdq->src_dna] = 1;
+	  }
+	}
+      }
+      
       /* at this point, we have the list of features that need to be processed (feats),
 	 and the index that we must not proceed past in each frame. We can now process
 	 the features themselves, in a frame-dependent or frame-independent way */
@@ -531,24 +556,8 @@ void scan_through_sources_dp(GArray *features,
 	  if ((reg_info->max_dist == NULL) || (*(reg_info->max_dist)) >= distance) {
 	    
 	    if ((reg_info->min_dist == NULL) || (*(reg_info->min_dist)) <= distance) {
-		
-	      /* check for DNA killers */
-	      gboolean invalid_pair = FALSE;
-	      
-	      if (src->dna >= 0 && tgt->dna >= 0) {
-		if (reg_info->kill_dna_quals != NULL) {
-		  for(k=0; ! invalid_pair && k < reg_info->kill_dna_quals->len; k++) {
-		    Killer_DNA_Qualifier *kdq = g_array_index( reg_info->kill_dna_quals, 
-							       Killer_DNA_Qualifier *,
-							       k );
-		    if (src->dna == kdq->src_dna && tgt->dna == kdq->tgt_dna)
-		      invalid_pair = TRUE;
-		  }
-		}
-	      }
-	      
-	      if (! invalid_pair) {
-		/* At last, calculate the score */
+	      /* Finally, if this source does not result in a DNA kill, we can calc the score */
+	      if (killer_source_dna == NULL || src->dna < 0 || ! killer_source_dna[src->dna]) {
 		trans_score = 0.0;
 		len_pen = 0.0;
 		
@@ -583,26 +592,44 @@ void scan_through_sources_dp(GArray *features,
 		    max_forward = forward_temp;
 		  
 		  if (sum_mode == PRUNED_SUM) {
+		    /* There are two assumptions for my pruning method:
+		       1. Because the scores are log scores, if two scores differ
+		          by 25 (say) or more, then the first score is e^25 times bigger
+			  than the other; the smaller score will not register given 
+			  machine precision, so can be ignored. 
+		       2. If all features to the left of a given source are "dominated" in 
+		          this way, they will be dominated for all subsequence occurrences
+			  of the current target, so can be pruned away
+
+		       However, assumption 2 does not quite hold when the dominant source
+		       for a given target is not valid for a future target of this type,
+		       due to DNA killers. Therefore, we need to ensure that sources
+		       do not dominate if they might be illegal with respect to future
+		       targets of this type. This is a "to do" */
+
 		    if (! touched_score_local ) {
-		      /* add back in the length penalty, because when judging for dominance, 
-			 the length penalty will be different for future features */
-		      max_forpluslen = forward_temp + len_pen;
+		      
+		      if (danger_source_dna == NULL 
+			  || src->dna < 0  
+			  || ! danger_source_dna[src->dna]) {
+			/* add back in the length penalty, because when judging for dominance, 
+			   the length penalty will be different for future features */
+			max_forpluslen = forward_temp + len_pen;
+			touched_score_local = TRUE;
+		      }
+		      
 		      local_fringe = src_idx;
-		      touched_score_local = TRUE;
 		    }
 		    else {
 		      /* compare this one to max_forward, to see if it is dominated */
-		      if (forward_temp + len_pen > max_forpluslen) 
+		      if (forward_temp + len_pen > max_forpluslen 
+			  && (danger_source_dna == NULL 
+			      || src->dna < 0  
+			      || ! danger_source_dna[src->dna]))
 			max_forpluslen = forward_temp + len_pen;
 		      
 		      if ( max_forpluslen - (forward_temp + len_pen) < 25.0)
 			local_fringe = src_idx;
-
-		      /* 
-			 this feature is not dominated if it has a "significant" contribution
-			 to the forward score (previously, had to make sure that I do not prune
-			 away the max, but I don't think this is necessary with the new method).
-		      */
 		    }
 		  }
 		  
@@ -659,9 +686,17 @@ void scan_through_sources_dp(GArray *features,
 	    g_res->fringes[tgt->feat_idx][src_type][k] = local_fringe;
 	}
       }
-    }
-  }   
-
+      
+      if (danger_source_dna != NULL) {
+	g_free( danger_source_dna );
+	danger_source_dna = NULL;
+      }
+      if (killer_source_dna != NULL) {
+	g_free( killer_source_dna );
+	killer_source_dna = NULL;
+      }
+    }  
+  }
   /* 
    update the position of the last forced feature. However, this
    needs to be the position of the first feature in the last
@@ -788,6 +823,8 @@ void scan_through_targets_dp(GArray *features,
   gboolean passed_killer_feat = FALSE;
   double max_backward = 0.0;
   double max_backpluslen = 0.0;
+  int *killer_target_dna = NULL;
+  int *danger_target_dna = NULL;
 
   g_res->score = 0.0;
   trans_score = len_pen = seg_score = backward_temp = 0.0;
@@ -917,7 +954,30 @@ void scan_through_targets_dp(GArray *features,
 	  if (g_res->fringes[src->feat_idx][tgt_type][src->real_pos.s % 3] < last_idx_for_frame[frame])
 	    last_idx_for_frame[frame] = g_res->fringes[src->feat_idx][tgt_type][src->real_pos.s % 3];
 	}
+
+
+	/* Before actually scanning through the features themselves, we need to check
+	   if there are potential dna killers. If so, set flags for the source
+	   dna entries that will cause problems */
+	
+	if (reg_info->kill_dna_quals != NULL) {
+	  danger_target_dna = (int *) g_malloc0( gs->motif_dict->len * sizeof(int) );
 	  
+	  for(k=0; k < reg_info->kill_dna_quals->len; k++) {
+	    Killer_DNA_Qualifier *kdq = g_array_index( reg_info->kill_dna_quals, 
+						       Killer_DNA_Qualifier *,
+						       k );
+	    
+	    danger_target_dna[kdq->tgt_dna] = 1;
+	    
+	    if (src->dna >= 0 && src->dna == kdq->src_dna) {
+	      if (killer_target_dna == NULL)
+		killer_target_dna = (int *) g_malloc0( gs->motif_dict->len * sizeof(int) );
+	      killer_target_dna[kdq->tgt_dna] = 1;
+	    }
+	  }
+	}
+	
 	/* at this point, we have the list of features that need to be processed (feats),
 	   and the index that we must not proceed past in each frame. We can now process
 	   the features themselves, in a frame-dependent or frame-independent way */
@@ -997,25 +1057,10 @@ void scan_through_targets_dp(GArray *features,
 	    if ((reg_info->max_dist == NULL) || (*(reg_info->max_dist)) >= distance) {
 	      
 	      if ((reg_info->min_dist == NULL) || (*(reg_info->min_dist)) <= distance) {
-		gboolean invalid_pair = FALSE;
-		
-		/* check for DNA killers now */
-		if (src->dna >= 0 && tgt->dna >= 0) {
-		  if (reg_info->kill_dna_quals != NULL) {
-		    for(k=0; k < reg_info->kill_dna_quals->len; k++) {
-		      Killer_DNA_Qualifier *kdq = g_array_index( reg_info->kill_dna_quals, 
-								 Killer_DNA_Qualifier *,
-								 k );
-		      if (src->dna == kdq->src_dna && tgt->dna == kdq->tgt_dna) {
-			invalid_pair = TRUE;
-			break;
-		      }
-		    }
-		    }
-		}		  
-		  
-		if (! invalid_pair) {
-		  /* a legal pair of features, so calculate the score */
+
+		/* Finally, if this source does not result in a DNA kill, we can calc the score */
+		if (killer_target_dna == NULL || tgt->dna < 0 || ! killer_target_dna[tgt->dna]) {
+
 		  trans_score = 0.0;
 		  len_pen = 0.0;
 		  
@@ -1042,23 +1087,27 @@ void scan_through_targets_dp(GArray *features,
 		    if (! touched_score_local ) {
 		      /* add back in the length penalty, because when judging for dominance, 
 			 the length penalty will be different for future features */
-		      max_backpluslen = backward_temp + len_pen;
+
+		      if (danger_target_dna == NULL 
+			  || tgt->dna < 0  
+			  || ! danger_target_dna[src->dna]) {
+			touched_score_local = TRUE;
+			max_backpluslen = backward_temp + len_pen;
+		      }
+
 		      local_fringe = tgt_idx;
-		      touched_score_local = TRUE;
+
 		    }
 		    else {
 		      /* compare this one to max_forward, to see if it is dominated */
-		      if (backward_temp + len_pen > max_backpluslen) 
+		      if (backward_temp + len_pen > max_backpluslen
+			  && (danger_target_dna == NULL 
+			      || tgt->dna < 0  
+			      || ! danger_target_dna[tgt->dna])) 
 			max_backpluslen = backward_temp + len_pen;
 		      
 		      if ( max_backpluslen - (backward_temp + len_pen) < 25.0)
 			local_fringe = tgt_idx;
-
-		      /* 
-			 this feature is not dominated if it has a "significant" contribution
-			 to the forward score (previously, had to make sure that I do not prune
-			 away the max, but I don't think this is necessary with the new method).
-		      */
 		    }
 		  }
 		  
@@ -1113,6 +1162,16 @@ void scan_through_targets_dp(GArray *features,
 	      g_res->fringes[src->feat_idx][tgt_type][k] = local_fringe;
 	  }
 	}
+
+	if (danger_target_dna != NULL) {
+	  g_free( danger_target_dna );
+	  danger_target_dna = NULL;
+	}
+	if (killer_target_dna != NULL) {
+	  g_free( killer_target_dna );
+	  killer_target_dna = NULL;
+	}
+
       }      
     }
 
@@ -1145,7 +1204,7 @@ void scan_through_targets_dp(GArray *features,
       g_res->score = log( g_res->score ) + max_backward;
       
       if (trace)
-	fprintf(trace_fh, "  RESULT: b=%.3f\n", 
+	fprintf(trace_fh, "  RESULT: b=%.8f\n", 
 		g_res->score );
     }
     else {
