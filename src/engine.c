@@ -131,7 +131,7 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 
 	  int left = 0;
 	  int right = segs->len - 1;
-	  
+
 	  while (left < right) {
 	    int mid = (left + right) / 2;
 
@@ -145,6 +145,7 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 
 	for (; j < segs->len; j++) {
 	  Segment *seg = g_array_index( segs, Segment *, j ); 
+
 	  if ( seg->pos.s > tgt_pos )
 	    break;
 	  else if ( seg->pos.e < src_pos )
@@ -160,19 +161,21 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 	      /* score = seg->score * ( (double)(high - low + 1) / (double) (seg->pos.e - seg->pos.s + 1)); */
 
 	      score = seg->score * (high - low + 1);
-	      	      
-	      if (! g_array_index( s_res->has_score, gboolean, i)) {
+
+	      if (! g_array_index( s_res->has_score, gboolean, qual->seg_idx)) {
 		g_array_index( s_res->raw_scores, double, qual->seg_idx) = score;
 		g_array_index( s_res->has_score, gboolean, qual->seg_idx) = TRUE;
+
 	      }
 	      else {
 		if (qual->score_sum)
 		  /* now sum projected segment scores in a region rather than take max */
 		  g_array_index( s_res->raw_scores, double, qual->seg_idx) += score;		  
-		else 
-		  if (score > g_array_index( s_res->raw_scores, double, qual->seg_idx ))
+		else {
+		  if (score > g_array_index( s_res->raw_scores, double, qual->seg_idx )) {
 		    g_array_index( s_res->raw_scores, double, qual->seg_idx) = score;
-		
+		  }
+		}	
 	      }
 	    }
 	  }
