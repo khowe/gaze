@@ -628,8 +628,7 @@ int main (int argc, char *argv[]) {
       if (g_seq->path == NULL) {
 	if (gaze_options.verbose)
 	  fprintf( stderr, "Tracing back...\n");
-	trace_back_general(g_seq, 
-			   gazeStructure );      
+	trace_back_general(g_seq );
       }
       
       calculate_path_score( g_seq, gazeStructure );

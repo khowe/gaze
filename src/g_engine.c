@@ -1718,8 +1718,7 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
  ARGS: 
  NOTES:
  *********************************************************************/
-void trace_back_general ( Gaze_Sequence *g_seq,
-			  Gaze_Structure *gs ) {
+void trace_back_general ( Gaze_Sequence *g_seq ) {
   
   int i;
   Feature *temp;
