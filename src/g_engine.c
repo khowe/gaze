@@ -184,26 +184,30 @@ void forwards_calc( Gaze_Sequence *g_seq,
     srand( time(NULL) );
 
   for (ft_idx = 1; ft_idx < g_seq->features->len; ft_idx++) {
-    /* push the index of the last feature onto the list of
-       sorted indices */
-    prev_idx = ft_idx - 1;
-    prev_feat = index_Array( g_seq->features, Feature *, prev_idx );
-    temp = g_res->feats[prev_feat->feat_idx][prev_feat->adj_pos.s % 3];
-    append_val_Array( temp, prev_idx );
 
-    if (g_out->sample_gene || g_out->regions || g_out->probability)
-      scan_through_sources_dp( g_seq,
-			       gs, 
-			       ft_idx,  
-			       g_res, 
-			       use_pruning,
-			       g_out);
-    else
-      scan_through_sources_for_max_only( g_seq,
-					 gs, 
-					 ft_idx,  
-					 g_res,
-					 use_pruning);
+    /* only do the dp if a path is not already present for the sequence,
+       or if a path is present by the user wanted to see probabilities */
+
+    if (g_seq->path == NULL || g_out->probability) {
+      prev_idx = ft_idx - 1;
+      prev_feat = index_Array( g_seq->features, Feature *, prev_idx );
+      temp = g_res->feats[prev_feat->feat_idx][prev_feat->adj_pos.s % 3];
+      append_val_Array( temp, prev_idx );
+
+      if (g_out->sample_gene || g_out->regions || g_out->probability)
+	scan_through_sources_dp( g_seq,
+				 gs, 
+				 ft_idx,  
+				 g_res, 
+				 use_pruning,
+				 g_out);
+      else
+	scan_through_sources_for_max_only( g_seq,
+					   gs, 
+					   ft_idx,  
+					   g_res,
+					   use_pruning);
+    }
 
     index_Array( g_seq->features, Feature *, ft_idx )->forward_score = g_res->score;
     index_Array( g_seq->features, Feature *, ft_idx )->path_score = g_res->pth_score;
