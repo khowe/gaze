@@ -1,4 +1,4 @@
-/*  Last edited: Feb 22 14:29 2002 (klh) */
+/*  Last edited: Mar 21 16:13 2002 (klh) */
 /**********************************************************************
  ** File: output.c
  ** Author : Kevin Howe
@@ -36,6 +36,9 @@ void print_GFF_Gaze_Features( FILE *fh,
   int i;
 
   fprintf( fh, "##gff-version 2\n");
+  fprintf( fh, "##sequence-region %s %d %d\n", seq_name, 
+	   g_array_index( fts, Feature *, 0)->real_pos.s,
+	   g_array_index( fts, Feature *, fts->len - 1)->real_pos.e);
   fprintf( fh, "## List of GAZE features implying a gene structure of %s\n", seq_name);
   fprintf( fh, "##  Score of path : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->path_score);
   fprintf( fh, "##  Forward score : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->forward_score);
@@ -78,7 +81,10 @@ void print_GFF_path( FILE *fh,
   int i;
 
   fprintf( fh, "##gff-version 2\n");
-  fprintf( fh, "## GAZE gene structure of %s\n", seq_name);
+  fprintf( fh, "##sequence-region %s %d %d\n", seq_name, 
+	   g_array_index( fts, Feature *, 0)->real_pos.s,
+	   g_array_index( fts, Feature *, fts->len - 1)->real_pos.e);
+  fprintf( fh, "##source-version GAZE 1.0\n");
   fprintf( fh, "##  Score of path : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->path_score);
 
   for( i=0; i < fts->len - 1; i++) {
@@ -147,11 +153,14 @@ void print_post_probs( FILE *fh,
   int i, discarded = 0;
 
   fprintf( fh, "##gff-version 2\n");
-  fprintf( fh, "## GAZE posterior feeature probabilities above %.2f for %s\n", thresh, seq_name);
+  fprintf( fh, "##sequence-region %s %d %d\n", seq_name, 
+	   g_array_index( fts, Feature *, 0)->real_pos.s,
+	   g_array_index( fts, Feature *, fts->len - 1)->real_pos.e);
+  fprintf( fh, "##source-version GAZE 1.0\n");
+  fprintf( fh, "## GAZE posterior feature probabilities above %.2f\n", thresh);
   fprintf( fh, "##     Fend = %.10f,     Bbegin = %.10f\n", 
 	   g_array_index( fts, Feature *, fts->len - 1)->forward_score,
 	   g_array_index( fts, Feature *, 0)->backward_score );
-
 
   for(i=0; i < fts->len; i++) {
     Feature *f = g_array_index( fts, Feature *, i);
