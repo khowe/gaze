@@ -1,21 +1,9 @@
 
-# If you have installed glib and/or expat locally,
+# If you have installed expat locally,
 # you will have to amend the following lines
 
-# put the location of glib.h here. 
-# If centrally installed, comment this line out.
-GLIBINC = -I/usr/local/include
-# put the location of the glibconfig.h here. 
-# If centrally installed, comment this line out.
-GLIBCONFIGINC = -I/usr/local/lib/glib/include 
-# Put the location of expat.h file here. 
-# If centrally installed, comment this line out.
-EXPATINC = -I$(HOME)/libraries/osf/include
-
-# put the location of the glib and expat libraries themselves here.
-# If centrally installed, comment these lines out
-EXPATLIB = -L$(HOME)/libraries/osf/lib
-GLIBLIB = 
+EXPATINC = $(HOME)/libraries/osf/include
+EXPATLIB = $(HOME)/libraries/osf/lib
 
 ###################################################
 ##### shouldn't need to change anything below here 
@@ -26,19 +14,21 @@ SRC = ./src
 BIN = ./bin
 INC = ./include
 
-INCPATH = -I$(INC) $(GLIBINC) $(GLIBCONFIGINC) $(EXPATINC)
+INCPATH = -I$(INC) -I$(EXPATINC)
 
-LIB = $(EXPATLIB) $(GLIBLIB) -lm -lglib -lexpat 
+LIB = -L$(EXPATLIB) -lm -lexpat 
 
-OBJS = 	$(OBJ)/structure.o \
+OBJS =	$(OBJ)/util.o \
+	$(OBJ)/structure.o \
 	$(OBJ)/str_parse.o \
 	$(OBJ)/options.o \
 	$(OBJ)/engine.o \
 	$(OBJ)/info.o \
 	$(OBJ)/output.o \
 	$(OBJ)/features.o \
-	$(OBJ)/g_engine.o  \
+	$(OBJ)/g_engine.o \
 	$(OBJ)/gaze.o
+
 
 #TRACE_LEV = -DTRACE=1
 
@@ -55,6 +45,9 @@ all: $(BIN)/gaze
 
 $(BIN)/gaze : $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LIB)
+
+$(OBJ)/util.o : $(SRC)/util.c $(INC)/util.h
+	$(CC) $(CFLAGS) $(INCPATH) -o $(OBJ)/util.o $(SRC)/util.c
 
 $(OBJ)/structure.o : $(SRC)/structure.c $(INC)/structure.h
 	$(CC) $(CFLAGS) $(INCPATH) -o $(OBJ)/structure.o $(SRC)/structure.c
