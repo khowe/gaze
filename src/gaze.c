@@ -22,8 +22,6 @@ static Gaze_Output *gazeOutput;
 static Gaze_Sequence_list *allGazeSequences;
 
 
-
-
 /*********************************************************************/
 /***** Processing the command-line ***********************************/
 /*********************************************************************/
@@ -33,7 +31,7 @@ Usage: gaze <options> seq_name1/start-end seq_name2/start-end ... \n\
 Options are:\n\
 \n\
 Input files:\n\
-\
+\n\
  -structure_file <s>    XML file containing the gaze structure\n\
  -gff_file <s>          name of a GFF file containing the features (can give many)\n\
  -dna_file <s>          name of a DNA file in fasta format (can give many)\n\
@@ -46,7 +44,7 @@ Output files:\n\
  -out_file <s>          print gene structure to given file (def: stdout)\n\
 \n\
 Output options:\n\
- -sample_gene           use posterior sampling to obtain gene structure (default: max)
+ -sample_gene           use posterior sampling to obtain gene structure (default: max)\n\
  -regions               show region candidates (for regions indicated in structure file)\n\
  -feature               show feature candidates (most sensibly used with -probability)\n\
     (If non of the above is suuplied, the highest scoring gene structure is obtained)\n\
