@@ -1,4 +1,4 @@
-/*  Last edited: Jul 15 11:48 2002 (klh) */
+/*  Last edited: Jul 15 13:57 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -279,8 +279,8 @@ static int parse_command_line( int argc, char *argv[] ) {
     defaults_fh = fopen( "defaults.gaze", "r" );
   } 
 
-  gaze_options.begin_dna = 1;
-  gaze_options.end_dna = 300000000;   /* need to do something about this */
+  gaze_options.begin_dna = 0;   /* if not overridded by the user, these will */
+  gaze_options.end_dna = 0;     /* be derived from the given dna sequence */
   gaze_options.offset_dna = 1;
   gaze_options.sigma = 1.0;
   gaze_options.dna_file_name = NULL;
@@ -307,7 +307,6 @@ static int parse_command_line( int argc, char *argv[] ) {
 
   /* anything left on the command line has priority, so will
      overwrite settings made so far */
-
   
   while (! options_error && get_option( argc, argv, options,
 					sizeof(options) / sizeof( Option ),
@@ -324,15 +323,24 @@ static int parse_command_line( int argc, char *argv[] ) {
       options_error = TRUE;
     }
     if (gaze_options.gff_files->len == 0) {
-      fprintf( stderr, "You have not specified a GFF feature file\n");
-      options_error = TRUE;
-    }
-    if (gaze_options.begin_dna > gaze_options.end_dna) {
-      fprintf( stderr, "You have given an illegal DNA start/end range\n");
+      fprintf( stderr, "Error: You have not specified a GFF feature file\n");
       options_error = TRUE;
     }
     if (gaze_options.dna_file == NULL) {
       fprintf( stderr, "Warning: You have not specified a DNA file\n");
+      if (gaze_options.begin_dna == 0 || gaze_options.end_dna == 0) {
+	fprintf( stderr, "Error: If you don't give a DNA file, you must supply -begin_dna and -end_dna options\n");
+	options_error = TRUE;
+      }
+    }
+    else {
+      if (gaze_options.begin_dna == 0 || gaze_options.end_dna == 0) {
+	fprintf( stderr, "Warning: you have not given a sequence begin/end. Deriving from DNA...\n");
+      }
+      else if (gaze_options.begin_dna > gaze_options.end_dna == 0) {
+	fprintf( stderr, "Error: you have given an illegal DNA start/end\n");
+	options_error = TRUE;
+      }
     }
   }
 
@@ -350,7 +358,7 @@ int main (int argc, char *argv[]) {
   Gaze_Output *g_out;
   Array *features, *segments, *min_scores, *feature_path = NULL;
   Feature *beg_ft, *end_ft;
-  char *dna_seq;
+  char *dna_seq = NULL;
   int i,j,k, num_segs = 0;
   enum DP_Calc_Mode calc_mode;
 
@@ -372,7 +380,6 @@ int main (int argc, char *argv[]) {
   /***/
 
   features = new_Array( sizeof(Feature *), TRUE);
-
   segments = new_Array( sizeof(Segment_lists *), TRUE);
   set_size_Array( segments, gs->seg_dict->len );
 
@@ -388,7 +395,22 @@ int main (int argc, char *argv[]) {
     index_Array( min_scores, double, i ) = 0.0;
 
   /******************************************************************/
-  /* get all the features *******************************************/
+  /* get the dna sequence *******************************************/
+  /******************************************************************/
+
+  if (gaze_options.dna_file != NULL) {
+    if (gaze_options.verbose)
+      fprintf(stderr, "Reading the dna file...\n");
+    dna_seq = read_dna_seq( gaze_options.dna_file, 
+			    gaze_options.offset_dna,			    
+			    &gaze_options.begin_dna, 
+			    &gaze_options.end_dna );
+			    
+
+  }
+
+  /******************************************************************/
+  /* First, obtain and set up all the FEATURES and SEGMENTS *********/
   /******************************************************************/
 
   /* start by adding BEGIN and END by hand... */ 
@@ -409,9 +431,13 @@ int main (int argc, char *argv[]) {
   
   if (gaze_options.verbose)
     fprintf(stderr, "Reading the gff files...\n");
-  g_out->seq_name = get_features_from_gff( gaze_options.gff_files, features, segments, 
-					   gs->gff_to_feats, min_scores, 
-					   gaze_options.begin_dna, gaze_options.end_dna, 
+  g_out->seq_name = get_features_from_gff( gaze_options.gff_files, 
+					   features, 
+					   segments, 
+					   gs->gff_to_feats, 
+					   min_scores, 
+					   gaze_options.begin_dna, 
+					   gaze_options.end_dna, 
 					   gaze_options.use_selected ); 
   
   if (g_out->seq_name == NULL)
@@ -419,13 +445,15 @@ int main (int argc, char *argv[]) {
 
   /* ...and from the DNA files */
 
-  if (gaze_options.dna_file != NULL) {
+  if (dna_seq != NULL) {
     if (gaze_options.verbose)
-      fprintf(stderr, "Reading the dna file...\n");
-    dna_seq = read_dna_seq( gaze_options.dna_file, 
-			    gaze_options.begin_dna, gaze_options.end_dna, gaze_options.offset_dna );
-    get_features_from_dna( dna_seq, features, segments, 
-			   gs->dna_to_feats, min_scores,
+      fprintf(stderr, "Getting features from dna...\n");
+    
+    get_features_from_dna( dna_seq, 
+			   features, 
+			   segments, 
+			   gs->dna_to_feats, 
+			   min_scores,
 			   gaze_options.begin_dna); 
     if (gs->take_dna != NULL) {
       if (gaze_options.verbose)
@@ -433,11 +461,10 @@ int main (int argc, char *argv[]) {
       get_dna_for_features( dna_seq, features, gs->take_dna, gs->motif_dict,
 			    gaze_options.begin_dna, gaze_options.end_dna );
     }
-    free_util( dna_seq );
-  }
-  
-  free_Array( min_scores, TRUE );
 
+    free_util( dna_seq );
+  }  
+  free_Array( min_scores, TRUE );
 
   /***********************************************/
   /* Scale, sort, and remove duplicates features */
@@ -467,8 +494,6 @@ int main (int argc, char *argv[]) {
 
   if (gaze_options.verbose)
     fprintf(stderr, "%d features left\n", features->len);
-
-fprintf(stderr, "Features: %d, alloced %d\n", features->len, ((GRealArray*)features)->alloc);
 
   /***************************************/
   /* scale, sort and index segments ******/
