@@ -1,4 +1,4 @@
-/*  Last edited: Apr  2 14:35 2002 (klh) */
+/*  Last edited: Apr  8 16:14 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -102,11 +102,6 @@ double calculate_segment_score( Feature *src, Feature *tgt,
   int src_pos = src->adj_pos.s; 
   int tgt_pos = tgt->adj_pos.e; 
 
-  /* It is expensive to do this for every segment calc, but it has to be done. 
-     Need to find way of making segment calc a whole lot more efficient. How
-     about a sliding window that takes account of where we were last time?
-  */
-
   for(i=0; i < s_res->has_score->len; i++) 
     g_array_index( s_res->has_score, gboolean, i ) = FALSE;
 
@@ -127,7 +122,25 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 	else 
 	  segs = g_array_index( list, GArray *, 3 );
 
-	for (j=0; j < segs->len; j++) {
+	{
+	  /* find min j s.t. segs[j].max_end_up >= src_pos */
+	  /* strategy: binary search */
+
+	  int left = 0;
+	  int right = segs->len - 1;
+	  
+	  while (left < right) {
+	    int mid = (left + right) / 2;
+
+	    if (g_array_index( segs, Segment *, mid)->max_end_up < src_pos)
+	      left = mid + 1;
+	    else 
+	      right = g_array_index( segs, Segment *, mid)->max_end_up_idx; 
+	  }
+	  j = left;
+	}
+
+	for (; j < segs->len; j++) {
 	  Segment *seg = g_array_index( segs, Segment *, j ); 
 	  if ( seg->pos.s > tgt_pos )
 	    break;
