@@ -1,4 +1,4 @@
-/*  Last edited: Nov 26 15:00 2001 (klh) */
+/*  Last edited: Jan 28 14:48 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -139,9 +139,12 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 	    
 	    if ((! qual->is_exact_src || seg->pos.s == src_pos ) &&
 		(! qual->is_exact_tgt || seg->pos.e == tgt_pos)) {
-	      
-	      score = seg->score * ( (double)(high - low + 1) / (double) (seg->pos.e - seg->pos.s + 1));
-	      
+	  
+	      /* note 020128 - now scores are per-residue, can get scores without a division op */
+	      /* score = seg->score * ( (double)(high - low + 1) / (double) (seg->pos.e - seg->pos.s + 1)); */
+
+	      score = seg->score * (high - low + 1);
+	      	      
 	      if (! g_array_index( s_res->has_score, gboolean, i)) {
 		g_array_index( s_res->raw_scores, double, i) = score;
 		g_array_index( s_res->has_score, gboolean, i) = TRUE;

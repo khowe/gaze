@@ -1,4 +1,4 @@
-/*  Last edited: Jan 28 13:46 2002 (klh) */
+/*  Last edited: Jan 29 16:17 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -369,7 +369,7 @@ int main (int argc, char *argv[]) {
   GArray *features, *segments, *feature_path, *min_scores;
   Feature *beg_ft, *end_ft;
   char *seq_name, *dna_seq;
-  int i,j,k;
+  int i,j,k, num_segs = 0;
   enum DP_Calc_Mode calc_mode;
 
   if (! parse_command_line(argc, argv) )
@@ -486,43 +486,32 @@ int main (int argc, char *argv[]) {
   /***************************************/
 
   if (gaze_options.verbose)
-    fprintf(stderr, "Segments:\n");
+    fprintf(stderr, "Segments: sorting, indexing and projecting...");
 
   for( i=0; i < segments->len; i++ ) {
     double multiplier = g_array_index( gs->seg_info, Segment_Info *, i )->multiplier;
     Segment_lists *seg_lists = g_array_index( segments, Segment_lists *, i);
+
+    /* fourth element holds segments of this type in all frames */
+    num_segs += g_array_index( seg_lists->orig, GArray *, 3 )->len;
     
     for (j=0; j < seg_lists->orig->len; j++) {
       GArray *o = g_array_index( seg_lists->orig, GArray *, j);
       GArray *p;
 
-      if (gaze_options.verbose)
-	fprintf(stderr, "  type %d frame %d (%d segs) scaling...", i, j, o->len );
-
-      
       for (k=0; k < o->len; k++) {
 	Segment *seg = g_array_index( o, Segment *, k );
 	seg->score *= multiplier;
 	seg->score *= gaze_options.sigma;
+	/* the following makes it a per-residue score */
+	seg->score /= (seg->pos.e - seg->pos.s + 1);
       }
 
-      if (gaze_options.verbose)
-	fprintf(stderr, "sorting...");
-      
       qsort( o->data, o->len, sizeof(Segment *), &order_segments); 
 
-      if (gaze_options.verbose)
-	fprintf(stderr, "indexing...");
-
       index_Segments( o );
-
-      if (gaze_options.verbose)
-	fprintf(stderr, "projecting...");
       
       p = project_Segments( o );
-
-      if (gaze_options.verbose)
-	fprintf(stderr, "indexing_projected...\n");
 
       /* index_Segments should return a sorted list, by construction method */
       index_Segments( p );
@@ -537,33 +526,8 @@ int main (int argc, char *argv[]) {
        same segment type to be used in both ways. */
   }
 
-  /**** print segments for debugging purposes ***
-  for( i=0; i < segments->len; i++ ) {
-
-    Segment_lists *seg_lists = g_array_index( segments, Segment_lists *, i);
-
-    fprintf(stderr, "Segment type: %d\n", i );
-
-    for (j=0; j < seg_lists->orig->len; j++) {
-      GArray *o = g_array_index( seg_lists->orig, GArray *, j);
-
-      fprintf( stderr, "ORIG: Frame %d, num %d\n", j, o->len );      
-      for(k=0; k < o->len; k++) 
-	print_Segment(g_array_index(o, Segment *, k), stderr, gs->seg_dict);
-
-    }
-    fprintf( stderr, "\n");
-
-    for (j=0; j < seg_lists->proj->len; j++) {
-      GArray *p = g_array_index( seg_lists->proj, GArray *, j);
-
-      fprintf(stderr, "PROJ: Frame %d, num %d\n", j, p->len );
-      for(k=0; k < p->len; k++)
-	print_Segment(g_array_index(p, Segment *, k), stderr, gs->seg_dict);
-    }
-    fprintf( stderr, "\n\n");
-  }
-  **********************************************/
+  if (gaze_options.verbose)
+    fprintf(stderr, " %d non-projected segs\n", num_segs);
 
   /******************************/
   /* Scale the length penalties */
