@@ -37,6 +37,10 @@ enum DP_Traceback_Mode {
 typedef struct {
   Array *raw_scores;
   Array *has_score;
+  boolean has_exact_at_src;
+  boolean has_exact_at_tgt;
+  boolean exact_extends_beyond_tgt;
+  boolean exact_extends_beyond_src;
 } Seg_Results;
 
 void free_Seg_Results( Seg_Results * );

@@ -9,6 +9,8 @@
 #include "g_engine.h"
 #include "time.h"
 
+static long comparisons = 0;
+
 /*********************************************************************
  FUNCTION: free_Gaze_DP_struct
  DESCRIPTION:
@@ -209,6 +211,8 @@ void forwards_calc( Gaze_Sequence *g_seq,
   }
 
   free_Gaze_DP_struct( g_res, gs->feat_dict->len );
+
+fprintf(stderr, "Comparisons = %ld\n", comparisons);
 }
 
 
@@ -495,7 +499,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	    index_count[frame] = -1;
 	    continue;
 	  }
-	  
+comparisons++;	  
 	  src = index_Array( g_seq->features, Feature *, src_idx );
 	  
 #ifdef TRACE
@@ -584,11 +588,18 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 			     the point of monotonicity, at which point the pruning kicks in */
 
 			  if (lf == NULL || (lf->becomes_monotonic && lf->monotonic_point <= distance)) { 
-			    /* add back in the length penalty, because when judging for dominance, 
-			       the length penalty will be different for future features */
+			    /* finally, check that the source is not likely to be involved in
+			       an exact segment either here or at some point down the line. If so,
+			       it's unfair to consider the source as omnipotent
+			    */
 			    
-			    max_forpluslen = forward_temp + len_pen;
-			    touched_score_local = TRUE;
+			    if (! g_res->seg_res->has_exact_at_src) { 
+			      /* add back in the length penalty, because when judging for dominance, 
+				 the length penalty will be different for future features */
+			      
+			      max_forpluslen = forward_temp + len_pen;
+			      touched_score_local = TRUE;
+			    }
 			  } 
 			}
 			
@@ -599,10 +610,13 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 			if (forward_temp + len_pen > max_forpluslen 
 			    && (danger_source_dna == NULL 
 				|| src->dna < 0  
-				|| ! danger_source_dna[(int)src->dna]))
+				|| ! danger_source_dna[(int)src->dna])
+			    && ! g_res->seg_res->has_exact_at_src)
 			  max_forpluslen = forward_temp + len_pen;
 			
-			if ( max_forpluslen - (forward_temp + len_pen) < 25.0)
+			if ( max_forpluslen - (forward_temp + len_pen) < 25.0 
+			     || (g_res->seg_res->has_exact_at_src 
+				 && g_res->seg_res->exact_extends_beyond_tgt))
 			  local_fringe = src_idx;
 		      }
 		    }		    
@@ -1074,24 +1088,17 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 
 		  if (sum_mode == PRUNED_SUM) {
 		    if (! touched_score_local ) {
-		      /* add back in the length penalty, because when judging for dominance, 
-			 the length penalty will be different for future features */
 
 		      if (danger_target_dna == NULL 
 			  || tgt->dna < 0  
 			  || ! danger_target_dna[(int)src->dna]) {
 
-			/* strictly speaking, it is only sound to register this source
-			   as "dominant" if we are into the monotonic part of the length
-			   function (i.e. the point past which the penalty never decreases 
-			   with increasing distance). Therefore, we update the fringe, but
-			   don't flag touched_local_score. The efect of this is that the
-			   fringe will be updated for all scoring sources until we get past
-			   the point of monotonicity, at which point the pruning kicks in */
-
 			if (lf == NULL || (lf->becomes_monotonic && lf->monotonic_point <= distance)) {
-			  touched_score_local = TRUE;
-			  max_backpluslen = backward_temp + len_pen;
+			  if (! g_res->seg_res->has_exact_at_tgt) {
+
+			    touched_score_local = TRUE;
+			    max_backpluslen = backward_temp + len_pen;
+			  }
 			}
 		      }
 
@@ -1103,10 +1110,13 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 		      if (backward_temp + len_pen > max_backpluslen
 			  && (danger_target_dna == NULL 
 			      || tgt->dna < 0  
-			      || ! danger_target_dna[(int)tgt->dna])) 
+			      || ! danger_target_dna[(int)tgt->dna])
+			  && !g_res->seg_res->has_exact_at_tgt) 
 			max_backpluslen = backward_temp + len_pen;
 		      
-		      if ( max_backpluslen - (backward_temp + len_pen) < 25.0)
+		      if ( max_backpluslen - (backward_temp + len_pen) < 25.0
+			   || (g_res->seg_res->has_exact_at_tgt 
+			       && g_res->seg_res->exact_extends_beyond_src) )
 			local_fringe = tgt_idx;
 		    }
 		  }
@@ -1503,20 +1513,13 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 			|| src->dna < 0  
 			|| ! danger_source_dna[(int)src->dna]) {
 
-		      /* strictly speaking, it is only sound to register this source
-			 as "dominant" if we are into the monotonic part of the length
-			 function (i.e. the point past which the penalty never decreases 
-			 with increasing distance). Therefore, we update the fringe, but
-			 don't flag touched_local_score. The efect of this is that the
-			 fringe will be updated for all scoring sources until we get past
-			 the point of monotonicity, at which point the pruning kicks in */
-		      
 		      if (lf == NULL || (lf->becomes_monotonic && lf->monotonic_point <= distance)) { 
-			/* add back in the length penalty, because when judging for dominance, 
-			   the length penalty will be different for future features */
-			
-			max_vit_plus_len = viterbi_temp + len_pen;
-			touched_score_local = TRUE;
+
+			if (! g_res->seg_res->has_exact_at_src) {
+
+			  max_vit_plus_len = viterbi_temp + len_pen;
+			  touched_score_local = TRUE;
+			}
 		      } 
 		    }
 
@@ -1526,15 +1529,19 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 		    /* compare this one to max_viterbi, to see if it is dominated */
 		    if (viterbi_temp + len_pen > max_vit_plus_len) {
  
-		      if (danger_source_dna == NULL 
-			  || src->dna < 0  
-				|| ! danger_source_dna[(int)src->dna])
+		      if ( (danger_source_dna == NULL 
+			    || src->dna < 0  
+			    || ! danger_source_dna[(int)src->dna])
+			   && ! g_res->seg_res->has_exact_at_src )
 			max_vit_plus_len = viterbi_temp + len_pen;		      		      
 		      
-		      local_fringe = src_idx;
+			local_fringe = src_idx;
 		    }
-		  }						   	      
-		  
+		    else if (g_res->seg_res->has_exact_at_src 
+			     && g_res->seg_res->exact_extends_beyond_tgt)
+		      local_fringe = src_idx;
+		  }		  
+  
 		  touched_score = TRUE;
 		  
 #ifdef TRACE
@@ -1542,22 +1549,6 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 		    fprintf( stderr, "scre: v=%.3f (seg:%.5f len:%.3f)\n",
 			     viterbi_temp, seg_score, len_pen );
 #endif
-		  /*
-		  if (g_out != NULL) {
-		    if (reg_info->out_qual != NULL && reg_info->out_qual->need_to_print) {
-
-		      if (! g_out->use_threshold || reg_score >= g_out->threshold)
-			fprintf(g_out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.5f\t%s\t%s\t\n",
-				g_seq->seq_name, 
-				reg_info->out_qual->feature != NULL ? reg_info->out_qual->feature : "Anonymous",
-				left_pos, 
-				right_pos, 
-				trans_score,
-				reg_info->out_qual->strand != NULL ? reg_info->out_qual->strand : ".", 
-				reg_info->out_qual->frame != NULL ?  reg_info->out_qual->frame : ".");
-		      
-		    }
-		    } */
 		} /* if killed by DNA */
 		else {
 		  /* source might not be killed for future incidences, so update fringe index */
