@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 15:49 2002 (klh) */
+/*  Last edited: Jul 22 19:02 2002 (klh) */
 /**********************************************************************
  ** FILE: options.h
  ** DESCRIPTION:
@@ -15,7 +15,7 @@
 
 /************************** constants *********************************/
 
-#define MAX_DEF_LINE_SIZE 100
+#define MAX_DEF_LINE_SIZE 200
 
 #define NO_ARGS    0 
 #define INT_ARG    1
