@@ -279,7 +279,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 
   boolean touched_score, touched_score_local;
   Array *all_scores = NULL;
-  Array *all_indices = NULL;  /* Initialsied to get around gcc warnings */
+  Array *all_indices = NULL;  /* Initialised to get around gcc warnings */
   Feature_Info *tgt_info;
   Feature_Relation *reg_info;
   Feature *src, *tgt;
@@ -301,7 +301,8 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 
   /* if the user specified unusual offsets, it may be that this feature is
      "off the end of the sequence" when viewed as a target. */
-  if (right_pos < g_seq->beg_ft->real_pos.s) {
+  if (right_pos < g_seq->beg_ft->real_pos.s ||
+      tgt->is_antiselected ) {
     tgt->invalid = TRUE;
   }
 
@@ -696,27 +697,11 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	}
       }  
     }
-    /* 
-       update the position of the last forced feature. However, this
-       needs to be the position of the first feature in the last
-       forced 'block' (where 5'0, 5'1, 5'2 form a force block, for
-       example). This is to get around the bother of the fact that
-       a single splice site in the source data ends up as three
-       splice sites in the feature list
-    */
-    
-    if (tgt->is_selected) {
-      if (g_res->last_selected < 0)
-	g_res->last_selected = tgt_idx;
-      else {
-	Feature *last_feat = index_Array( g_seq->features, 
-					  Feature *, 
-					  g_res->last_selected );
-	if (last_feat->real_pos.s != tgt->real_pos.s || last_feat->real_pos.e != tgt->real_pos.e) 
-	  g_res->last_selected = tgt_idx;
-      }
-    }
 
+    /* update the position of the last forced feature. */
+    
+    if (tgt->is_selected)
+      g_res->last_selected = tgt_idx;
     
     if (touched_score) {
       
@@ -839,7 +824,8 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 
   /* if the user specified unusual offsets, it may be that this feature is
      "off the end of the sequence" when viewed as a target. */
-  if (left_pos > g_seq->end_ft->real_pos.e) {
+  if (left_pos > g_seq->end_ft->real_pos.e ||
+      src->is_antiselected ) {
     src->invalid = TRUE;
   }
 
@@ -1193,24 +1179,10 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
       }      
     }
 
-    /* update the position of the last forced feature. However, this
-       needs to be the position of the first feature in the last
-       forced 'block' (where 5'0, 5'1, 5'2 form a force block, for
-       example). This is to get around the bother of the fact that
-       a single splice site in the source data ends up as three
-       splice sites in the feature list */
+    /* update the position of the last forced feature. */
     
-    if (src->is_selected) {
-      if (g_res->last_selected > g_seq->features->len)
-	g_res->last_selected = src_idx;
-      else {
-	Feature *last_feat = index_Array( g_seq->features, 
-					  Feature *, 
-					  g_res->last_selected );
-	if (last_feat->real_pos.s != src->real_pos.s || last_feat->real_pos.e != src->real_pos.e) 
-	  g_res->last_selected = src_idx;
-      }
-    }
+    if (src->is_selected)
+      g_res->last_selected = src_idx;
     
     if (touched_score) {
       for (tgt_idx=0; tgt_idx < all_scores->len; tgt_idx++) {

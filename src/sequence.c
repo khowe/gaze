@@ -76,12 +76,14 @@ void initialise_Gaze_Sequence( Gaze_Sequence *g_seq,
   g_seq->beg_ft->feat_idx = dict_lookup( gs->feat_dict, "BEGIN" );
   g_seq->beg_ft->real_pos.s = g_seq->seq_region.s;  
   g_seq->beg_ft->real_pos.e = g_seq->seq_region.s;  
+  g_seq->beg_ft->is_selected = TRUE;
   append_val_Array( g_seq->features, g_seq->beg_ft );
   
   g_seq->end_ft = new_Feature();
   g_seq->end_ft->feat_idx = dict_lookup( gs->feat_dict, "END" );
   g_seq->end_ft->real_pos.s = g_seq->seq_region.e;  
   g_seq->end_ft->real_pos.e = g_seq->seq_region.e; 
+  g_seq->end_ft->is_selected = TRUE;
   append_val_Array( g_seq->features, g_seq->end_ft );
 
   g_seq->segment_lists = new_Array( sizeof(Segment_list *), TRUE);
@@ -250,6 +252,11 @@ void remove_duplicate_features( Gaze_Sequence *g_seq) {
 
   Feature *last_one = NULL;
 
+  qsort( g_seq->features->data, 
+	 g_seq->features->len, 
+	 sizeof(Feature *), 
+	 &order_features_standard );
+  
   for(i=0; i < g_seq->features->len; i++ ) {
     Feature *this_one = index_Array( g_seq->features, Feature *, i );
 
@@ -273,7 +280,7 @@ void remove_duplicate_features( Gaze_Sequence *g_seq) {
     last_one = this_one;
   }
 
-  /* now consense the array */
+  /* now condense the array */
 
   for (i=0, j=-1; i < g_seq->features->len && j < g_seq->features->len; i++, j++) {
     if (index_Array( g_seq->features, Feature *, i) == NULL) {
@@ -468,11 +475,9 @@ void read_dna_seqs( Gaze_Sequence_list *glist,
  *********************************************************************/
 void get_features_from_gff( Gaze_Sequence_list *glist,
 			    Array *file_list,
-			    Array *gff2fts,
-			    boolean listen_select) {
+			    Array *gff2fts ) {
 
   int i, j, k, f, g_seq_idx;
-  boolean selected, antiselected;
   Gaze_Sequence *g_seq;
 
   GFF_line *gff_line = new_GFF_line();
@@ -488,28 +493,6 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
 	g_seq = glist->seq_list[g_seq_idx];
       else
 	continue;
-      
-      selected = antiselected = FALSE;
-      
-      if (listen_select) {
-	if (gff_line->group != NULL) {
-	  /* attribute field present */
-	  do {
-	    for (i=strlen(gff_line->group); gff_line->group[i] != ';' && i > 0; i--);
-	    for (j=i; isspace( (int) gff_line->group[j] ) || gff_line->group[j] == ';' ; j++); 
-	    for (k=j; gff_line->group[k] != '\0' && ! isspace( (int) gff_line->group[k] ); k++); 
-	    gff_line->group[k] = '\0';
-	    if (strcmp( &(gff_line->group[j]), "Selected") == 0) {
-	      selected = TRUE;
-	    }
-	    else if (strcmp( &(gff_line->group[j]), "Antiselected") == 0) {
-	      antiselected = TRUE;
-	    }
-	    if (i > 0)
-	      gff_line->group[i] = '\0';
-	  } while (i > 0);
-	}
-      }
       
       if ((gff_line->end >= g_seq->seq_region.s) && (gff_line->start <= g_seq->seq_region.e)) {
 	/* we have a partial overlap */
@@ -531,8 +514,6 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
 		ft->real_pos.s = gff_line->start;
 		ft->real_pos.e = gff_line->end;
 		ft->score = gff_line->score;
-		ft->is_selected = selected;
-		ft->is_antiselected = antiselected;
 
 		if (ft->score < index_Array( g_seq->min_scores, double, ft->feat_idx ))
 		  index_Array( g_seq->min_scores, double, ft->feat_idx ) = ft->score;
@@ -619,7 +600,7 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
 
 
 /*********************************************************************
- FUNCTION: read_in_paths
+ FUNCTION: get_correct_features
  DESCRIPTION:
  RETURNS:
  ARGS: 
@@ -628,19 +609,21 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
    of features that GAZE knows about (i.e. those defined in
    the given feature dictionary). Returns true iff everything went okay
  *********************************************************************/
-boolean read_in_paths( Gaze_Sequence_list *glist,
-		       Array *file_list,
-		       Dict *feat_dict ) {
+boolean get_correct_features( Gaze_Sequence_list *glist,
+			      Array *file_list,
+			      Dict *feat_dict,
+			      boolean features_define_paths) {
   
-  int i, j, seq_idx, feat_idx;
+  int i, j, k, l, seq_idx, feat_idx;
   GFF_line *gff_line;
   boolean match;
   boolean no_problem = TRUE;
   Feature *ft;
 
-  /* It is important that the overall feature list and the local path features list 
-     are ordered by the same scheme for feature lookup/verification. We therefore sort
-     the given feature lists, but they will be sorted again prior to D.P. anyway */
+  Array *all_lists = new_Array( sizeof( Array *), TRUE );
+  set_size_Array( all_lists, glist->num_seqs );
+  for(seq_idx=0; seq_idx < glist->num_seqs; seq_idx++)
+    index_Array( all_lists, Array *, seq_idx ) = new_Array( sizeof( Feature * ), TRUE );
 
   gff_line = new_GFF_line();
 
@@ -648,29 +631,51 @@ boolean read_in_paths( Gaze_Sequence_list *glist,
     FILE *file = fopen( index_Array( file_list, char *, i), "r" );
 
     while( read_GFF_line( file, gff_line ) != 0 ){
-      
       if ( (seq_idx = dict_lookup( glist->seq_id_dict, gff_line->seqname )) >= 0) {
 	Gaze_Sequence *g_seq = glist->seq_list[seq_idx];
 
-	if (g_seq->path == NULL) {
-	  g_seq->path = new_Array( sizeof( Feature * ), TRUE );
-	  ft = clone_Feature( g_seq->beg_ft );
-	  append_val_Array( g_seq->path, ft );
-	  ft = clone_Feature( g_seq->end_ft );
-	  append_val_Array( g_seq->path, ft );
-	}
-
 	if ((feat_idx = dict_lookup( feat_dict, gff_line->type )) >= 0) {
 	  if (gff_line->start >= g_seq->seq_region.s && gff_line->end <= g_seq->seq_region.e) {
-
+	    
 	    Feature *feat = new_Feature();
 	    
 	    feat->feat_idx = feat_idx;
 	    feat->real_pos.s = gff_line->start;
 	    feat->real_pos.e = gff_line->end;
-	    /* other fields are irrelevant for now */
-	    
-	    append_val_Array( g_seq->path, feat );
+
+	    if (! features_define_paths) {
+	      /* 9th field is used to determine what sort of "correct" feature this is :
+		 Selected   => this features should be used all paths during the DP
+		 Antiselected => this feature should be used in NO paths during the DP
+		 Path => this feature should be trated as belonging to the single correct
+		 path (along with all other "Path" features given for the sequence)
+		 If nothing appears in the 9th field, "Path" is assumed 
+	      */
+	      boolean is_selected = TRUE;
+	      boolean is_antiselected = FALSE;
+ 
+	      if (gff_line->group != NULL) {
+		do {
+		  for (l=strlen(gff_line->group); gff_line->group[l] != ';' && l > 0; l--);
+		  for (j=l; isspace( (int) gff_line->group[j] ) || gff_line->group[j] == ';' ; j++); 
+		  for (k=j; gff_line->group[k] != '\0' && ! isspace( (int) gff_line->group[k] ); k++); 
+		  gff_line->group[k] = '\0';
+		  if (strcmp( &(gff_line->group[j]), "Selected") == 0)
+		    ; /* default - do nothing */
+		  else if (strcmp( &(gff_line->group[j]), "Antiselected") == 0) {
+		    is_selected = FALSE;
+		    is_antiselected = TRUE;
+		  }
+		  if (l > 0)
+		    gff_line->group[l] = '\0';
+		} while (l > 0);
+	      }
+
+	      feat->is_selected = is_selected;
+	      feat->is_antiselected = is_antiselected;
+	    }
+
+	    append_val_Array( index_Array( all_lists, Array *, seq_idx), feat );
 	  }
 	}
 	else {
@@ -690,22 +695,19 @@ boolean read_in_paths( Gaze_Sequence_list *glist,
 
     for(seq_idx=0; seq_idx < glist->num_seqs; seq_idx++) { 
       Gaze_Sequence *g_seq = glist->seq_list[seq_idx];
+      Array *this_list = index_Array( all_lists, Array *, seq_idx );
 
-      if (g_seq->path != NULL) {
+      if ( this_list->len != 0) {
 
-	qsort( g_seq->features->data, 
-	       g_seq->features->len, 
-	       sizeof(Feature *), 
-	       &order_features_standard );
-	
-	qsort( g_seq->path->data, 
-	       g_seq->path->len, 
+	qsort( this_list->data,
+	       this_list->len, 
 	       sizeof(Feature *), 
 	       &order_features_standard );
 
-	for (i=j=0; i < g_seq->path->len; i++) {
-	  Feature *f1 = index_Array( g_seq->path, Feature *, i);
+	for (i=j=0; i < this_list->len; i++) {
+	  Feature *f1 = index_Array( this_list, Feature *, i);
 	  match = FALSE;
+
 	  for (; j < g_seq->features->len && ! match; j++) {
 	    Feature *f2 = index_Array( g_seq->features, Feature *, j );
 	    if ((f1->real_pos.s == f2->real_pos.s) &&  
@@ -727,18 +729,42 @@ boolean read_in_paths( Gaze_Sequence_list *glist,
 		  break;
 		}
 	      }
-	      f2->is_correct = TRUE;
+
+	      if (features_define_paths) {
+		f2->is_correct = TRUE;
+
+		if (g_seq->path == NULL)
+		  g_seq->path = new_Array( sizeof( Feature *), TRUE );
+		append_val_Array( g_seq->path, f2 );
+	      }
+	      else {
+		f2->is_selected = f1->is_selected;
+		f2->is_antiselected = f1->is_antiselected;
+
+		/* all selected features must belong the correct path, and furthermore
+		   no selected feature can. Otherwise, forward score is meaningless, and
+		   correct path could be invalidated (for example) by a forced in-frame
+		   stop codon! */
+
+		if ( g_seq->path != NULL && 
+		     ( (f2->is_selected && ! f2->is_correct) ||
+		       (f2->is_antiselected && f2->is_correct) )) {
+
+		  fprintf (stderr, 
+			   "In sequence %s, inconsistency between selected/antiselected feat and path\n",
+			   g_seq->seq_name );
+		  no_problem = FALSE;
+		}
+	      }
 	      
-	      free_Feature( index_Array( g_seq->path, Feature *, i ) );
-	      index_Array( g_seq->path, Feature *, i ) = f2;
-	      
+	      free_Feature( f1 );
 	      match = TRUE;
 	    }
 	  }
 	  
 	  if (! match) {
 	    fprintf (stderr, 
-		     "In sequence %s, feature in 'correct' path not found in complete list: %s %d %d\n",
+		     "In sequence %s, selected/antselected/correct feature not in list: %s %d %d\n",
 		     g_seq->seq_name,
 		     index_Array( feat_dict, char *, f1->feat_idx ),
 		     f1->real_pos.s, f1->real_pos.e);
@@ -747,9 +773,23 @@ boolean read_in_paths( Gaze_Sequence_list *glist,
 	  }
 	}
       }
+
+      if (features_define_paths ) {
+	/* begin and end features to the path */
+	if (g_seq->path == NULL)
+	  g_seq->path = new_Array( sizeof( Feature *), TRUE );
+	
+	ft = g_seq->end_ft;
+	append_val_Array( g_seq->path, ft );
+	ft = g_seq->beg_ft;
+	prepend_val_Array( g_seq->path, ft );
+      }
     }
   }
 
+  for(i=0; i < all_lists->len; i++)
+    free_Array( index_Array( all_lists, Array *, i), TRUE );
+  free_Array( all_lists, TRUE );
   free_GFF_line( gff_line );
 
   return no_problem;

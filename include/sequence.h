@@ -71,14 +71,12 @@ void read_dna_seqs( Gaze_Sequence_list *, Array * );
 
 void get_features_from_gff( Gaze_Sequence_list *,
 			    Array *,
-			    Array *, 
-			    boolean );
+			    Array * ); 
 
-boolean read_in_paths( Gaze_Sequence_list *,
-		       Array *, 
-		       Dict * );
-
-
+boolean get_correct_features( Gaze_Sequence_list *,
+			      Array *, 
+			      Dict *,
+			      boolean);
 
 /********************************************************************/
 /********************** Segment_list ********************************/
