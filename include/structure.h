@@ -24,7 +24,7 @@
 
 #include "util.h"
 #include "info.h"
-#include "features.h"
+#include "g_features.h"
 
 
 /* For convenience, certain information about each feature 

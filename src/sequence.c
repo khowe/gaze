@@ -365,7 +365,7 @@ void read_dna_seqs( Gaze_Sequence_list *glist,
   Line *ln = new_Line(); 
   boolean interested = FALSE;
   Gaze_Sequence *g_seq = NULL;
-  int num_bases = NULL;
+  int num_bases = 0;
   int line_len, g_seq_idx, i, f;
 
   for (f=0; f < file_list->len; f++) {

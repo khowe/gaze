@@ -9,7 +9,7 @@
 #ifndef _GAZE_SEQUENCE
 #define _GAZE_SEQUENCE
 
-#include "features.h"
+#include "g_features.h"
 #include "structure.h"
 
 /********************************************************************/

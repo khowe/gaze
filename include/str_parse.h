@@ -16,7 +16,7 @@
 #include "util.h"
 #include "structure.h"
 #include "info.h"
-#include "features.h"
+#include "g_features.h"
 #include "expat.h"
 
 

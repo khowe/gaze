@@ -343,7 +343,7 @@ static int parse_command_line( int argc, char *argv[] ) {
       FILE *ids = fopen( gaze_options.id_file_name, "r" );
       Line *ln = new_Line();
       while( read_Line( ids, ln ) > 0 ) {
-	char *temp = strdup( ln->buf );
+	char *temp = strdup_util( ln->buf );
 	append_val_Array( nmstends, temp );
       }
       fclose(ids);
@@ -351,7 +351,7 @@ static int parse_command_line( int argc, char *argv[] ) {
     }
     /* the from the command line */
     for (; optindex < argc; optindex++) {
-      char *temp = strdup( argv[optindex] );
+      char *temp = strdup_util( argv[optindex] );
       append_val_Array( nmstends, temp );
     }
 
