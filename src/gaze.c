@@ -1,4 +1,4 @@
-/*  Last edited: Nov  3 16:44 2001 (klh) */
+/*  Last edited: Jan 14 16:41 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -6,8 +6,18 @@
  ** Description : 
  **********************************************************************/
 
+#include <glib.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#include "gaze.h"
+#include "options.h"
+#include "info.h"
+#include "str_parse.h"
+#include "structure.h"
+#include "features.h"
+#include "g_engine.h"
+#include "output.h"
+
 
 
 static char gaze_usage_string[] = "\
