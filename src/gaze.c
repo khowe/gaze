@@ -1,4 +1,4 @@
-/*  Last edited: Aug  1 16:13 2002 (klh) */
+/*  Last edited: Aug  3 15:25 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -321,12 +321,12 @@ static int parse_command_line( int argc, char *argv[] ) {
   /* everything left on the command-line is a list of sequence names to process */
 
   if (! options_error) {
-    for(; optindex < argc; optindex++) {
+    for(; !options_error && optindex < argc; optindex++) {
       char *seq_id = strdup_util( argv[optindex] );
       
       char *st, *en, *ptr;
       int start = 0;
-      int end = 0;
+      int i, end = 0;
 
       if ((ptr = strchr( seq_id, '/')) != NULL) {
 	*ptr = '\0';
@@ -334,18 +334,26 @@ static int parse_command_line( int argc, char *argv[] ) {
 	if ((ptr = strchr( st, '-')) != NULL) {
 	  *ptr = '\0';
 	  en = ptr+1;
-
+	  
 	  /* ideally, need a check here that start ends are digits, and to allow
 	     the user to specify their own name/start-end format */
 	  start = atoi( st );
 	  end = atoi ( en );
 	}
       }
-
-      append_val_Array( gaze_options.sequence_names, seq_id );
-      append_val_Array( gaze_options.sequence_starts, start );
-      append_val_Array( gaze_options.sequence_ends, end );
-
+      
+      for (i=0; i < gaze_options.sequence_names->len; i++)
+	if (! strcmp( seq_id, index_Array( gaze_options.sequence_names, char *, i))) {
+	  fprintf( stderr, "Error: You have given the same sequence more than once (%s)\n", seq_id);
+	  options_error = TRUE;
+	  break;
+	}
+      
+      if (! options_error) {	    
+	append_val_Array( gaze_options.sequence_names, seq_id );
+	append_val_Array( gaze_options.sequence_starts, start );
+	append_val_Array( gaze_options.sequence_ends, end );
+      }
     }
 
     if ( gaze_options.sequence_names->len == 0 ) {
@@ -490,29 +498,13 @@ int main (int argc, char *argv[]) {
     /***************************************/
     
     for( i=0; i < g_seq->segment_lists->len; i++ ) {
+      Segment_list *seg_list = index_Array( g_seq->segment_lists, Segment_list *, i);
       double multiplier = index_Array( gazeStructure->seg_info, Segment_Info *, i )->multiplier;
-      Segment_list *seg_lists = index_Array( g_seq->segment_lists, Segment_list *, i);
 
-      for (j=0; j < seg_lists->orig->len; j++) {
-	Array *o = index_Array( seg_lists->orig, Array *, j);
-	Array *p;
-
-	for (k=0; k < o->len; k++) {
-	  Segment *seg = index_Array( o, Segment *, k );
-	  seg->score *= multiplier;
-	  seg->score *= gaze_options.sigma;
-	  /* the following makes it a per-residue score */
-	  seg->score /= (seg->pos.e - seg->pos.s + 1);
-	}
-	
-	qsort( o->data, o->len, sizeof(Segment *), &order_segments); 
-	index_Segments( o );
-
-	p = project_Segments( o );
-	index_Segments( p );
-	index_Array( seg_lists->proj, Array *, j) = p;
-
-      }      
+      scale_Segment_list( seg_list, multiplier * gaze_options.sigma );
+      sort_Segment_list ( seg_list );
+      project_Segment_list( seg_list );
+      index_Segment_list( seg_list );
     }
   }
     
@@ -560,7 +552,7 @@ int main (int argc, char *argv[]) {
     
       /* the following is called for its side effect of filling in path
 	 score up-to-and-including each feature in the path */ 
-      calculate_path_score( g_seq->path, g_seq->segment_lists, gazeStructure );    
+      calculate_path_score( g_seq, gazeStructure );    
       write_Gaze_path( gazeOutput, g_seq, gazeStructure );      
     }
     else if (gaze_options.output == BEST_PATH || gaze_options.output == SAMPLE_PATH) {
@@ -568,10 +560,12 @@ int main (int argc, char *argv[]) {
       
       if (gaze_options.verbose)
 	fprintf( stderr, "Tracing back...\n");
-      g_seq->path = trace_back_general(g_seq,
-				       gazeStructure,
-				       MAX_TRACEBACK ); 
-      
+      trace_back_general(g_seq, 
+			 gazeStructure, 
+			 gaze_options.output == SAMPLE_PATH ? SAMPLE_TRACEBACK : MAX_TRACEBACK ); 
+
+      /* for non-strandard traceback, we need to recalculate the path score */
+      calculate_path_score( g_seq, gazeStructure );
       write_Gaze_path( gazeOutput, g_seq, gazeStructure );        
     }
     else if (gaze_options.output == ALL_FEATURES) {
