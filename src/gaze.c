@@ -1,4 +1,4 @@
-/*  Last edited: Jul 23 10:05 2002 (klh) */
+/*  Last edited: Jul 23 10:52 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -376,12 +376,6 @@ int main (int argc, char *argv[]) {
   
   if ((gazeStructure = parse_Gaze_Structure( gaze_options.structure_file )) == NULL)
     exit(1);
-
-  if(gaze_options.verbose) {
-    fprintf(stderr, "Running GAZE for sequences:\n");
-    for(i=0; i < gaze_options.sequence_names->len; i++) 
-      fprintf( stderr, "  %s\n", index_Array( gaze_options.sequence_names, char *, i ));
-  }
 	    
 
   allGazeSequences = new_Gaze_Sequence_list( gaze_options.sequence_names,
@@ -539,8 +533,15 @@ int main (int argc, char *argv[]) {
 			       gaze_options.use_threshold,
 			       gaze_options.threshold);
 
+
   for (i=0; i < allGazeSequences->num_seqs; i++) {
     Gaze_Sequence *g_seq = allGazeSequences->seq_list[i];
+
+    if(gaze_options.verbose)
+      fprintf(stderr, "Running GAZE for sequence %s (%s-%s)\n", 
+	      g_seq->seq_name, 
+	      g_seq->seq_region.s, 
+	      g_seq->seq_region.e);
 
     /* need to write the head first because forwards_calc produces 
        the output of all candidate regions, for space-saving reasons */
