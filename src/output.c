@@ -1,4 +1,4 @@
-/*  Last edited: Apr 23 15:45 2002 (klh) */
+/*  Last edited: Apr 27 11:31 2002 (klh) */
 /**********************************************************************
  ** File: output.c
  ** Author : Kevin Howe
@@ -70,6 +70,7 @@ void print_GFF_path( Gaze_Output *out,
 
 
   fprintf( out->fh, "##  Score of path : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->path_score);
+  fprintf( out->fh, "##  Forward score : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->forward_score);
   fprintf( out->fh, "##  Probability of path : %.6f\n", 
 	   exp ( g_array_index(fts, Feature *,fts->len-1)->path_score -
 		 g_array_index(fts, Feature *, fts->len-1)->forward_score) );
