@@ -1,4 +1,4 @@
-/*  Last edited: Jul 15 13:57 2002 (klh) */
+/*  Last edited: Jul 16 09:15 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -326,20 +326,24 @@ static int parse_command_line( int argc, char *argv[] ) {
       fprintf( stderr, "Error: You have not specified a GFF feature file\n");
       options_error = TRUE;
     }
-    if (gaze_options.dna_file == NULL) {
-      fprintf( stderr, "Warning: You have not specified a DNA file\n");
-      if (gaze_options.begin_dna == 0 || gaze_options.end_dna == 0) {
-	fprintf( stderr, "Error: If you don't give a DNA file, you must supply -begin_dna and -end_dna options\n");
-	options_error = TRUE;
+    if (! options_error) {
+      if (gaze_options.dna_file == NULL) {
+	fprintf( stderr, "Warning: You have not specified a DNA file\n");
+	if (gaze_options.begin_dna == 0 || gaze_options.end_dna == 0) {
+	  fprintf( stderr, "Error: If you don't give a DNA file, you must supply -begin_dna and -end_dna options\n");
+	  options_error = TRUE;
+	}
       }
-    }
-    else {
-      if (gaze_options.begin_dna == 0 || gaze_options.end_dna == 0) {
-	fprintf( stderr, "Warning: you have not given a sequence begin/end. Deriving from DNA...\n");
-      }
-      else if (gaze_options.begin_dna > gaze_options.end_dna == 0) {
-	fprintf( stderr, "Error: you have given an illegal DNA start/end\n");
-	options_error = TRUE;
+      else {
+	if (gaze_options.begin_dna == 0 || gaze_options.end_dna == 0) {
+	  fprintf( stderr, "Warning: you have not given a sequence begin/end. Deriving from DNA...\n");
+	}
+	else if (gaze_options.begin_dna > gaze_options.end_dna ) {
+	  fprintf( stderr, "Error: you have given an illegal DNA start/end (%d-%d)\n", 
+		   gaze_options.begin_dna, 
+		   gaze_options.end_dna );
+	  options_error = TRUE;
+	}
       }
     }
   }
