@@ -380,6 +380,10 @@ void fill_in_Gaze_Structure( Gaze_Structure *gs) {
 	}
       }
     }
+    else {
+      tgt_inf->sources = new_Array( sizeof( Feature_Relation *), TRUE );
+      set_size_Array( tgt_inf->sources, gs->feat_dict->len );
+    }
 
     /* Finally, destroy the global qualifiers, beacause they are never used */
     if (tgt_inf->seg_quals != NULL) {
