@@ -1,4 +1,4 @@
-/*  Last edited: Oct  3 11:58 2001 (klh) */
+/*  Last edited: Nov 22 11:48 2001 (klh) */
 /**********************************************************************
  ** File: info.h
  ** Author : Kevin Howe
@@ -116,6 +116,8 @@ Feature_Relation *new_Feature_Relation(void);
 
 typedef struct {
   double multiplier;
+  gboolean use_projected;   /* default: use standard segs */
+  gboolean score_sum;       /* default: score max */
 } Segment_Info;                       
 
 Segment_Info *empty_Segment_Info(void);

@@ -1,4 +1,4 @@
-/*  Last edited: Oct 10 11:47 2001 (klh) */
+/*  Last edited: Nov 22 18:26 2001 (klh) */
 /**********************************************************************
  ** File: str_parse.c
  ** Author : Kevin Howe
@@ -1101,6 +1101,8 @@ static void parse_Gaze_Structure_segment( struct Parse_context *state,
   double mul = 1.0;
   int i;
   Segment_Info *new_seg;
+  gboolean use_projected = TRUE;  /* default */
+  gboolean score_sum = TRUE;      /* default */
 
   if (state->tag_stack->len && 
       ! strcmp(g_array_index(state->tag_stack, 
@@ -1122,6 +1124,30 @@ static void parse_Gaze_Structure_segment( struct Parse_context *state,
       else if (! strcmp( attr[i], "mul" )) {
 	mul = atof( attr[i+1] ); 
       }
+      else if (! strcmp( attr[i], "scoring" )) {
+
+	if (! strcmp( attr[i+1], "project_sum" )) {
+	  /* this one is the default */
+	  use_projected = TRUE;
+	  score_sum = TRUE;
+	}
+	else if (! strcmp( attr[i+1], "project_max" )) {
+	  use_projected = TRUE;
+	  score_sum = FALSE;
+	}
+	else if (! strcmp( attr[i+1], "standard_sum" )) {
+	  use_projected = FALSE;
+	  score_sum = TRUE;
+	}
+	else if (! strcmp( attr[i+1], "standard_max" )) {
+	  use_projected = FALSE;
+	  score_sum = FALSE;
+	}
+	else {
+	  fprintf(stderr, "In tag 'segment', attr 'scoring' has an illegal value\n");
+	  state->error = XML_GetCurrentLineNumber( state->the_parser );
+	}
+      }
       else {
 	/* unrecognised attribute */
 	fprintf(stderr, "In tag 'segment', attr '%s' not recognised\n", attr[i]); 
@@ -1131,6 +1157,9 @@ static void parse_Gaze_Structure_segment( struct Parse_context *state,
     if (! state->error) {
       if (id != NULL) { 
       	new_seg = new_Segment_Info( mul );
+	new_seg->use_projected = use_projected;
+	new_seg->score_sum = score_sum;
+
 	g_array_append_val( state->gs->seg_dict, id );
 	g_array_append_val( state->gs->seg_info, new_seg );
       }
@@ -1514,7 +1543,7 @@ static void parse_Gaze_Structure_useseg( struct Parse_context *state,
 	  seg_qual->score_sum = FALSE;
 	}
 	else {
-	  fprintf(stderr, "In tag 'segment', attr 'scoring' has an illegal value\n");
+	  fprintf(stderr, "In tag 'useseg', attr 'scoring' has an illegal value\n");
 	  state->error = XML_GetCurrentLineNumber( state->the_parser );
 	}
       }
@@ -1526,6 +1555,15 @@ static void parse_Gaze_Structure_useseg( struct Parse_context *state,
     }
     if (! state->error) {
       Feature_Info *target = g_array_index( state->gs->feat_info, Feature_Info *, state->current_idx);
+
+      /* firstly, if user did not specify a scoring scheme, then we go back
+	 to the segment info to look for the scoring scheme */
+
+      if (! user_specified_scoring) {
+	Segment_Info *si = g_array_index( state->gs->seg_info, Segment_Info *, seg_idx );
+	seg_qual->use_projected = si->use_projected;
+	seg_qual->score_sum = si->score_sum;
+      }
 
       /* if we came across an "exact" qualifier, then we cannot use projected segments,
 	 so, die and tell the user */

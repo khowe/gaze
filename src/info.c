@@ -1,4 +1,4 @@
-/*  Last edited: Oct  5 14:14 2001 (klh) */
+/*  Last edited: Nov 22 16:20 2001 (klh) */
 /**********************************************************************
  ** File: info.c
  ** Author : Kevin Howe
@@ -508,7 +508,6 @@ Segment_Info *empty_Segment_Info(void) {
   Segment_Info *temp;
   
   temp = (Segment_Info *) g_malloc( sizeof(Segment_Info) );
-  temp->multiplier = 1.0;
 
   return temp;
 }
@@ -542,6 +541,8 @@ Segment_Info *new_Segment_Info(double mul) {
   
   temp = empty_Segment_Info();
   temp->multiplier = mul;
+  temp->use_projected = FALSE;
+  temp->score_sum = FALSE;
 
   return temp;
 }
@@ -599,8 +600,8 @@ Segment_Qualifier *new_Segment_Qualifier(void) {
   
   temp = (Segment_Qualifier *) g_malloc( sizeof(Segment_Qualifier) );
 
-  temp->use_projected = TRUE;
-  temp->score_sum = TRUE;
+  temp->use_projected = FALSE;
+  temp->score_sum = FALSE;
   temp->is_exact_src = FALSE;
   temp->is_exact_tgt = FALSE;
   temp->has_tgt_phase = FALSE;
