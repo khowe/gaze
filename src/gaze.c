@@ -1,4 +1,4 @@
-/*  Last edited: Jul 24 17:09 2002 (klh) */
+/*  Last edited: Jul 25 15:07 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -347,11 +347,11 @@ static int parse_command_line( int argc, char *argv[] ) {
       append_val_Array( gaze_options.sequence_ends, end );
 
     }
-  }
 
-  if ( gaze_options.sequence_names->len == 0 ) {
-    fprintf( stderr, "Error: you have not give any sequences for GAZE to work on\n");
-    options_error = TRUE;
+    if ( gaze_options.sequence_names->len == 0 ) {
+      fprintf( stderr, "Error: you have not give any sequences for GAZE to work on\n");
+      options_error = TRUE;
+    }
   }
     
   return (!options_error);
