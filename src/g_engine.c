@@ -1,4 +1,4 @@
-/*  Last edited: Jul 24 17:25 2002 (klh) */
+/*  Last edited: Aug  3 15:26 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -104,8 +104,7 @@ Gaze_DP_struct *new_Gaze_DP_struct( int feat_dict_size,
  ARGS: 
  NOTES:
  *********************************************************************/
-double calculate_path_score(Array *path, 
-			    Array *segs,
+double calculate_path_score(Gaze_Sequence *g_seq,
 			    Gaze_Structure *gs) {
   
   int idx; 
@@ -116,21 +115,21 @@ double calculate_path_score(Array *path,
 
   total_score = 0.0;
 
-  for( idx=0; idx < path->len - 1; idx++) { 
+  for( idx=0; idx < g_seq->path->len - 1; idx++) { 
     /* for the score to mean anything, all paths must begin with "BEGIN"
        and end with "END." Therefore ignoring the local score of the first 
        feature (done here) has no effect, since the score of "BEGIN" is 0
        (and has to be for the DP to work */
 
-    src = index_Array( path, Feature *, idx );
-    tgt = index_Array( path, Feature *, idx + 1 );
+    src = index_Array( g_seq->path, Feature *, idx );
+    tgt = index_Array( g_seq->path, Feature *, idx + 1 );
     reg_info = index_Array( index_Array( gs->feat_info, Feature_Info *, tgt->feat_idx )->sources, 
 			      Feature_Relation *, 
 			      src->feat_idx);
 
     trans_score = len_pen = 0.0;
     
-    seg_score = calculate_segment_score( src, tgt, segs, gs, s_res );
+    seg_score = calculate_segment_score( g_seq, src, tgt, gs, s_res );
     trans_score += seg_score;
     
     if (reg_info->len_fun != NULL) {
@@ -515,7 +514,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 		  Length_Function *lf = NULL;
 		  trans_score = len_pen = forward_temp = viterbi_temp = 0.0;
 
-		  seg_score = calculate_segment_score( src, tgt, g_seq->segment_lists, gs, g_res->seg_res );
+		  seg_score = calculate_segment_score( g_seq, src, tgt, gs, g_res->seg_res );
 		  trans_score += seg_score;
 		  
 		  if (reg_info->len_fun != NULL) {
@@ -1058,7 +1057,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 		  Length_Function *lf = NULL;
 		  trans_score = len_pen = 0.0;
 		  
-		  seg_score = calculate_segment_score( src, tgt, g_seq->segment_lists, gs, g_res->seg_res );
+		  seg_score = calculate_segment_score( g_seq, src, tgt, gs, g_res->seg_res );
 		  trans_score += seg_score;
 		  
 		  if (reg_info->len_fun != NULL) {
@@ -1256,9 +1255,9 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
  ARGS: 
  NOTES:
  *********************************************************************/
-Array *trace_back_general ( Gaze_Sequence *g_seq,
-			    Gaze_Structure *gs,
-			    enum DP_Traceback_Mode tb_mode) {
+void trace_back_general ( Gaze_Sequence *g_seq,
+			  Gaze_Structure *gs,
+			  enum DP_Traceback_Mode tb_mode) {
   
   int i;
   Feature *temp;
@@ -1305,10 +1304,6 @@ Array *trace_back_general ( Gaze_Sequence *g_seq,
       temp =  index_Array( stack, Feature *, i );
       append_val_Array( feat_path, temp);
     }
-    /* for standard tracebacks, the path score in END will already be correct.
-       However, we need to recalcuate the path score for sampled trances. Might 
-       as well do it anyway, since it's cheap */
-    calculate_path_score( feat_path, g_seq->segment_lists, gs );
   }
   else {
     free_Array( feat_path, TRUE );
@@ -1317,5 +1312,5 @@ Array *trace_back_general ( Gaze_Sequence *g_seq,
 
   free_Array( stack, TRUE );
 
-  return feat_path;
+  g_seq->path = feat_path;
 }
