@@ -1,4 +1,4 @@
-/*  Last edited: Jan 14 16:41 2002 (klh) */
+/*  Last edited: Jan 23 14:19 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -349,14 +349,6 @@ int main (int argc, char *argv[]) {
   if ((gs = parse_Gaze_Structure( gaze_options.structure_file )) == NULL)
     exit(1);
 
-  /*
-  for(i=0; i < gs->length_funcs->len; i++) {
-    Length_Function *lf = g_array_index( gs->length_funcs, Length_Function *, i );
-    fprintf(stderr, "FUNCTION %s\n", g_array_index( gs->len_fun_dict, char *, i ));
-    for(j=0; j < lf->value_map->len; j++) 
-      fprintf(stderr, "%7d %.6f\n", j, g_array_index( lf->value_map, double, j ));
-  }
-  */
 
   /*
   if (gaze_options.trace > 1)
@@ -449,18 +441,6 @@ int main (int argc, char *argv[]) {
 
   if (gaze_options.verbose)
     fprintf(stderr, "%d features left\n", features->len);
-
-
-  /************** print features for debug purposes ****************/
-  /*
-  if (gaze_options.verbose) {
-    for (i=0; i < features->len; i++) 
-      print_Feature( stderr, g_array_index( features, Feature *, i), gs->feat_dict, gs->motif_dict); 
-    fprintf(stderr, "\n");
-  }
-  */
-  /*******************************************************************/
-
 
   /* apply segment score scalings, and sort and index them at the same time */
 
@@ -585,11 +565,7 @@ int main (int argc, char *argv[]) {
       print_GFF_path( gaze_options.output_file, feature_path, gs, seq_name );
     
     if (gaze_options.post_probs) {
-      /*
-      if (gaze_options.verbose)
-	fprintf(stderr, "Sorting %d features for backward pass...\n", features->len);
-      qsort( features->data, features->len, sizeof(Feature *), &order_features_backwards); 
-      */
+
       if (gaze_options.verbose)
 	fprintf(stderr, 
 		"Doing backward calculation over %d features and %d segments...\n", 
@@ -597,7 +573,7 @@ int main (int argc, char *argv[]) {
 		num_segs);
       backwards_calc( features, segments, gs, calc_mode, gaze_options.trace, gaze_options.trace_file);
 
-      /* before printing the posterior probabilities, resort the features in the standard
+      /* before printing the posterior probabilities, re-sort the features in the standard
 	 way. The method of sorting used for the D.P. will not list the complete set of 
 	 features in an order that is intuitive */ 
 

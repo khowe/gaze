@@ -1,4 +1,4 @@
-/*  Last edited: Nov 22 16:20 2001 (klh) */
+/*  Last edited: Jan 23 14:25 2002 (klh) */
 /**********************************************************************
  ** File: info.c
  ** Author : Kevin Howe
@@ -156,8 +156,8 @@ Feature_Relation *clone_Feature_Relation(Feature_Relation *src) {
  
    
     dest->out_feature = (src->out_feature != NULL)?g_strdup( src->out_feature ):NULL;
-    dest->out_strand = (src->out_strand != NULL)?g_strdup( src->out_strand ):NULL;
-    dest->out_frame = (src->out_frame != NULL)?g_strdup( src->out_frame ):NULL;
+    dest->out_strand = src->out_strand;
+    dest->out_frame = src->out_frame;
     
     if (src->seg_quals != NULL) {
       dest->seg_quals = g_array_new( FALSE, TRUE, sizeof(Segment_Qualifier *));
@@ -236,10 +236,6 @@ void free_Feature_Relation(Feature_Relation *ft_src) {
       g_free( ft_src->len_fun );
     if (ft_src->out_feature != NULL)
       g_free( ft_src->out_feature );
-    if (ft_src->out_strand != NULL)
-      g_free( ft_src->out_strand );
-    if (ft_src->out_frame != NULL)
-      g_free( ft_src->out_frame );
 
     g_free( ft_src );
   }

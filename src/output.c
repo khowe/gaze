@@ -1,4 +1,4 @@
-/*  Last edited: Jan 18 10:37 2002 (klh) */
+/*  Last edited: Jan 23 14:34 2002 (klh) */
 /**********************************************************************
  ** File: output.c
  ** Author : Kevin Howe
@@ -73,8 +73,8 @@ void print_GFF_path( FILE *fh,
   Feature *f1, *f2 = NULL;
   Feature_Info *f1_info, *f2_info;
   Feature_Relation *src;
-  char *empty = ".";
-  char *strand, *frame;
+  char empty = '.';
+  char strand, frame;
   int i;
 
   fprintf( fh, "##gff-version 2\n");
@@ -107,10 +107,10 @@ void print_GFF_path( FILE *fh,
 	    f1->real_pos.s, f1->real_pos.e,
 	    f1->score);
 
-    strand = (src->out_strand == NULL)?empty:src->out_strand;
-    frame = (src->out_frame == NULL)?empty:src->out_frame;
+    strand = src->out_strand ? src->out_strand : empty;
+    frame = src->out_frame ? src->out_frame : empty;
     
-    fprintf(fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t%s\t%s\n", 
+    fprintf(fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t%c\t%c\n", 
 	    seq_name, src->out_feature,
 	    /*
 	    f1->real_pos.s + f1_info->start_offset,

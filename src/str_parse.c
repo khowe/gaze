@@ -1,4 +1,4 @@
-/*  Last edited: Jan 18 10:32 2002 (klh) */
+/*  Last edited: Jan 23 14:36 2002 (klh) */
 /**********************************************************************
  ** File: str_parse.c
  ** Author : Kevin Howe
@@ -1196,8 +1196,8 @@ static void parse_Gaze_Structure_source( struct Parse_context *state,
   int *mindist = NULL;
   int *maxdist = NULL;
   char *out_feature = NULL;
-  char *out_strand = NULL;
-  char *out_frame = NULL;
+  char out_strand = '\0';
+  char out_frame = '\0';
   int *len_fun = NULL;
 
   if (state->tag_stack->len && 
@@ -1245,10 +1245,20 @@ static void parse_Gaze_Structure_source( struct Parse_context *state,
 	out_feature = g_strdup( attr[i+1] );
       }
       else if (! strcmp( attr[i], "out_str" )) {
-	out_strand = g_strdup( attr[i+1] );
+	if (strcmp( attr[i+1], "+" ) && strcmp( attr[i+1], "-" ) ) {
+	  fprintf(stderr, "In tag 'source' attr 'out_str' has illegal value\n"); 
+	  state->error = XML_GetCurrentLineNumber( state->the_parser );
+	}
+	else
+	  out_strand = attr[i+1][0];
       }
       else if (! strcmp( attr[i], "out_frm" )) {
-	out_frame = g_strdup( attr[i+1] );
+	if (strcmp(attr[i+1], "0") && strcmp(attr[i+1], "1") && strcmp(attr[i+1], "2")) {
+	  fprintf(stderr, "In tag 'source' attr 'out_frm' has illegal value\n"); 
+	  state->error = XML_GetCurrentLineNumber( state->the_parser );	  
+	}
+	else
+	  out_frame = attr[i+1][0];
       }
       else {
 	/* unrecognised attribute */
