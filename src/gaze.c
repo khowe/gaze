@@ -1,4 +1,4 @@
-/*  Last edited: Mar 12 14:44 2002 (klh) */
+/*  Last edited: Mar 29 13:16 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -29,6 +29,7 @@ Input files:\
  -structure_file <s>    XML file containing the gaze structure\n\
  -features_file <s>     name of the GFF file containing the features\n\
  -dna_file <s>          file containing the DNA sequence\n\
+ -path_file <s>         name of a GFF file containing a user-specified path\n\
  -defaults <s>          name of the file of default options (def: './gaze.defaults')\n\
 \
 Output files:\
@@ -45,7 +46,6 @@ Where to look for genes:\
 \
 Other options:\
 \
- -path <s>              output the score and probability of the given path\n\
  -no_path               do not print out best path (usually used with -post_probs)\n\
  -post_probs <n>        calculate and show post. probs. for features scoring above given threshold\n\
  -selected              look out for Selected features in input\n\
@@ -487,7 +487,7 @@ int main (int argc, char *argv[]) {
   /***************************************/
 
   if (gaze_options.verbose)
-    fprintf(stderr, "Segments: sorting, indexing and projecting...");
+    fprintf(stderr, "Segments: sorting, scaling, indexing and projecting...");
 
   for( i=0; i < segments->len; i++ ) {
     double multiplier = g_array_index( gs->seg_info, Segment_Info *, i )->multiplier;
@@ -509,12 +509,8 @@ int main (int argc, char *argv[]) {
       }
 
       qsort( o->data, o->len, sizeof(Segment *), &order_segments); 
-
       index_Segments( o );
-      
       p = project_Segments( o );
-
-      /* index_Segments should return a sorted list, by construction method */
       index_Segments( p );
 
       g_array_index( seg_lists->proj, GArray *, j) = p;
@@ -544,12 +540,8 @@ int main (int argc, char *argv[]) {
   }
 
 
-  /*****************************************************************/
-  /*********** finally, do the dynamic programming *****************/
-  /*****************************************************************/
-  calc_mode = (gaze_options.full_calc)?STANDARD_SUM:PRUNED_SUM;
-
   if ( gaze_options.path_file != NULL) {
+    /******** read in, score and print out the given path ******/
     
     if (gaze_options.verbose)
       fprintf(stderr, "Reading the gff correct path file...\n");
@@ -564,6 +556,10 @@ int main (int argc, char *argv[]) {
       print_GFF_path( gaze_options.output_file, feature_path, gs, seq_name );
   }
   else {
+    /*********** do the dynamic programming *****************/
+
+    calc_mode = gaze_options.full_calc ? STANDARD_SUM : PRUNED_SUM;
+
     if (gaze_options.post_probs || gaze_options.exon_file ) {
       
       if (gaze_options.verbose)

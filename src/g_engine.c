@@ -1,4 +1,4 @@
-/*  Last edited: Jan 24 17:31 2002 (klh) */
+/*  Last edited: Mar 29 17:10 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -46,9 +46,6 @@ void free_Gaze_DP_struct( Gaze_DP_struct *g_res, int feat_types ) {
 
     g_free( g_res );
   }  
-
-
-  
 }
 
 
@@ -133,7 +130,9 @@ gboolean calculate_path_score(GArray *path,
       if ((reg_info = g_array_index(tgt_info->sources, Feature_Relation *, src->feat_idx)) != NULL) {
 
 	if ((reg_info->phase == NULL) || (*(reg_info->phase) == distance % 3)) {
+
 	  if ((reg_info->min_dist == NULL) || (*(reg_info->min_dist)) <= distance) {
+
 	    if ((reg_info->max_dist == NULL) || (*(reg_info->max_dist)) >= distance) {
 
 	      trans_score = 0.0;
@@ -203,9 +202,8 @@ void forwards_calc( GArray *features,
   if (trace)
     fprintf(trace_fh, "\nForward calculation:\n\n");
 
-
   for (ft_idx = 1; ft_idx < features->len; ft_idx++) {
-    /* push the index if the last feature onto the list of
+    /* push the index of the last feature onto the list of
        sorted indices */
     prev_idx = ft_idx - 1;
     prev_feat = g_array_index( features, Feature *, prev_idx );
@@ -227,18 +225,6 @@ void forwards_calc( GArray *features,
     g_array_index( features, Feature *, ft_idx )->path_score = g_res->pth_score;
     g_array_index( features, Feature *, ft_idx )->trace_pointer = g_res->pth_trace;
   }
-
-  /*
-  for(ft_idx=0; ft_idx < gs->feat_dict->len; ft_idx++) {
-    for( prev_idx = 0; prev_idx < gs->feat_dict->len; prev_idx++) {
-      fprintf( stderr, "%2d %2d :%d:%d:%d:\n", ft_idx, prev_idx, 
-	       g_res->fringes[ft_idx][prev_idx][0],
-	       g_res->fringes[ft_idx][prev_idx][1],
-	       g_res->fringes[ft_idx][prev_idx][2]);
-    }
-	       
-  }
-  */
 
   free_Gaze_DP_struct( g_res, gs->feat_dict->len );
 }
@@ -322,7 +308,7 @@ void scan_through_sources_dp(GArray *features,
 
   gboolean touched_score, touched_score_local;
   GArray *all_scores = NULL;
-  GArray *all_indices = NULL;  /* Initialsied to get arounc gcc warnings */
+  GArray *all_indices = NULL;  /* Initialsied to get around gcc warnings */
   Feature_Info *tgt_info;
   Feature_Relation *reg_info;
   Feature *src, *tgt;
@@ -363,8 +349,7 @@ void scan_through_sources_dp(GArray *features,
     
     /* set up the boundaries for the scan. We do not want to go past:
        1. killers that are global to all sources of this target
-       2. The last forced feature
-    */
+       2. The last forced feature */
     last_necessary_idx = 0; 
     
     if ( tgt_info->kill_feat_quals_up != NULL) {
@@ -431,8 +416,8 @@ void scan_through_sources_dp(GArray *features,
 		    /* the frame calcualtion here is slightly hacky; we have to allow for the
 		       fact that we need the distance from the source forward to the apt. killer.
 		       BUT the the killers are stored by the frame of their adjusted START, 
-		       rather than their end. So, we rely on the fact that all killers are stops
-		       of width 3, which is undesirable */
+		       rather than their end. So, we rely on the fact that all killers that have
+		       a phase are width 3, which might not be so unreasonable */
 		    GArray *apt_list = (GArray *) g_res->feats[kill_idx][(frame + kq->phase) % 3];
 		    if (apt_list->len > 0 
 			&& g_array_index( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame] )
@@ -659,8 +644,7 @@ void scan_through_sources_dp(GArray *features,
 				   g_array_index( features, Feature *, 0)->backward_score ));
 		  }
 		  /***/
-
-		} /* if valid pair */
+		} /* if killed by DNA */
 		else {
 		  /* source might not be killed for future incidences, so update fringe index */
 		  if (sum_mode == PRUNED_SUM)
@@ -748,8 +732,7 @@ void scan_through_sources_dp(GArray *features,
 			       - max_forward );  
 	  
 	}
-	g_res->score = log( g_res->score ) + max_forward;
-	
+	g_res->score = log( g_res->score ) + max_forward;	
       }
 
       if (trace_mode == SAMPLE_TRACEBACK) {
@@ -874,8 +857,7 @@ void scan_through_targets_dp(GArray *features,
     
     /* set up the boundaries for the scan. We do not want to go past 
        1. killers that are global to all targets of this source
-       2. The last forced feature
-    */
+       2. The last forced feature */
     last_necessary_idx = features->len - 1; 
 
     if ( src_info->kill_feat_quals_down != NULL) {    
@@ -1141,7 +1123,7 @@ void scan_through_targets_dp(GArray *features,
 		    fprintf( trace_fh, "Score: b=%.3f, (seg:%.3f len:%.3f)\n",
 			     backward_temp, seg_score, len_pen );
 		  
-		} /* if valid pair */
+		} /* if killed by DNA */
 		else {
 		  /* tgt might not be killed for future incidences, so update fringe index */
 		  if (sum_mode == PRUNED_SUM)
@@ -1159,7 +1141,7 @@ void scan_through_targets_dp(GArray *features,
 		if (trace > 1)
 		  fprintf( trace_fh, "TOO CLOSE\n" );
 	      }
-	    } /* if min dist */
+	    } /* if max dist */
 	    else {
 	      if (trace > 1)
 		fprintf( trace_fh, "TOO DISTANT\n" );
@@ -1195,7 +1177,6 @@ void scan_through_targets_dp(GArray *features,
 	  g_free( killer_target_dna );
 	  killer_target_dna = NULL;
 	}
-
       }      
     }
 
