@@ -1,4 +1,4 @@
-/*  Last edited: Jul 16 10:42 2002 (klh) */
+/*  Last edited: Jul 22 11:42 2002 (klh) */
 /**********************************************************************
  ** FILE: util.c
  ** NOTES:
@@ -78,6 +78,84 @@ void warning_util( char *fmt, ...) {
 /********************** String functions *****************************/
 /*********************************************************************/
 
+#define LINE_ALLOC_STEP 50
+
+/********************************************************************* 
+ FUNCTION: new_Line
+ DESCRIPTION: 
+    Duplicates the given string and returns it
+ RETURNS:
+ ARGS:
+ NOTES:
+ *********************************************************************/
+Line *new_Line( void ) {
+  Line *l = (Line *) malloc_util( sizeof( Line ) );
+
+  l->buf = (char *) malloc_util( LINE_ALLOC_STEP * sizeof( char ) );
+  l->buf_size = LINE_ALLOC_STEP;
+
+  return l;
+
+}
+
+/********************************************************************* 
+ FUNCTION: free_Line
+ DESCRIPTION: 
+    Duplicates the given string and returns it
+ RETURNS:
+ ARGS:
+ NOTES:
+ *********************************************************************/
+void free_Line( Line *l ) {
+  if (l != NULL) {
+    if (l->buf != NULL) 
+      free_util( l->buf );
+
+    free_util(l);
+  }
+}
+
+
+/********************************************************************* 
+ FUNCTION: read_Line
+ DESCRIPTION: 
+    Duplicates the given string and returns it
+ RETURNS:
+ ARGS:
+ NOTES:
+ *********************************************************************/
+int read_Line( FILE *file, Line *ln ) {
+
+  boolean got_line = FALSE;
+  int c, line_len = 0;
+
+  while(!got_line && (c = fgetc(file)) != EOF) {
+
+    if (c == '\n')
+      /* blank line, no good */
+      continue;
+
+    do {
+      if (line_len >= ln->buf_size) {
+	ln->buf = (char *) realloc_util( ln->buf, (line_len + LINE_ALLOC_STEP) * sizeof(char));
+	ln->buf_size += LINE_ALLOC_STEP;
+      }
+      ln->buf[line_len++] = c;
+
+    } while((c = fgetc( file)) != '\n');
+
+    if (line_len >= ln->buf_size) {
+      ln->buf = (char *) realloc_util( ln->buf, (line_len + 1) * sizeof(char) );
+      ln->buf_size++;
+    }
+    ln->buf[line_len] = '\0';
+    got_line = TRUE;
+  }
+
+  return line_len;
+
+}
+
 
 /********************************************************************* 
  FUNCTION: strdup_util
@@ -99,6 +177,7 @@ char *strdup_util(const char *str) {
   
   return new_str;
 }
+
 
 
 
@@ -410,5 +489,32 @@ static void _array_expand_if_necessary (RealArray *array,
   }
 }
 
+
+
+/**********************************************************************/
+/*************** Dictionaries *****************************************/
+/**********************************************************************/
+
+
+/*********************************************************************
+ FUNCTION: dict_lookup
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+signed char dict_lookup( Dict *dict, const char *name ) {
+  boolean match = FALSE;
+  signed char j;
+
+  for( j=0; j < ((Array *)dict)->len; j++ ) { 
+    if (! strcmp( index_Array( (Array *)dict, char *, j), name )) {
+      match = TRUE;
+      break;
+    }
+  }
+
+  return (match)?(signed char)j:-1;
+}
 
 

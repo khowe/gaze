@@ -1,4 +1,4 @@
-/*  Last edited: Jul 16 10:30 2002 (klh) */
+/*  Last edited: Jul 22 11:31 2002 (klh) */
 /**********************************************************************
  ** FILE: util.h
  ** NOTES:
@@ -49,6 +49,17 @@ void warning_util( char *, ...);
 /*********************************************************************/
 /********************** String functions *****************************/
 /*********************************************************************/
+
+typedef struct {
+  char *buf;
+  int buf_size;
+} Line;
+
+void free_Line( Line *);
+Line *new_Line( void );
+int read_Line( FILE *, Line * );
+
+
 char *strdup_util (const char *str);
 
 
@@ -87,6 +98,15 @@ Array *prepend_vals_Array (Array *,  const void *,  int len);
 Array *insert_vals_Array (Array *array, int, const void *, int);
 Array *set_size_Array (Array *array, int length);
 Array *remove_index_Array (Array *, int);
+
+
+/*********************************************************************/
+/********************** Dictionary functions *************************/
+/*********************************************************************/
+
+typedef Array Dict;
+
+signed char dict_lookup( Dict *, const char *);
 
 
 /*********************************************************************/
