@@ -1,4 +1,4 @@
-/*  Last edited: Jul 15 11:44 2002 (klh) */
+/*  Last edited: Jul 24 14:49 2002 (klh) */
 /**********************************************************************
  ** File: str_parse.c
  ** Author : Kevin Howe
@@ -544,6 +544,7 @@ static void parse_Gaze_Structure_gffline( struct Parse_context *state,
   char *feature = NULL;
   char *source = NULL;
   char *strand = NULL;
+  char *frame = NULL;
   int i;
 
 
@@ -563,6 +564,9 @@ static void parse_Gaze_Structure_gffline( struct Parse_context *state,
       else if (! strcmp( attr[i], "strand" )) {
 	strand = strdup_util( attr[i+1] );
       }
+      else if (! strcmp( attr[i], "frame" )) {
+	frame = strdup_util( attr[i+1] );
+      }
       else {
 	/* unrecognised attribute */
 	state->error = XML_GetCurrentLineNumber( state->the_parser );
@@ -575,6 +579,8 @@ static void parse_Gaze_Structure_gffline( struct Parse_context *state,
 	new_gff2ft->gff_feature = feature;
 	new_gff2ft->gff_source = source;
 	new_gff2ft->gff_strand = strand;
+	new_gff2ft->gff_frame = frame;
+
 	append_val_Array( state->gs->gff_to_feats, new_gff2ft );
       }
       else {
@@ -1203,6 +1209,7 @@ static void parse_Gaze_Structure_segment( struct Parse_context *state,
   Segment_Info *new_seg;
   boolean use_projected = TRUE;  /* default */
   boolean score_sum = TRUE;      /* default */
+  boolean partial = TRUE;        /* default */
 
   if (state->tag_stack->len && 
       ! strcmp(index_Array(state->tag_stack, 
@@ -1223,6 +1230,19 @@ static void parse_Gaze_Structure_segment( struct Parse_context *state,
       }
       else if (! strcmp( attr[i], "mul" )) {
 	mul = atof( attr[i+1] ); 
+      }
+      else if (! strcmp( attr[i], "partial")) {
+	if (! strcmp( attr[i+1], "TRUE" )) {
+	  /* this one is the default */
+	  partial = TRUE;
+	}
+	else if (! strcmp( attr[i+1], "FALSE" )) {
+	  partial = FALSE;
+	}
+	else {
+	  fprintf(stderr, "In tag 'segment', attr 'partial' has an illegal value\n");
+	  state->error = XML_GetCurrentLineNumber( state->the_parser );
+	}
       }
       else if (! strcmp( attr[i], "scoring" )) {
 
@@ -1259,6 +1279,7 @@ static void parse_Gaze_Structure_segment( struct Parse_context *state,
       	new_seg = new_Segment_Info( mul );
 	new_seg->use_projected = use_projected;
 	new_seg->score_sum = score_sum;
+	new_seg->partial = partial;
 
 	append_val_Array( state->gs->seg_dict, id );
 	append_val_Array( state->gs->seg_info, new_seg );
@@ -1533,6 +1554,7 @@ static void parse_Gaze_Structure_useseg( struct Parse_context *state,
   int  i;
   boolean in_source_tag = FALSE;
   boolean user_specified_scoring = FALSE;
+  boolean user_specified_partial = FALSE;
 
   if (state->tag_stack->len && 
       ((! strcmp(index_Array(state->tag_stack, 
@@ -1630,6 +1652,18 @@ static void parse_Gaze_Structure_useseg( struct Parse_context *state,
 	  state->error = XML_GetCurrentLineNumber( state->the_parser );
 	}
       }
+      else if (! strcmp( attr[i], "partial" )) {
+	user_specified_partial = TRUE;
+
+	if (! strcmp( attr[i+1], "FALSE" ))
+	  seg_qual->partial = FALSE;
+	else if (! strcmp( attr[i+1], "TRUE" ))
+	  seg_qual->partial = TRUE;
+	else {
+	  fprintf(stderr, "In tag 'useseg', attr 'partial' has an illegal value\n");
+	  state->error = XML_GetCurrentLineNumber( state->the_parser );
+	}
+      }
       else {
 	/* unrecognised attribute */
 	fprintf(stderr, "In tag 'useseg', attr '%s' not recognised\n", attr[i]); 
@@ -1642,10 +1676,12 @@ static void parse_Gaze_Structure_useseg( struct Parse_context *state,
       /* firstly, if user did not specify a scoring scheme, then we go back
 	 to the segment info to look for the scoring scheme */
 
+      if (! user_specified_partial)
+	seg_qual->partial = index_Array( state->gs->seg_info, Segment_Info *, seg_qual->seg_idx )->partial;
+
       if (! user_specified_scoring) {
-	Segment_Info *si = index_Array( state->gs->seg_info, Segment_Info *, seg_qual->seg_idx );
-	seg_qual->use_projected = si->use_projected;
-	seg_qual->score_sum = si->score_sum;
+	seg_qual->use_projected = index_Array( state->gs->seg_info, Segment_Info *, seg_qual->seg_idx )->use_projected;
+	seg_qual->score_sum = index_Array( state->gs->seg_info, Segment_Info *, seg_qual->seg_idx )->score_sum;
       }
 
       /* if we came across an "exact" qualifier, then we cannot use projected segments,

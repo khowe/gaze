@@ -1,4 +1,4 @@
-/*  Last edited: Jul 22 11:03 2002 (klh) */
+/*  Last edited: Jul 24 14:08 2002 (klh) */
 /**********************************************************************
  ** File: structure.c
  ** Author : Kevin Howe
@@ -204,6 +204,8 @@ void write_Gaze_Structure( Gaze_Structure *gs, FILE *out ) {
 		  fprintf(out, "projected ");
 		if (sq->score_sum)
 		  fprintf(out, "score_sum");
+		if (sq->partial)
+		  fprintf(out, "allow_partial");
 		fprintf(out, "\n");
 	      }
 	    }

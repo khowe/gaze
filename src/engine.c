@@ -1,4 +1,4 @@
-/*  Last edited: Jul 23 09:33 2002 (klh) */
+/*  Last edited: Jul 24 17:37 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -157,25 +157,27 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 	    if ((! qual->is_exact_src || seg->pos.s == src_pos ) &&
 		(! qual->is_exact_tgt || seg->pos.e == tgt_pos)) {
 	  
-	      /* note 020128 - now scores are per-residue, can get scores without a division op */
-	      /* score = seg->score * ( (double)(high - low + 1) / (double) (seg->pos.e - seg->pos.s + 1)); */
-
-	      score = seg->score * (high - low + 1);
-
-	      if (! index_Array( s_res->has_score, boolean, qual->seg_idx)) {
-		index_Array( s_res->raw_scores, double, qual->seg_idx) = score;
-		index_Array( s_res->has_score, boolean, qual->seg_idx) = TRUE;
-
-	      }
-	      else {
-		if (qual->score_sum)
-		  /* now sum projected segment scores in a region rather than take max */
-		  index_Array( s_res->raw_scores, double, qual->seg_idx) += score;		  
+	      if (qual->partial || (seg->pos.s >= src_pos && seg->pos.e <= tgt_pos)) {
+		/* note 020128 - now scores are per-residue, can get scores without a division op */
+		/* score = seg->score * ( (double)(high - low + 1) / (double) (seg->pos.e - seg->pos.s + 1)); */
+		
+		score = seg->score * (high - low + 1);
+		
+		if (! index_Array( s_res->has_score, boolean, qual->seg_idx)) {
+		  index_Array( s_res->raw_scores, double, qual->seg_idx) = score;
+		  index_Array( s_res->has_score, boolean, qual->seg_idx) = TRUE;
+		  
+		}
 		else {
-		  if (score > index_Array( s_res->raw_scores, double, qual->seg_idx )) {
-		    index_Array( s_res->raw_scores, double, qual->seg_idx) = score;
+		  if (qual->score_sum)
+		    /* now sum projected segment scores in a region rather than take max */
+		    index_Array( s_res->raw_scores, double, qual->seg_idx) += score;		  
+		  else {
+		    if (score > index_Array( s_res->raw_scores, double, qual->seg_idx )) {
+		      index_Array( s_res->raw_scores, double, qual->seg_idx) = score;
+		    }
 		  }
-		}	
+		}
 	      }
 	    }
 	  }

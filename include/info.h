@@ -1,4 +1,4 @@
-/*  Last edited: Jul 22 16:32 2002 (klh) */
+/*  Last edited: Jul 24 14:24 2002 (klh) */
 /**********************************************************************
  ** File: info.h
  ** Author : Kevin Howe
@@ -104,6 +104,7 @@ typedef struct {
   double multiplier;
   boolean use_projected;   /* default: use standard segs */
   boolean score_sum;       /* default: score max */
+  boolean partial;         /* default: all overlapping segs */
 } Segment_Info;                       
 
 Segment_Info *empty_Segment_Info(void);
@@ -122,6 +123,8 @@ typedef struct {
   boolean has_tgt_phase;
   boolean has_src_phase;
   int phase;
+  boolean partial;       /* only use segments falling completely 
+			      within regions of interest */
 } Segment_Qualifier;
 
 Segment_Qualifier *clone_Segment_Qualifier( Segment_Qualifier * );

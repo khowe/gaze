@@ -1,4 +1,4 @@
-/*  Last edited: Jul 22 16:35 2002 (klh) */
+/*  Last edited: Jul 24 14:06 2002 (klh) */
 /**********************************************************************
  ** File: info.c
  ** Author : Kevin Howe
@@ -631,6 +631,7 @@ Segment_Info *new_Segment_Info(double mul) {
   temp->multiplier = mul;
   temp->use_projected = FALSE;
   temp->score_sum = FALSE;
+  temp->partial = FALSE;
 
   return temp;
 }
@@ -657,6 +658,7 @@ Segment_Qualifier *clone_Segment_Qualifier(Segment_Qualifier *src) {
     dest->has_tgt_phase = src->has_tgt_phase;
     dest->has_src_phase = src->has_src_phase;
     dest->phase = src->phase;
+    dest->partial = src->partial;
   }    
 
   return dest;
@@ -697,6 +699,7 @@ Segment_Qualifier *new_Segment_Qualifier(void) {
   temp->has_tgt_phase = FALSE;
   temp->has_src_phase = FALSE;
   temp->phase = 0;
+  temp->partial = FALSE;
   
   return temp;
 }
