@@ -1,4 +1,4 @@
-/*  Last edited: May  7 09:44 2002 (klh) */
+/*  Last edited: May 28 09:53 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -324,16 +324,16 @@ static int parse_command_line( int argc, char *argv[] ) {
       fprintf( stderr, "You have not specified a structure file\n");
       options_error = TRUE;
     }
-    else if (gaze_options.dna_file == NULL) {
-      fprintf( stderr, "Warning: You have not specified a DNA file\n");
-    }
-    else if (gaze_options.gff_files->len == 0) {
+    if (gaze_options.gff_files->len == 0) {
       fprintf( stderr, "You have not specified a GFF feature file\n");
       options_error = TRUE;
     }
-    else if (gaze_options.begin_dna > gaze_options.end_dna) {
+    if (gaze_options.begin_dna > gaze_options.end_dna) {
       fprintf( stderr, "You have given an illegal DNA start/end range\n");
       options_error = TRUE;
+    }
+    if (gaze_options.dna_file == NULL) {
+      fprintf( stderr, "Warning: You have not specified a DNA file\n");
     }
   }
 
