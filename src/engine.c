@@ -1,4 +1,4 @@
-/*  Last edited: Nov  5 13:06 2001 (klh) */
+/*  Last edited: Nov 26 15:00 2001 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -13,7 +13,7 @@
 /*********************************************************************
  FUNCTION: calculate_post_accuracies
  DESCRIPTION:
-    This function takes the given list of function, and measures the
+    This function takes the given list of features, and measures the
     accuracies of the posterior probabilities of each feature. It
     does this by plotting a histogram (with the number of bins given)
     of the proportion of features that are correct for various ranges
@@ -65,10 +65,10 @@ GArray *calculate_post_accuracies( GArray *feats, int bins, double sigma ) {
 
   /* put output in here for now. */
 
-  printf( "Posterior probability accuracy plot - sigma = %.3f\n", sigma );
-  printf( "Post prob     Prop. correct\n" );
+  printf( "## Posterior probability accuracy plot - sigma = %.3f\n", sigma );
+  printf( "## Post prob     Prop. correct\n" );
   for (i=0; i < res->len; i++) {
-    printf( "%4.3f:%4.3f\t%.3f\n", 
+    printf( "## %4.3f:%4.3f\t%.3f\n", 
 	    1.0 / (double) bins * i, 
 	    1.0 / (double) bins * (i+1),
 	    g_array_index( res, double, i ));
