@@ -1,4 +1,4 @@
-/*  Last edited: Jul 15 11:55 2002 (klh) */
+/*  Last edited: Jul 15 13:12 2002 (klh) */
 /**********************************************************************
  ** FILE: util.h
  ** NOTES:
@@ -80,7 +80,7 @@ struct _Array
 #define append_val_Array(a,v)	append_vals_Array (a, &v, 1)
 #define prepend_val_Array(a,v)  prepend_vals_Array (a, &v, 1)
 #define insert_val_Array(a,i,v) insert_vals_Array (a, i, &v, 1)
-#define index_Array(a,t,i)      (((t*) (a)->data) [(i)])
+#define index_Array(a,t,i)      (((t*) (a)->data) [(int)(i)])
 
 Array* new_Array(int,
 		 boolean );
