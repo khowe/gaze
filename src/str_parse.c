@@ -336,7 +336,7 @@ static void parse_Gaze_Structure_feat( struct Parse_context *state,
     else if (! strcmp( attr[i], "st_off" ))
       start_off = atoi( attr[i+1] );
     else if (! strcmp( attr[i], "en_off" ))
-      end_off = 0;	     
+      end_off = atoi( attr[i+1] );	     
     else {
       /* unrecognised attribute */
       fprintf(stderr, "In tag 'feat', attr '%s' not recognised\n", attr[i]); 
