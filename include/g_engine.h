@@ -1,4 +1,4 @@
-/*  Last edited: Apr 17 18:19 2002 (klh) */
+/*  Last edited: Apr 23 13:02 2002 (klh) */
 /**********************************************************************
  ** File: engine.h
  ** Author : Kevin Howe
@@ -10,6 +10,7 @@
 #define _G_ENGINE
 
 #include "engine.h"
+#include "output.h"
 
 typedef struct {
   double pth_score;
@@ -32,7 +33,7 @@ void forwards_calc(GArray *,
 		   GArray *,
 		   Gaze_Structure *,
 		   enum DP_Calc_Mode,
-		   FILE *);
+		   Gaze_Output *);
 
 void backwards_calc(GArray *, 
 		    GArray *,
@@ -48,7 +49,7 @@ void scan_through_sources_dp(GArray *,
 			     Gaze_DP_struct *,
 			     enum DP_Calc_Mode,
 			     enum DP_Traceback_Mode,
-			     FILE *);
+			     Gaze_Output *);
 
 void scan_through_targets_dp(GArray *,
 			     GArray *,
