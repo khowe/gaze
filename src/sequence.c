@@ -252,11 +252,6 @@ void remove_duplicate_features( Gaze_Sequence *g_seq) {
 
   Feature *last_one = NULL;
 
-  qsort( g_seq->features->data, 
-	 g_seq->features->len, 
-	 sizeof(Feature *), 
-	 &order_features_standard );
-  
   for(i=0; i < g_seq->features->len; i++ ) {
     Feature *this_one = index_Array( g_seq->features, Feature *, i );
 
@@ -703,7 +698,7 @@ boolean get_correct_features( Gaze_Sequence_list *glist,
 	qsort( this_list->data,
 	       this_list->len, 
 	       sizeof(Feature *), 
-	       &order_features_standard );
+	       &order_features );
 
 	for (i=j=0; i < this_list->len; i++) {
 	  Feature *f1 = index_Array( this_list, Feature *, i);

@@ -452,7 +452,7 @@ int main (int argc, char *argv[]) {
 			 gazeStructure->gff_to_feats ); 
       
   if (gaze_options.verbose)
-    fprintf(stderr, "Getting features from dna and removing duplicates...\n");
+    fprintf(stderr, "Getting features from dna...\n");
   
   for (s=0; s < allGazeSequences->num_seqs; s++) {
     if (allGazeSequences->seq_list[s]->dna_seq != NULL) {
@@ -470,8 +470,53 @@ int main (int argc, char *argv[]) {
       /* we never need the sequence itself again */
       free_util( allGazeSequences->seq_list[s]->dna_seq );
     } 
+  }
 
-    remove_duplicate_features( allGazeSequences->seq_list[s] );     
+
+  /******************************************************************/
+  /*** Sorting and scaling of feature and segments ******************/
+  /******************************************************************/
+
+  if (gaze_options.verbose)
+    fprintf(stderr, "Sorting, and scaling of features and segments...\n");
+
+  for (s=0; s < allGazeSequences->num_seqs; s++) {
+    Gaze_Sequence *g_seq = allGazeSequences->seq_list[s];
+
+    /* first the features */
+    qsort( g_seq->features->data, g_seq->features->len, sizeof(Feature *), &order_features); 
+    remove_duplicate_features( g_seq );     
+
+    for( i=0; i < g_seq->features->len; i++ ) {
+      Feature *ft = index_Array( g_seq->features, Feature *, i );
+      ft->score *= index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->multiplier;
+      ft->score *= gaze_options.sigma;
+      
+      ft->adj_pos.s = ft->real_pos.s 
+	+ index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->start_offset;
+      
+      ft->adj_pos.e = ft->real_pos.e 
+	- index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->end_offset;
+    }
+
+    /* now the segments..*/
+    for( i=0; i < g_seq->segment_lists->len; i++ ) {
+      Segment_list *seg_list = index_Array( g_seq->segment_lists, Segment_list *, i);
+      double multiplier = index_Array( gazeStructure->seg_info, Segment_Info *, i )->multiplier;
+
+      scale_Segment_list( seg_list, multiplier * gaze_options.sigma );
+      sort_Segment_list ( seg_list );
+      project_Segment_list( seg_list );
+      index_Segment_list( seg_list );
+    }
+  }
+
+  /******************************/
+  /* Scale the length penalties */
+  /******************************/
+  for(i=0; i < gazeStructure->length_funcs->len; i++) {
+    Length_Function *lf = index_Array( gazeStructure->length_funcs, Length_Function *, i );
+    scale_Length_Function( lf, lf->multiplier * gaze_options.sigma );
   }
 
   /******************************************************************/
@@ -507,55 +552,7 @@ int main (int argc, char *argv[]) {
 				FALSE))
       fatal_util( "There was a problem reading in the selected features\n" );
   }
-
-  /******************************/
-  /* Scale the length penalties */
-  /******************************/
-
-  for(i=0; i < gazeStructure->length_funcs->len; i++) {
-    Length_Function *lf = index_Array( gazeStructure->length_funcs, Length_Function *, i );
-    scale_Length_Function( lf, lf->multiplier * gaze_options.sigma );
-  }
   
-  /***********************************************/
-  /* Scale, sort, and remove duplicates features */
-  /***********************************************/
-
-  if (gaze_options.verbose)
-    fprintf(stderr, "Sorting, scaling etc of features and segments...\n");
-  
-  for (s=0; s < allGazeSequences->num_seqs; s++) {
-    Gaze_Sequence *g_seq = allGazeSequences->seq_list[s];
-
-    for( i=0; i < g_seq->features->len; i++ ) {
-      Feature *ft = index_Array( g_seq->features, Feature *, i );
-      ft->score *= index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->multiplier;
-      ft->score *= gaze_options.sigma;
-      
-      ft->adj_pos.s = ft->real_pos.s 
-	+ index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->start_offset;
-      
-      ft->adj_pos.e = ft->real_pos.e 
-	- index_Array( gazeStructure->feat_info, Feature_Info *, ft->feat_idx )->end_offset;
-    }
-
-    /* the features need to be sorted in a non-standsrd way for the dynamic programming */
-    qsort( g_seq->features->data, g_seq->features->len, sizeof(Feature *), &order_features_for_dp); 
-    
-    /***************************************/
-    /* scale, sort and index segments ******/
-    /***************************************/
-    
-    for( i=0; i < g_seq->segment_lists->len; i++ ) {
-      Segment_list *seg_list = index_Array( g_seq->segment_lists, Segment_list *, i);
-      double multiplier = index_Array( gazeStructure->seg_info, Segment_Info *, i )->multiplier;
-
-      scale_Segment_list( seg_list, multiplier * gaze_options.sigma );
-      sort_Segment_list ( seg_list );
-      project_Segment_list( seg_list );
-      index_Segment_list( seg_list );
-    }
-  }
     
   /************************************************************************/
   /* Finally, do the work                                                 */
@@ -616,13 +613,8 @@ int main (int argc, char *argv[]) {
       calculate_path_score( g_seq, gazeStructure );
       write_Gaze_path( gazeOutput, g_seq, gazeStructure );        
     }
-    else if (gaze_options.output == ALL_FEATURES) {
-      /* before printing the posterior probabilities, re-sort the features in the standard
-	 way. The method of sorting used for the D.P. will not list the complete set of 
-	 features in an order that is intuitive */ 
-      qsort( g_seq->features->data, g_seq->features->len, sizeof(Feature *), &order_features_standard); 
+    else if (gaze_options.output == ALL_FEATURES)
       write_Gaze_Features( gazeOutput, g_seq, gazeStructure );
-    }
   }
 
   free_Gaze_Output( gazeOutput );

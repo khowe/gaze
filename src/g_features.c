@@ -533,6 +533,11 @@ GFF_to_features *new_GFF_to_features(void) {
  RETURNS:
  ARGS: 
  NOTES:
+   This function is deprecated. It was used in an older version of
+   GAZE which tried to form a definitive total order over features
+   such that killers only fall in an interval if they really do 
+   kill that region. For various reasons, this was unsatisfactory,
+   so this problem is now dealt with in the D.P. itself. 
  *********************************************************************/
 int order_features_for_dp(const void *a, const void *b) {
   Feature *fa = (Feature *) *((Feature **)a);
@@ -584,13 +589,13 @@ int order_features_for_dp(const void *a, const void *b) {
 
 
 /*********************************************************************
- FUNCTION: order_features_standard
+ FUNCTION: order_features
  DESCRIPTION:
  RETURNS:
  ARGS: 
  NOTES:
  *********************************************************************/
-int order_features_standard(const void *a, const void *b) {
+int order_features(const void *a, const void *b) {
   Feature *fa = (Feature *) *((Feature **)a);
   Feature *fb = (Feature *) *((Feature **)b);
   int ret = 0;

@@ -308,13 +308,6 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
   tgt_info = index_Array( gs->feat_info, Feature_Info *, tgt->feat_idx );
   right_pos = tgt->adj_pos.e;
 
-  /* if the user specified unusual offsets, it may be that this feature is
-     "off the end of the sequence" when viewed as a target. */
-  if (right_pos < g_seq->beg_ft->real_pos.s ||
-      tgt->is_antiselected ) {
-    tgt->invalid = TRUE;
-  }
-
 #ifdef TRACE 
   fprintf( stderr, "Target %d %s %d %d %.3f", tgt_idx,
 	   index_Array(gs->feat_dict, char *, tgt->feat_idx ), 
@@ -358,47 +351,70 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	      if ( (kq = index_Array( reg_info->kill_feat_quals,
 					Killer_Feature_Qualifier *,
 					kill_idx )) != NULL) {
-		/* The following checks to see if last killer in the correct
-		   frame has an index greater than the source; if not, none
-		   of them can have. However, this does not allow for weird 
-		   edge effects that occur when killers overlap with other
-		   features. This may or may not make a difference with the
-		   new feature ordering */
-		
-		if (kq->has_tgt_phase) {
-		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(right_pos - kq->phase + 1) % 3];
-		  /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
-		     (right_pos - {left_pos % 3} + 1) % 3 == phase -->
-		     (right_pos - {left_pos % 3} + 1) % 3 - phase == 0 -->
-		     (right_pos - {left_pos % 3} + 1 - phase) % 3 == 0 -->
-		     (right_pos - phase + 1) % 3 - {left_pos % 3} == 0 -->
-		     (right_pos - phase + 1) % 3 == {left_pos % 3} */
-		  if (apt_list->len > 0 
-		      && index_Array( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame] )
-		    last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
-		}		  
-		else if (kq->has_src_phase) {
+
+		Array *apt_list;
+		int k = 0;
+		boolean more_frames = TRUE;
+
+		while (more_frames) {
+		  if (kq->has_tgt_phase) {
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(right_pos - kq->phase + 1) % 3];
+		    /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
+		       (right_pos - {left_pos % 3} + 1) % 3 == phase -->
+		       (right_pos - {left_pos % 3} + 1) % 3 - phase == 0 -->
+		       (right_pos - {left_pos % 3} + 1 - phase) % 3 == 0 -->
+		       (right_pos - phase + 1) % 3 - {left_pos % 3} == 0 -->
+		       (right_pos - phase + 1) % 3 == {left_pos % 3} */
+		    more_frames = FALSE;
+		  }		  
+		  else if (kq->has_src_phase) {
 		    /* the frame calculation here is slightly hacky; we have to allow for the
 		       fact that we need the distance from the source forward to the apt. killer.
 		       BUT the the killers are stored by the frame of their adjusted START, 
 		       rather than their end. So, we rely on the fact that all killers that have
-		       a phase are width 3, which might not be so unreasonable */
-		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + kq->phase) % 3];
-		  if (apt_list->len > 0 
-		      && index_Array( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame] )
-		    last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
-		}
-		else {
-		  /* phaseless killer - need to check all frames */
-		  for (k=0; k < 3; k++) {
-		    Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][k];
-		    if (apt_list->len > 0 
-			&& index_Array( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame]) {
-		      last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
-		    }			
+		       a phase have width that is 3-mutlple, which is sensible */
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + kq->phase) % 3];
+		    more_frames = FALSE;
+		  }
+		  else {
+		    /* phaseless killer - need to check all frames */
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][k++];
+		    if (k > 2)
+		      more_frames = FALSE;
+		  }
+		  
+		  if (apt_list->len > 0) {
+		    /* first search back for the first occurrence that does not overlap with target */
+		    int this_kill_idx = apt_list->len - 1;
+		    int boundary_index = index_Array( apt_list, int, this_kill_idx );
+		    int local_idx;
+		    Feature *killer_feat = index_Array(g_seq->features, Feature *, boundary_index );
+		    while ( killer_feat != NULL && killer_feat->real_pos.e > tgt->adj_pos.e) {
+		      if (--this_kill_idx >= 0) {
+			boundary_index = index_Array( apt_list, int, this_kill_idx );
+			killer_feat = index_Array(g_seq->features, Feature *, boundary_index );
+		      }
+		      else
+			killer_feat = NULL;
+		    }
+		    /* now search back for sources beyond the killer of this type that overlap the killer */
+
+		    if (killer_feat != NULL) {
+		      local_idx = boundary_index - 1;
+		      while (  local_idx >= 0 ) {
+			Feature *candidate = index_Array(g_seq->features, Feature *, local_idx );
+			if (candidate->adj_pos.s <= killer_feat->real_pos.s)
+			break;
+			else if (candidate->feat_idx == src_type)
+			  boundary_index = local_idx;
+			local_idx--;
+		      }
+
+		      if (boundary_index > last_idx_for_frame[frame]) 
+			last_idx_for_frame[frame] = boundary_index;
+		    }
 		  }
 		}
-
 	      }
 	    }
 	  }
@@ -447,6 +463,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	
 	frame = reg_info->phase != NULL ? (right_pos - *(reg_info->phase) + 1) % 3 : 0;
 
+
 	max_forpluslen = NEG_INFINITY;
 	touched_score_local = FALSE;
 	/* the following aggressively assumes that if this target has no 
@@ -464,7 +481,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	       in order. Therefore, we have to re-create the original list
 	       by effectively a merge sort. */
 	    boolean gotone = FALSE;
-	    
+
 	    for (k=0; k < 3; k++) {
 	      if (index_count[k] >= 0) {
 		if (gotone) {
@@ -481,8 +498,11 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	    }
 	  }
 	  
-	  /* The following tests if there was anything in the list at all */
-	  if (index_count[frame] < 0) {
+	  /* The following tests if there was anything in the list at all
+	     For targets very close to the start of the sequence, frame
+	     can be < 0, but there will be no sources of this type for
+	     such targets anyway */
+	  if (frame < 0 || index_count[frame] < 0) {
 	    gone_far_enough = TRUE;
 	    continue;
 	  }
@@ -499,7 +519,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	    index_count[frame] = -1;
 	    continue;
 	  }
-comparisons++;	  
+
 	  src = index_Array( g_seq->features, Feature *, src_idx );
 	  
 #ifdef TRACE
@@ -843,18 +863,19 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 
   /* if the user specified unusual offsets, it may be that this feature is
      "off the end of the sequence" when viewed as a target. */
+  /*
   if (left_pos > g_seq->end_ft->real_pos.e ||
       src->is_antiselected ) {
     src->invalid = TRUE;
   }
-
+  */
 #ifdef TRACE
-    fprintf( stderr, "Source %d %s %d %d %.3f", src_idx,
-	     index_Array(gs->feat_dict, char *, src->feat_idx ), 
-	     src->real_pos.s, src->real_pos.e, src->score ); 
-    
-    if (TRACE > 1)
-      fprintf( stderr, "\n" );
+  fprintf( stderr, "Source %d %s %d %d %.3f", src_idx,
+	   index_Array(gs->feat_dict, char *, src->feat_idx ), 
+	   src->real_pos.s, src->real_pos.e, src->score ); 
+  
+  if (TRACE > 1)
+    fprintf( stderr, "\n" );
 #endif
   
   all_scores = new_Array( sizeof(double), TRUE);
@@ -886,63 +907,85 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 	  
 	  last_idx_for_frame[frame] = last_necessary_idx;
 
+	  /* first, identify the killers local to this feature pair, and make
+	     sure that our search forward through the targets does not go past 
+	     a killer */
+
 	  if (reg_info->kill_feat_quals != NULL) {
-	    /* the following can be speeded up quite easiy, now that we
-	       have full indexing into feature types. Requires the killers
-	       to be stored as a simple list in the structure. Ill do it 
-	       the slow way for now though */
 
 	    for(kill_idx=0; kill_idx < reg_info->kill_feat_quals->len; kill_idx++) {
 	      if ( (kq = index_Array( reg_info->kill_feat_quals,
-					Killer_Feature_Qualifier *,
-					kill_idx )) != NULL) {
-		/* The following checks to see if last killer in the correct
-		   frame has an index less than the target; if not, none
-		   of them can have. However, this does not allow for weird 
-		   edge effects that occur when killers overlap with other
-		   features. This may or may not make a difference with the
-		   new feature ordering */
+				      Killer_Feature_Qualifier *,
+				      kill_idx )) != NULL) {
+		Array *apt_list;
+		int k = 0;
+		boolean more_frames = TRUE;
 		
-		if (kq->has_src_phase) {
-		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(left_pos + kq->phase - 1) % 3];
-		  /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
-	                  (right_pos - left_pos + 1) % 3 - phase == 0 -->
-			  (right_pos - left_pos + 1 - phase) % 3 == 0 -->
-			  (left_pos - right_pos - 1 + phase) % 3 == 0 -->
-			  (left_pos - {right_pos % 3} + phase - 1) % 3 == 0 -->
-			  (left_pos + phase - 1) % 3 - {right_pos % 3} == 0 -->
-			  (left_pos + phase - 1) % 3 == {right_pos % 3} */
-		  if (apt_list->len > 0 
-		      && index_Array( apt_list, int, apt_list->len - 1) < last_idx_for_frame[frame] ) {
-		    last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
+		while( more_frames) {
+		  if (kq->has_src_phase) {
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(left_pos + kq->phase - 1) % 3];
+		    /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
+		       (right_pos - left_pos + 1) % 3 - phase == 0 -->
+		       (right_pos - left_pos + 1 - phase) % 3 == 0 -->
+		       (left_pos - right_pos - 1 + phase) % 3 == 0 -->
+		       (left_pos - {right_pos % 3} + phase - 1) % 3 == 0 -->
+		       (left_pos + phase - 1) % 3 - {right_pos % 3} == 0 -->
+		       (left_pos + phase - 1) % 3 == {right_pos % 3} */
+		    more_frames = FALSE;
 		  }
-		}
-		if (kq->has_tgt_phase) {
-		  /* the frame calcualtion here is slightly hacky; we have to allow for the
-		     fact that we need the distance from the target back to the apt. killer.
-		     BUT, the the killers are stored by the frame of their adjusted END, 
-		     rather than their start. So, we rely on the fact that all killers that have 
-		     a phase are width 3, which might not be so unreasonable */
-		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + 3 - kq->phase) % 3];
-		  if (apt_list->len > 0 
-		      && index_Array( apt_list, int, apt_list->len - 1) < last_idx_for_frame[frame] ) {
-		    last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
+		  else if (kq->has_tgt_phase) {
+		    /* the frame calcualtion here is slightly hacky; we have to allow for the
+		       fact that we need the distance from the target back to the apt. killer.
+		       BUT, the the killers are stored by the frame of their adjusted END, 
+		       rather than their start. So, we rely on the fact that all killers that have 
+		       a phase are width 3, which might not be so unreasonable */
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + 3 - kq->phase) % 3];
+		    more_frames = FALSE;
+		  }	
+		  else {
+		    /* phaseless killer - need to check all frames */
+		    apt_list = (Array *) g_res->feats[kill_idx][k++];
+		    if (k > 2)
+		     more_frames = FALSE;
 		  }
-		}	
-		else {
-		  /* phaseless killer - need to check all frames */
-		  for (k=0; k < 3; k++) {
-		    Array *apt_list = (Array *) g_res->feats[kill_idx][k];
-		    if (apt_list->len > 0 
-			&& index_Array( apt_list, int, apt_list->len - 1) < last_idx_for_frame[frame]) {
-		      last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
-		    }			
+		  
+		  if (apt_list->len > 0) {
+		    /* first search forward for the first occurrence that does not overlap with the src */
+		    int this_kill_idx = apt_list->len - 1;
+		    int boundary_index = index_Array( apt_list, int, this_kill_idx );
+		    int local_idx;
+		    Feature *killer_feat = index_Array(g_seq->features, Feature *, boundary_index );
+
+		    while ( killer_feat != NULL && killer_feat->real_pos.s < src->adj_pos.s ) {
+		      if (--this_kill_idx >= 0) {
+			boundary_index = index_Array( apt_list, int, this_kill_idx );
+			killer_feat = index_Array(g_seq->features, Feature *, boundary_index );
+		      }
+		      else
+			killer_feat = NULL;
+		    }
+		    /* now search forward for targets beyond the killer of this type that overlap the killer */
+		    
+		    if (killer_feat != NULL) {
+		      local_idx = boundary_index + 1;
+		      while (  local_idx < g_seq->features->len ) {
+			Feature *candidate = index_Array(g_seq->features, Feature *, local_idx );
+			if (candidate->adj_pos.e >= killer_feat->real_pos.e)
+			  break;
+			else if (candidate->feat_idx == tgt_type)
+			  boundary_index = local_idx;
+			local_idx++;
+		      }
+		      
+		      if (boundary_index < last_idx_for_frame[frame]) 
+		      last_idx_for_frame[frame] = boundary_index;
+		    }
 		  }
 		}
 	      }
 	    }
 	  }
-
+	  
 	  /* finally, make sure that we do not proceed past the fringe for
 	     this feature pair */
 	  if (g_res->fringes[(int)src->feat_idx][tgt_type][src->real_pos.s % 3] < last_idx_for_frame[frame])
@@ -1022,8 +1065,11 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 	    }
 	  }
 	  
-	  /* The following tests if there was anything in the list at all */
-	  if (index_count[frame] < 0) {
+	  /* The following tests if there was anything in the list at all
+	     For targets very close to the start of the sequence, frame
+	     can be < 0, but there will be no sources of this type for
+	     such targets anyway */
+	  if (frame < 0 || index_count[frame] < 0) {
 	    gone_far_enough = TRUE;
 	    continue;
 	  }
@@ -1275,13 +1321,6 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
   tgt_info = index_Array( gs->feat_info, Feature_Info *, tgt->feat_idx );
   right_pos = tgt->adj_pos.e;
 
-  /* if the user specified unusual offsets, it may be that this feature is
-     "off the end of the sequence" when viewed as a target. */
-  if (right_pos < g_seq->beg_ft->real_pos.s ||
-      tgt->is_antiselected ) {
-    tgt->invalid = TRUE;
-  }
-
 #ifdef TRACE 
   fprintf( stderr, "Target %d %s %d %d %.3f", tgt_idx,
 	   index_Array(gs->feat_dict, char *, tgt->feat_idx ), 
@@ -1313,57 +1352,81 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 	  
 	  /* first, identify the killers local to this feature pair, and make
 	     sure that our search back through the sources does not go past a killer */
-	  
+	  	  
 	  if (reg_info->kill_feat_quals != NULL) {
 	    
 	    for(kill_idx=0; kill_idx < reg_info->kill_feat_quals->len; kill_idx++) {
 	      if ( (kq = index_Array( reg_info->kill_feat_quals,
 					Killer_Feature_Qualifier *,
 					kill_idx )) != NULL) {
-		/* The following checks to see if last killer in the correct
-		   frame has an index greater than the source; if not, none
-		   of them can have. However, this does not allow for weird 
-		   edge effects that occur when killers overlap with other
-		   features. This may or may not make a difference with the
-		   new feature ordering */
-		
-		if (kq->has_tgt_phase) {
-		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(right_pos - kq->phase + 1) % 3];
-		  /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
-		     (right_pos - {left_pos % 3} + 1) % 3 == phase -->
-		     (right_pos - {left_pos % 3} + 1) % 3 - phase == 0 -->
-		     (right_pos - {left_pos % 3} + 1 - phase) % 3 == 0 -->
-		     (right_pos - phase + 1) % 3 - {left_pos % 3} == 0 -->
-		     (right_pos - phase + 1) % 3 == {left_pos % 3} */
-		  if (apt_list->len > 0 
-		      && index_Array( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame] )
-		    last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
-		}		  
-		else if (kq->has_src_phase) {
+
+		Array *apt_list;
+		int k = 0;
+		boolean more_frames = TRUE;
+
+		while (more_frames) {
+		  if (kq->has_tgt_phase) {
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(right_pos - kq->phase + 1) % 3];
+		    /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
+		       (right_pos - {left_pos % 3} + 1) % 3 == phase -->
+		       (right_pos - {left_pos % 3} + 1) % 3 - phase == 0 -->
+		       (right_pos - {left_pos % 3} + 1 - phase) % 3 == 0 -->
+		       (right_pos - phase + 1) % 3 - {left_pos % 3} == 0 -->
+		       (right_pos - phase + 1) % 3 == {left_pos % 3} */
+		    more_frames = FALSE;
+		  }		  
+		  else if (kq->has_src_phase) {
 		    /* the frame calculation here is slightly hacky; we have to allow for the
 		       fact that we need the distance from the source forward to the apt. killer.
 		       BUT the the killers are stored by the frame of their adjusted START, 
 		       rather than their end. So, we rely on the fact that all killers that have
-		       a phase are width 3, which might not be so unreasonable */
-		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + kq->phase) % 3];
-		  if (apt_list->len > 0 
-		      && index_Array( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame] )
-		    last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
-		}
-		else {
-		  /* phaseless killer - need to check all frames */
-		  for (k=0; k < 3; k++) {
-		    Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][k];
-		    if (apt_list->len > 0 
-			&& index_Array( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame]) {
-		      last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
-		    }			
+		       a phase have width that is 3-mutlple, which is sensible */
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + kq->phase) % 3];
+		    more_frames = FALSE;
+		  }
+		  else {
+		    /* phaseless killer - need to check all frames */
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][k++];
+		    if (k > 2)
+		      more_frames = FALSE;
+		  }
+		  
+		  if (apt_list->len > 0) {
+		    /* first search back for the first occurrence that does not overlap with target */
+		    int this_kill_idx = apt_list->len - 1;
+		    int boundary_index = index_Array( apt_list, int, this_kill_idx );
+		    int local_idx;
+		    Feature *killer_feat = index_Array(g_seq->features, Feature *, boundary_index );
+		    while ( killer_feat != NULL && killer_feat->real_pos.e > tgt->adj_pos.e) {
+		      if (--this_kill_idx >= 0) {
+			boundary_index = index_Array( apt_list, int, this_kill_idx );
+			killer_feat = index_Array(g_seq->features, Feature *, boundary_index );
+		      }
+		      else
+			killer_feat = NULL;
+		    }
+		    /* now search back for sources beyond the killer of this type that overlap the killer */
+
+		    if (killer_feat != NULL) {
+		      local_idx = boundary_index - 1;
+		      while (  local_idx >= 0 ) {
+			Feature *candidate = index_Array(g_seq->features, Feature *, local_idx );
+			if (candidate->adj_pos.s <= killer_feat->real_pos.s)
+			break;
+			else if (candidate->feat_idx == src_type)
+			  boundary_index = local_idx;
+			local_idx--;
+		      }
+
+		      if (boundary_index > last_idx_for_frame[frame]) 
+			last_idx_for_frame[frame] = boundary_index;
+		    }
 		  }
 		}
 	      }
 	    }
 	  }
-	  
+
 	  /* finally, make sure that we do not proceed past the fringe for
 	     this feature pair */
 	  if (g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3] > last_idx_for_frame[frame])
@@ -1443,7 +1506,7 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 	  }
 	  
 	  /* The following tests if there was anything in the list at all */
-	  if (index_count[frame] < 0) {
+	  if (frame < 0 || index_count[frame] < 0) {
 	    gone_far_enough = TRUE;
 	    continue;
 	  }

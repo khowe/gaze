@@ -116,7 +116,7 @@ GFF_to_features *new_GFF_to_features(void);
 
 /**************** Sort comparison routines ************/
 int order_features_for_dp(const void *, const void *);
-int order_features_standard(const void *, const void *);
+int order_features(const void *, const void *);
 int order_segments(const void *, const void *);
 
 
