@@ -1,4 +1,4 @@
-/*  Last edited: Jul 22 16:36 2002 (klh) */
+/*  Last edited: Jul 22 19:01 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -163,17 +163,6 @@ static boolean process_Gaze_Options(char *optname,
       gaze_options.out_file_name = strdup_util( optarg );
     }
   }
-  else if (strcmp(optname, "-structure_file") == 0) {
-    if ((gaze_options.structure_file = fopen( optarg, "r")) == NULL) {
-      fprintf( stderr, "Could not open structure file %s for reading\n", optarg );
-      options_error = TRUE;
-    }
-    else {
-      if (gaze_options.structure_file_name != NULL)
-	free_util( gaze_options.structure_file_name );
-      gaze_options.structure_file_name = strdup_util( optarg );
-    }
-  }
   else if (strcmp(optname, "-gff_file") == 0 || 
 	   strcmp(optname, "-dna_file") == 0 ||
 	   strcmp(optname, "-gene_file") == 0 ) {
@@ -315,7 +304,7 @@ static int parse_command_line( int argc, char *argv[] ) {
       options_error = TRUE;
     }
     if (gaze_options.dna_files->len == 0) {
-      fprintf( stderr, "Warning: You have not any DNA files\n");
+      fprintf( stderr, "Warning: You have given not any DNA files\n");
       options_error = TRUE;
     }
   }
