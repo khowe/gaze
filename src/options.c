@@ -1,4 +1,4 @@
-/*  Last edited: Jan 18 10:34 2002 (klh) */
+/*  Last edited: Apr 25 15:25 2002 (klh) */
 /**********************************************************************
  ** FILE: options.c
  ** DESCRIPTION:
@@ -83,18 +83,28 @@ int get_option(int argc,
     
     if (opt[opti].type != NO_ARGS) {
       if (optptr != NULL) {
+	/* option value was given as -opt=val */
 	*ret_optarg = optptr;
 	optptr = NULL;
 	optindex++;
       }
       else if (optindex+1 >= argc) {
+	/* no option was given */
 	fprintf(stderr, "Option %s needs an argument\n", opt[opti].name);
 	*error = TRUE;
 	return 0;
       }
       else {
-	*ret_optarg = argv[optindex+1];
-	optindex += 2;
+	/* assume that the next thing on the command-line is the option value */
+	if (argv[optindex+1][0] != '-') {
+	  *ret_optarg = argv[optindex+1];
+	  optindex += 2;
+	}
+	else {
+	  fprintf(stderr, "Option %s needs an argument\n", opt[opti].name);
+	  *error = TRUE;
+	  return 0;
+	}
       }
     }
     else {
