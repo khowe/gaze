@@ -113,7 +113,7 @@ double calculate_segment_score( Feature *src, Feature *tgt,
       Segment_Qualifier *qual = index_Array( seg_quals, Segment_Qualifier *, i);
 
       if (qual != NULL) {
-	Segment_lists *sl = index_Array( segments, Segment_lists *, qual->seg_idx);
+	Segment_list *sl = index_Array( segments, Segment_list *, qual->seg_idx);
 
 	Array *list = (qual->use_projected) ? sl->proj : sl->orig;
 	Array *segs;

@@ -1,4 +1,4 @@
-/*  Last edited: Jul 23 10:38 2002 (klh) */
+/*  Last edited: Aug  1 14:27 2002 (klh) */
 /**********************************************************************
  ** File: sequence.h
  ** Author : Kevin Howe
@@ -36,10 +36,11 @@ typedef struct Gaze_Sequence{
 
 
 void free_Gaze_Sequence( Gaze_Sequence * );
+void initialise_Gaze_Sequence( Gaze_Sequence *, Gaze_Structure * );
 Gaze_Sequence *new_Gaze_Sequence( char *, 
 				  int, 
-				  int, 
-				  Gaze_Structure * );
+				  int ); 
+				  
 
 void get_features_from_dna( Gaze_Sequence *,
 			    Array * );
@@ -64,10 +65,7 @@ typedef struct {
 
 
 void free_Gaze_Sequence_list ( Gaze_Sequence_list * );
-Gaze_Sequence_list *new_Gaze_Sequence_list ( Array *,
-					     Array *,
-					     Array *,
-					     Gaze_Structure * );
+Gaze_Sequence_list *new_Gaze_Sequence_list ( Array * );
 
 void read_dna_seqs( Gaze_Sequence_list *, Array * );
 

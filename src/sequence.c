@@ -1,4 +1,4 @@
-/*  Last edited: Jul 24 16:28 2002 (klh) */
+/*  Last edited: Aug  1 14:26 2002 (klh) */
 /**********************************************************************
  ** File: sequence.c
  ** Author : Kevin Howe
@@ -37,7 +37,7 @@ void free_Gaze_Sequence( Gaze_Sequence *g_seq ) {
     }
     if (g_seq->segment_lists != NULL) {
       for(i=0; i < g_seq->segment_lists->len; i++)
-	free_Segment_lists( index_Array( g_seq->segment_lists, Segment_lists *, i ));
+	free_Segment_list( index_Array( g_seq->segment_lists, Segment_list *, i ));
       free_Array( g_seq->segment_lists, TRUE);
     }
 
@@ -60,6 +60,45 @@ void free_Gaze_Sequence( Gaze_Sequence *g_seq ) {
 
 
 /*********************************************************************
+ FUNCTION: initialise_Gaze_Sequence
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void initialise_Gaze_Sequence( Gaze_Sequence *g_seq,
+			       Gaze_Structure *gs ) {
+  int i;
+
+  g_seq->features = new_Array( sizeof(Feature *), TRUE);
+
+  g_seq->beg_ft = new_Feature();
+  g_seq->beg_ft->feat_idx = dict_lookup( gs->feat_dict, "BEGIN" );
+  g_seq->beg_ft->real_pos.s = g_seq->seq_region.s;  
+  g_seq->beg_ft->real_pos.e = g_seq->seq_region.s;  
+  append_val_Array( g_seq->features, g_seq->beg_ft );
+  
+  g_seq->end_ft = new_Feature();
+  g_seq->end_ft->feat_idx = dict_lookup( gs->feat_dict, "END" );
+  g_seq->end_ft->real_pos.s = g_seq->seq_region.e;  
+  g_seq->end_ft->real_pos.e = g_seq->seq_region.e; 
+  append_val_Array( g_seq->features, g_seq->end_ft );
+
+  g_seq->segment_lists = new_Array( sizeof(Segment_list *), TRUE);
+  set_size_Array( g_seq->segment_lists, gs->seg_dict->len );
+
+  for(i=0; i < g_seq->segment_lists->len; i++) 
+    index_Array( g_seq->segment_lists, Segment_list *, i) = 
+      new_Segment_list( g_seq->seq_region.e - g_seq->seq_region.s + 1); 
+
+  g_seq->min_scores = new_Array( sizeof( double ), TRUE );
+  set_size_Array( g_seq->min_scores, gs->feat_dict->len );
+
+}
+
+
+
+/*********************************************************************
  FUNCTION: new_Gaze_Sequence
  DESCRIPTION:
  RETURNS:
@@ -68,43 +107,22 @@ void free_Gaze_Sequence( Gaze_Sequence *g_seq ) {
  *********************************************************************/
 Gaze_Sequence *new_Gaze_Sequence( char *seq_name, 
 				  int sta, 
-				  int end,
-				  Gaze_Structure *gs ) {
-  int i;
+				  int end ) {
 
   Gaze_Sequence *g_seq = (Gaze_Sequence *) malloc_util( sizeof( Gaze_Sequence ) );
 
   g_seq->seq_name = strdup_util( seq_name );
-  g_seq->dna_seq = NULL;
-
-  g_seq->features = new_Array( sizeof(Feature *), TRUE);
-
-  g_seq->beg_ft = new_Feature();
-  g_seq->beg_ft->feat_idx = dict_lookup( gs->feat_dict, "BEGIN" );
-  g_seq->beg_ft->real_pos.s = sta;  /* may be overridden when reading DNA */
-  g_seq->beg_ft->real_pos.e = sta;  /* may be overridden when reading DNA */
-  append_val_Array( g_seq->features, g_seq->beg_ft );
-  
-  g_seq->end_ft = new_Feature();
-  g_seq->end_ft->feat_idx = dict_lookup( gs->feat_dict, "END" );
-  g_seq->end_ft->real_pos.s = end;  /* may be overridden when reading DNA */
-  g_seq->end_ft->real_pos.e = end;  /* may be overridden when reading DNA */
-  append_val_Array( g_seq->features, g_seq->end_ft );
-
-  g_seq->segment_lists = new_Array( sizeof(Segment_lists *), TRUE);
-  set_size_Array( g_seq->segment_lists, gs->seg_dict->len );
-
-  for(i=0; i < g_seq->segment_lists->len; i++) 
-    index_Array( g_seq->segment_lists, Segment_lists *, i) = new_Segment_lists(); 
-
-  g_seq->path = NULL;
 
   g_seq->offset_dna = 1;
   g_seq->seq_region.s = sta;
   g_seq->seq_region.e = end;
-
-  g_seq->min_scores = new_Array( sizeof( double ), TRUE );
-  set_size_Array( g_seq->min_scores, gs->feat_dict->len );
+  g_seq->dna_seq = NULL;
+  g_seq->path = NULL;
+  g_seq->features = NULL;
+  g_seq->segment_lists = NULL;
+  g_seq->min_scores = NULL;
+  g_seq->beg_ft = NULL;
+  g_seq->end_ft = NULL;
 
   return g_seq;
 }
@@ -195,14 +213,14 @@ void get_features_from_dna( Gaze_Sequence *g_seq,
 
       for(j=0; j < con->segments->len; j++) {
 	Segment *sg1, *sg2;
-	Segment_lists *correct_list;
+	Segment_list *correct_list;
 
 	sg1 = clone_Segment( index_Array( con->segments, Segment *, j ));
 	sg1->pos.s = start_match;
 	sg1->pos.e = end_match;
 	sg2 = clone_Segment( sg1 );
 
-	correct_list = index_Array( g_seq->segment_lists, Segment_lists *, sg1->seg_idx );
+	correct_list = index_Array( g_seq->segment_lists, Segment_list *, sg1->seg_idx );
 	append_val_Array( index_Array( correct_list->orig, Array *, start_match % 3 ), sg1 );
 	append_val_Array( index_Array( correct_list->orig, Array *, 3 ), sg2 );
       }
@@ -304,10 +322,7 @@ void free_Gaze_Sequence_list ( Gaze_Sequence_list *list ) {
  ARGS: 
  NOTES:
  *********************************************************************/
-Gaze_Sequence_list *new_Gaze_Sequence_list ( Array *names,
-					     Array *starts,
-					     Array *ends,
-					     Gaze_Structure *gs ) {
+Gaze_Sequence_list *new_Gaze_Sequence_list ( Array *names ) {
   int i;
 
   Gaze_Sequence_list *list = (Gaze_Sequence_list *) malloc_util( sizeof(Gaze_Sequence_list));
@@ -317,17 +332,9 @@ Gaze_Sequence_list *new_Gaze_Sequence_list ( Array *names,
   
   list->seq_id_dict = new_Array( sizeof( char *), TRUE );
   set_size_Array( list->seq_id_dict, list->num_seqs );
-    
-  for(i=0; i < names->len; i++) {
 
+  for(i=0; i < names->len; i++)
     index_Array( list->seq_id_dict, char *, i) = index_Array( names, char *, i);
-
-    list->seq_list[i] =  new_Gaze_Sequence( index_Array( names, char *, i),
-					    index_Array( starts, int, i),
-					    index_Array( ends, int, i),
-					    gs );
-    
-  }
 
   return list;
 }
@@ -440,12 +447,6 @@ void read_dna_seqs( Gaze_Sequence_list *glist,
       /* we have a sequence for which ther was no DNA in any of the files */
       fprintf(stderr, "Warning: no DNA found for %s\n", g_seq->seq_name );
     } 
-
-    /* make the begin and end features consistent with the seq_region */
-    g_seq->beg_ft->real_pos.s = g_seq->seq_region.s;
-    g_seq->beg_ft->real_pos.e = g_seq->seq_region.s;
-    g_seq->end_ft->real_pos.s = g_seq->seq_region.e;
-    g_seq->end_ft->real_pos.e = g_seq->seq_region.e;
   }
 
   free_Line( ln );
@@ -542,7 +543,7 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
 	    /* ...whereas all overlapping segments are added */
 	    for(j=0; j < con->segments->len; j++) {
 	      Segment *sg1, *sg2;
-	      Segment_lists *correct_list;
+	      Segment_list *correct_list;
 
 	      sg1 = clone_Segment( index_Array( con->segments, Segment *, j ));
 	      sg1->pos.s = gff_line->start;
@@ -550,7 +551,7 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
 	      sg1->score = gff_line->score;
 	      sg2 = clone_Segment( sg1 );
 	      
-	      correct_list = index_Array( g_seq->segment_lists, Segment_lists *, sg1->seg_idx );
+	      correct_list = index_Array( g_seq->segment_lists, Segment_list *, sg1->seg_idx );
 	      append_val_Array( index_Array( correct_list->orig, Array *, sg1->pos.s % 3 ), sg1 );
 	      append_val_Array( index_Array( correct_list->orig, Array *, 3 ), sg2 );
 	    }

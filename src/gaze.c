@@ -1,4 +1,4 @@
-/*  Last edited: Jul 25 15:07 2002 (klh) */
+/*  Last edited: Aug  1 16:13 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -378,20 +378,24 @@ int main (int argc, char *argv[]) {
     exit(1);
 	    
 
-  allGazeSequences = new_Gaze_Sequence_list( gaze_options.sequence_names,
-					     gaze_options.sequence_starts,
-					     gaze_options.sequence_ends,
-					     gazeStructure );
+  allGazeSequences = new_Gaze_Sequence_list( gaze_options.sequence_names );
 
   /*******************************************************************/
   /* get the dna sequences *******************************************/
   /*******************************************************************/  
 
+  for (s=0; s < allGazeSequences->num_seqs; s++)
+    allGazeSequences->seq_list[s] = new_Gaze_Sequence( index_Array( gaze_options.sequence_names, char *, s),
+						       index_Array( gaze_options.sequence_starts, int, s),
+						       index_Array( gaze_options.sequence_ends, int, s) );
   if (gaze_options.verbose)
     fprintf(stderr, "Reading the dna files...\n");
   read_dna_seqs(allGazeSequences,
 		gaze_options.dna_files );
     
+  for (s=0; s < allGazeSequences->num_seqs; s++)
+    initialise_Gaze_Sequence( allGazeSequences->seq_list[s], gazeStructure );
+
   /******************************************************************/
   /* First, obtain and set up all the Features and Segments *********/
   /******************************************************************/
@@ -487,7 +491,7 @@ int main (int argc, char *argv[]) {
     
     for( i=0; i < g_seq->segment_lists->len; i++ ) {
       double multiplier = index_Array( gazeStructure->seg_info, Segment_Info *, i )->multiplier;
-      Segment_lists *seg_lists = index_Array( g_seq->segment_lists, Segment_lists *, i);
+      Segment_list *seg_lists = index_Array( g_seq->segment_lists, Segment_list *, i);
 
       for (j=0; j < seg_lists->orig->len; j++) {
 	Array *o = index_Array( seg_lists->orig, Array *, j);
