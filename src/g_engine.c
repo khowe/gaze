@@ -1,4 +1,4 @@
-/*  Last edited: Apr  2 15:15 2002 (klh) */
+/*  Last edited: Apr  4 10:07 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -438,6 +438,11 @@ void scan_through_sources_dp(GArray *features,
 	   and the index that we must not proceed past in each frame. We can now process
 	   the features themselves, in a frame-dependent or frame-independent way */
 	
+	if (trace > 1)
+	  fprintf( trace_fh, "  %s (fringes: %d %d %d)\n",
+		   g_array_index(gs->feat_dict, char *, src_type ), 
+		   last_idx_for_frame[0], last_idx_for_frame[1], last_idx_for_frame[2] );
+
 	for(k=0; k < 3; k++) 
 	  index_count[k] = feats[k]->len - 1; 
 	
@@ -497,9 +502,9 @@ void scan_through_sources_dp(GArray *features,
 	  
 	  src = g_array_index( features, Feature *, src_idx );
 	  
-	  if (trace > 1)
-	    fprintf( trace_fh, "  Source %d %s %d %d ", src_idx,
-		     g_array_index(gs->feat_dict, char *, src->feat_idx ), 
+	  if (trace > 2)
+	    fprintf( trace_fh, "     Source %d %s %d %d ", src_idx,
+		     g_array_index(gs->feat_dict, char *, src_type ),
 		     src->real_pos.s, src->real_pos.e );
 	  
 	  if (! src->invalid) {
@@ -507,7 +512,7 @@ void scan_through_sources_dp(GArray *features,
 	    left_pos = src->adj_pos.s;
 	    distance = right_pos - left_pos + 1;
 	    
-	    if (trace > 1)
+	    if (trace > 2)
 	      fprintf( trace_fh, "dist=%d  ", distance );
 	    
 	    if ((reg_info->max_dist == NULL) || (*(reg_info->max_dist)) >= distance) {
@@ -593,7 +598,7 @@ void scan_through_sources_dp(GArray *features,
 		  
 		  touched_score = TRUE;
 		  
-		  if (trace > 1) 
+		  if (trace > 2) 
 		    fprintf( trace_fh, "scre: v=%.3f, f=%.8f (seg:%.3f len:%.3f)\n",
 			     viterbi_temp, forward_temp, seg_score, len_pen );
 		  
@@ -618,7 +623,7 @@ void scan_through_sources_dp(GArray *features,
 		  if (sum_mode == PRUNED_SUM)
 		    local_fringe = src_idx;
 		  
-		  if (trace > 1)
+		  if (trace > 2)
 		    fprintf( trace_fh, "KILLED_BY_DNA\n" ); 
 		}
 	      } /* if min dist */
@@ -627,19 +632,19 @@ void scan_through_sources_dp(GArray *features,
 		if (sum_mode == PRUNED_SUM)
 		  local_fringe = src_idx;
 		
-		if (trace > 1)
+		if (trace > 2)
 		  fprintf( trace_fh, "TOO CLOSE\n" );
 	      }
 	    } /* if max dist */
 	    else {
-	      if (trace > 1)
+	      if (trace > 2)
 		fprintf( trace_fh, "TOO DISTANT\n" );
 	      /* we can break out of the loop here; all other sources will be too distant */
 	      break;
 	    }
 	  }
 	  else {
-	    if (trace > 1)
+	    if (trace > 2)
 	      fprintf( trace_fh, "INVALID\n" );
 	  }
 	}
