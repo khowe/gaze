@@ -741,6 +741,7 @@ void read_dna_Gaze_Sequence( Gaze_Sequence *g_seq,
   int num_bases = 0;
   int line_len, i, f_idx = 0;
   boolean no_more_files = FALSE;
+  int dna_offset = g_seq->offset_dna;
 
   if (g_seq->dna_seq != NULL) {
     free_util( g_seq->dna_seq );
@@ -781,7 +782,7 @@ void read_dna_Gaze_Sequence( Gaze_Sequence *g_seq,
 	  g_seq->dna_seq = (char *) malloc_util (ALLOC_STEP * sizeof( char ) );
 	    
 	  if (g_seq->seq_region.s == 0)
-	    g_seq->seq_region.s = g_seq->offset_dna;
+	    g_seq->seq_region.s = dna_offset;
 	  	  
 	  num_bases = 0;
 	}
@@ -798,11 +799,11 @@ void read_dna_Gaze_Sequence( Gaze_Sequence *g_seq,
 	    if (! isspace( (int) ln->buf[i] )) {
 	      c = tolower( (int) ln->buf[i]);
 	      
-	      if ( g_seq->offset_dna < g_seq->seq_region.s )
+	      if ( dna_offset < g_seq->seq_region.s )
 		; /* do nothing */
-	      else if (g_seq->seq_region.e && (g_seq->offset_dna > g_seq->seq_region.e)) {
+	      else if (g_seq->seq_region.e && (dna_offset > g_seq->seq_region.e)) {
 		/* we've gone past the end of the region of interest for this sequence */
-		g_seq->offset_dna++;
+		dna_offset++;
 		break;
 	      }
 	      else {
@@ -815,7 +816,7 @@ void read_dna_Gaze_Sequence( Gaze_Sequence *g_seq,
 		g_seq->dna_seq[num_bases++] = c;
 	      }
 
-	      g_seq->offset_dna++;
+	      dna_offset++;
 	    }
 	  }
 	}
@@ -834,11 +835,9 @@ void read_dna_Gaze_Sequence( Gaze_Sequence *g_seq,
     
   if (g_seq->dna_seq != NULL) {
     if (g_seq->seq_region.e == 0)
-      g_seq->seq_region.e = g_seq->offset_dna - 1;
+      g_seq->seq_region.e = dna_offset - 1;
       
     num_bases = g_seq->seq_region.e - g_seq->seq_region.s + 1;
-    /* The following is not technically necessary but is done for consistency */
-    g_seq->offset_dna = g_seq->seq_region.s;
     
     g_seq->dna_seq = (char *) realloc_util( g_seq->dna_seq, num_bases + 1 );
     g_seq->dna_seq[num_bases] = '\0';
