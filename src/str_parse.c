@@ -265,10 +265,8 @@ static void parse_Gaze_Structure_dnafeat( struct Parse_context *state,
 					  const char **attr ) {
 
   char *pattern = NULL;
-  boolean has_score = FALSE;
-  double score = 0.0;
   int i;
-  DNA_to_features *new_dna2ft;
+  DNA_to_Gaze_entities *new_dna2ft;
   
   if (state->tag_stack->len && 
       ! strcmp(index_Array(state->tag_stack, 
@@ -280,10 +278,6 @@ static void parse_Gaze_Structure_dnafeat( struct Parse_context *state,
       if (! strcmp( attr[i], "pattern" )) {
 	pattern = strdup_util( attr[i+1] );
       }
-      else if (! strcmp( attr[i], "score" )) {
-	has_score = TRUE;
-	score = atof( attr[i+1] );
-      }
       else {
 	/* unrecognised attribute */
 	fprintf(stderr, "In tag 'dnafeat', attr '%s' not recognised\n", attr[i]); 
@@ -292,10 +286,8 @@ static void parse_Gaze_Structure_dnafeat( struct Parse_context *state,
     }
     if (! state->error) {
       if (pattern != NULL) {
-      	new_dna2ft = new_DNA_to_features();
+      	new_dna2ft = new_DNA_to_Gaze_entities();
 	new_dna2ft->dna_motif = pattern;
-	new_dna2ft->has_score = has_score;
-	new_dna2ft->score = score;
 	append_val_Array( state->gs->dna_to_feats, new_dna2ft );
       }
       else {
@@ -324,8 +316,9 @@ static void parse_Gaze_Structure_dnafeat( struct Parse_context *state,
 static void parse_Gaze_Structure_feat( struct Parse_context *state, 
 				       const char **attr ) {
   int i, index = 0;
-  Feature *feat;
+  Gaze_entity *ent;
   double score = 0.0;
+  boolean has_score = FALSE;
 
   for( i=0; attr[i]; i += 2 ) {
     if (! strcmp( attr[i], "id" )) {
@@ -337,6 +330,7 @@ static void parse_Gaze_Structure_feat( struct Parse_context *state,
     }
     else if (! strcmp( attr[i], "score")) {
       score = atof( attr[i+1] );
+      has_score = TRUE;
     }
     else {
       /* unrecognised attribute */
@@ -352,27 +346,30 @@ static void parse_Gaze_Structure_feat( struct Parse_context *state,
 				 state->tag_stack->len - 1), 
 		   tag_map[GFFLINE].tag)) {
 	
-	GFF_to_features *gff2fts;
+	GFF_to_Gaze_entities *gff2fts;
 	gff2fts = index_Array( state->gs->gff_to_feats, 
-				 GFF_to_features *,
-				 state->gs->gff_to_feats->len - 1);
-	feat = new_Feature();
-	feat->feat_idx = index;
-	append_val_Array( gff2fts->features, feat );
+			       GFF_to_Gaze_entities *,
+			       state->gs->gff_to_feats->len - 1);
+	ent = new_Gaze_entity();
+	ent->entity_idx = index;
+	ent->has_score = has_score;
+	ent->score = score;
+	append_val_Array( gff2fts->features, ent );
       }
       else if (! strcmp(index_Array(state->tag_stack, 
 				      char *, 
 				      state->tag_stack->len - 1), 
 			tag_map[DNAFEAT].tag)) {
 	
-	DNA_to_features *dna2fts;
+	DNA_to_Gaze_entities *dna2fts;
 	dna2fts = index_Array( state->gs->dna_to_feats, 
-				 DNA_to_features *,
-				 state->gs->dna_to_feats->len - 1);
-	feat = new_Feature();
-	feat->feat_idx = index;
-	feat->score = score;
-	append_val_Array( dna2fts->features, feat );	
+			       DNA_to_Gaze_entities *,
+			       state->gs->dna_to_feats->len - 1);
+	ent = new_Gaze_entity();
+	ent->entity_idx = index;
+	ent->score = score;
+	ent->has_score = has_score;
+	append_val_Array( dna2fts->features, ent );
       }
       else {
 	/* Tag out of context */
@@ -575,7 +572,7 @@ static void parse_Gaze_Structure_gffline( struct Parse_context *state,
     }
     if (! state->error) {
       if (feature != NULL || source != NULL || strand != NULL) { 	
-	GFF_to_features *new_gff2ft = new_GFF_to_features();
+	GFF_to_Gaze_entities *new_gff2ft = new_GFF_to_Gaze_entities();
 	new_gff2ft->gff_feature = feature;
 	new_gff2ft->gff_source = source;
 	new_gff2ft->gff_strand = strand;
@@ -1133,7 +1130,9 @@ static void parse_Gaze_Structure_seg( struct Parse_context *state,
 				      const char **attr ) {
 
   int i, index = 0;
-  Segment *seg;
+  Gaze_entity *ent;
+  double score = 0.0;
+  boolean has_score = FALSE; 
 
   for( i=0; attr[i]; i += 2 ) {
     if (! strcmp( attr[i], "id" )) {
@@ -1142,6 +1141,10 @@ static void parse_Gaze_Structure_seg( struct Parse_context *state,
 	fprintf(stderr, "In ag 'seg' attr 'id' has illegal valuet\n");
 	state->error = XML_GetCurrentLineNumber( state->the_parser );
       }
+    }
+    else if (! strcmp( attr[i], "score" )) {
+      score = atof( attr[i+1] );
+      has_score = TRUE;
     }
     else {
       /* unrecognised attribute */
@@ -1157,26 +1160,30 @@ static void parse_Gaze_Structure_seg( struct Parse_context *state,
 				 state->tag_stack->len - 1), 
 		   tag_map[GFFLINE].tag)) {
 	
-	GFF_to_features *gff2fts;
+	GFF_to_Gaze_entities *gff2fts;
 	gff2fts = index_Array( state->gs->gff_to_feats, 
-				 GFF_to_features *,
+				 GFF_to_Gaze_entities *,
 				 state->gs->gff_to_feats->len - 1);
-	seg = new_Segment();
-	seg->seg_idx = index;
-	append_val_Array( gff2fts->segments, seg );
+	ent = new_Gaze_entity();
+	ent->entity_idx = index;
+	ent->has_score = has_score;
+	ent->score = score; 
+	append_val_Array( gff2fts->segments, ent );
       }
       else if (! strcmp(index_Array(state->tag_stack, 
 				      char *, 
 				      state->tag_stack->len - 1), 
 			tag_map[DNAFEAT].tag)) {
 	
-	DNA_to_features *dna2fts;
+	DNA_to_Gaze_entities *dna2fts;
 	dna2fts = index_Array( state->gs->dna_to_feats, 
-				 DNA_to_features *,
+				 DNA_to_Gaze_entities *,
 				 state->gs->dna_to_feats->len - 1);
-	seg = new_Segment();
-	seg->seg_idx = index;
-	append_val_Array( dna2fts->segments, seg );	
+	ent = new_Gaze_entity();
+	ent->entity_idx = index;
+	ent->has_score = has_score;
+	ent->score = score;
+	append_val_Array( dna2fts->segments, ent );
       }
       else {
 	fprintf(stderr, "Tag 'seg' not expected in this context\n");

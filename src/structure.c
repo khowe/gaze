@@ -71,12 +71,12 @@ void free_Gaze_Structure( Gaze_Structure *gs ) {
     }
     if (gs->dna_to_feats != NULL) {
       for(i=0; i < gs->dna_to_feats->len; i++) 
-	free_DNA_to_features( index_Array(gs->dna_to_feats, DNA_to_features *, i));
+	free_DNA_to_Gaze_entities( index_Array(gs->dna_to_feats, DNA_to_Gaze_entities *, i));
       free_Array( gs->dna_to_feats, TRUE );
     }
     if (gs->gff_to_feats != NULL) {
       for(i=0; i < gs->gff_to_feats->len; i++) 
-	free_GFF_to_features( index_Array(gs->gff_to_feats, GFF_to_features *, i));
+	free_GFF_to_Gaze_entities( index_Array(gs->gff_to_feats, GFF_to_Gaze_entities *, i));
       free_Array( gs->gff_to_feats, TRUE );
     }
 
@@ -107,8 +107,8 @@ Gaze_Structure *new_Gaze_Structure( void ) {
   g_str->feat_info = new_Array( sizeof( Feature_Info *), TRUE);
   g_str->seg_info = new_Array( sizeof( Segment_Info *), TRUE);
   g_str->length_funcs = new_Array( sizeof( Length_Function *), TRUE);
-  g_str->dna_to_feats = new_Array( sizeof( DNA_to_features *), TRUE);
-  g_str->gff_to_feats = new_Array( sizeof( GFF_to_features *), TRUE);
+  g_str->dna_to_feats = new_Array( sizeof( DNA_to_Gaze_entities *), TRUE);
+  g_str->gff_to_feats = new_Array( sizeof( GFF_to_Gaze_entities *), TRUE);
   g_str->take_dna = NULL;
 
   /* need to add BEGIN and END features to the feature dictionary, 
@@ -262,8 +262,8 @@ void write_Gaze_Structure( Gaze_Structure *gs, FILE *out ) {
 
   fprintf(out, "From GFF:\n\n");
   for(i=0; i < gs->gff_to_feats->len; i++ ) {
-    GFF_to_features *gff2fts = 
-      index_Array( gs->gff_to_feats, GFF_to_features *, i);
+    GFF_to_Gaze_entities *gff2fts = 
+      index_Array( gs->gff_to_feats, GFF_to_Gaze_entities *, i);
 
     fprintf(out, "GFF: type:%s, source:%s, strand:%s\n", 
 	    (gff2fts->gff_feature)?gff2fts->gff_feature:"n/a",
@@ -288,19 +288,19 @@ void write_Gaze_Structure( Gaze_Structure *gs, FILE *out ) {
 
   fprintf(out, "From DNA:\n\n");
   for(i=0; i < gs->dna_to_feats->len; i++ ) {
-    DNA_to_features *dna2fts = 
-      index_Array( gs->dna_to_feats, DNA_to_features *, i);
+    DNA_to_Gaze_entities *dna2fts = 
+      index_Array( gs->dna_to_feats, DNA_to_Gaze_entities *, i);
 
     fprintf(out, "DNA: pattern:%s\n", dna2fts->dna_motif);
     for(j=0; j < dna2fts->features->len; j++) {
-      Feature *ft = index_Array( dna2fts->features, Feature *, j);
-      int idx = ft->feat_idx;
+      Gaze_entity *en = index_Array( dna2fts->features, Gaze_entity *, j);
+      int idx = en->entity_idx;
       
       fprintf(out, "  Feature: %s", index_Array( gs->feat_dict, char *, idx));
     }
     for(j=0; j < dna2fts->segments->len; j++) {
-      Segment *ft = index_Array( dna2fts->segments, Segment *, j);
-      int idx = ft->seg_idx;
+      Gaze_entity *en = index_Array( dna2fts->segments, Gaze_entity *, j);
+      int idx = en->entity_idx;
       
       fprintf(out, "  Segment: %s\n", index_Array( gs->seg_dict, char *, idx));
     }

@@ -85,18 +85,26 @@ Array *project_Segments( Array * );
 /** Extraction of features and segments from GFF / DNA *******/
 /*************************************************************/
 
+typedef struct {
+  int entity_idx;
+  boolean has_score;
+  double score;
+} Gaze_entity;
+
+void free_Gaze_entity(Gaze_entity *);
+Gaze_entity *new_Gaze_entity(void);
+
+
 /********************** From DNA *************************/
 
 typedef struct {
   char *dna_motif;
-  boolean has_score;
-  double score;
-  Array *features;     /* of Feature * */
-  Array *segments;     /* of Segment * */
-} DNA_to_features;
+  Array *features;     /* of DNA_to_entity * */
+  Array *segments;     /* of DNA_to_entity * */
+} DNA_to_Gaze_entities;
 
-void free_DNA_to_features(DNA_to_features *);
-DNA_to_features *new_DNA_to_features(void);
+void free_DNA_to_Gaze_entities(DNA_to_Gaze_entities *);
+DNA_to_Gaze_entities *new_DNA_to_Gaze_entities(void);
 
 /********************** From GFF ************************/
 
@@ -107,10 +115,10 @@ typedef struct {
   char *gff_frame;
   Array *features;
   Array *segments;
-} GFF_to_features;
+} GFF_to_Gaze_entities;
 
-void free_GFF_to_features(GFF_to_features *);
-GFF_to_features *new_GFF_to_features(void);
+void free_GFF_to_Gaze_entities(GFF_to_Gaze_entities *);
+GFF_to_Gaze_entities *new_GFF_to_Gaze_entities(void);
 
 /***************** GFF parsing ***************************/
 

@@ -402,16 +402,51 @@ Array *project_Segments(Array *segs) {
 
 
 
-/*************** DNA to features and segments *********************/
+/*************** DNA and GFF to features and segments ****************/
 
 /*********************************************************************
- FUNCTION: free_DNA_to_features
+ FUNCTION: free_Gaze_entity
  DESCRIPTION:
  RETURNS:
  ARGS: 
  NOTES:
  *********************************************************************/
-void free_DNA_to_features(DNA_to_features *dna2fts) {
+void free_Gaze_entity( Gaze_entity *ge ) {
+  if (ge != NULL)
+    free_util( ge );
+}
+
+
+
+/*********************************************************************
+ FUNCTION: new_Gaze_entity
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+Gaze_entity *new_Gaze_entity( ) {
+  Gaze_entity *ge = (Gaze_entity *) malloc_util( sizeof(Gaze_entity) );
+
+  ge->entity_idx = 0;
+  ge->has_score = FALSE;
+  ge->score = 0.0;
+
+  return ge;
+}
+
+
+
+/*************** DNA to features and segments *********************/
+
+/*********************************************************************
+ FUNCTION: free_DNA_to_Gaze_entities
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void free_DNA_to_Gaze_entities(DNA_to_Gaze_entities *dna2fts) {
   int i;
 
   if (dna2fts != NULL) {
@@ -421,13 +456,13 @@ void free_DNA_to_features(DNA_to_features *dna2fts) {
     
     if (dna2fts->features) {
       for(i=0; i < dna2fts->features->len; i++) {
-	free_util( index_Array( dna2fts->features, Feature *, i));
+	free_Gaze_entity( index_Array( dna2fts->features, Gaze_entity *, i));
       }
       free_Array( dna2fts->features, TRUE );
     }
     if (dna2fts->segments) {
       for(i=0; i < dna2fts->segments->len; i++) {
-	  free_util( index_Array( dna2fts->segments, Segment *, i));
+	free_Gaze_entity( index_Array( dna2fts->segments, Gaze_entity *, i));
       }
       free_Array( dna2fts->segments, TRUE );
     }
@@ -437,22 +472,21 @@ void free_DNA_to_features(DNA_to_features *dna2fts) {
 }
 
 
+
 /*********************************************************************
- FUNCTION: new_DNA_to_features
+ FUNCTION: new_DNA_to_Gaze_entities
  DESCRIPTION:
  RETURNS:
  ARGS: 
  NOTES:
  *********************************************************************/
-DNA_to_features *new_DNA_to_features(void) {
-  DNA_to_features *temp;
+DNA_to_Gaze_entities *new_DNA_to_Gaze_entities(void) {
+  DNA_to_Gaze_entities *temp;
 
-  temp = (DNA_to_features *) malloc_util( sizeof(DNA_to_features) );
+  temp = (DNA_to_Gaze_entities *) malloc_util( sizeof(DNA_to_Gaze_entities) );
   temp->dna_motif = NULL;
-  temp->has_score = FALSE;
-  temp->score = 0.0;
-  temp->features = new_Array( sizeof(Feature *), TRUE);
-  temp->segments = new_Array( sizeof(Segment *), TRUE);
+  temp->features = new_Array( sizeof(Gaze_entity *), TRUE);
+  temp->segments = new_Array( sizeof(Gaze_entity *), TRUE);
 
   return temp;
 }
@@ -462,25 +496,25 @@ DNA_to_features *new_DNA_to_features(void) {
 /************* GFF to features and segments ***********************/
 
 /*********************************************************************
- FUNCTION: free_GFF_to_features
+ FUNCTION: free_GFF_to_Gaze_entities
  DESCRIPTION:
  RETURNS:
  ARGS: 
  NOTES:
  *********************************************************************/
-void free_GFF_to_features(GFF_to_features *gff2fts) {
+void free_GFF_to_Gaze_entities(GFF_to_Gaze_entities *gff2fts) {
   int i;
 
   if (gff2fts != NULL) {
     if (gff2fts->features) {
       for(i=0; i < gff2fts->features->len; i++) {
-	free_util( index_Array( gff2fts->features, Feature*, i));
+	free_Gaze_entity( index_Array( gff2fts->features, Gaze_entity *, i));
       }
       free_Array( gff2fts->features, TRUE );
     }
     if (gff2fts->segments) {
       for(i=0; i < gff2fts->segments->len; i++) {
-	  free_util( index_Array( gff2fts->segments, Segment*, i));
+	  free_Gaze_entity( index_Array( gff2fts->segments, Gaze_entity *, i));
       }
       free_Array( gff2fts->segments, TRUE );
     }
@@ -503,22 +537,22 @@ void free_GFF_to_features(GFF_to_features *gff2fts) {
 
 
 /*********************************************************************
- FUNCTION: new_GFF_to_features
+ FUNCTION: new_GFF_to_Gaze_entities
  DESCRIPTION:
  RETURNS:
  ARGS: 
  NOTES:
  *********************************************************************/
-GFF_to_features *new_GFF_to_features(void) {
-  GFF_to_features *temp;
+GFF_to_Gaze_entities *new_GFF_to_Gaze_entities(void) {
+  GFF_to_Gaze_entities *temp;
 
-  temp = (GFF_to_features *) malloc_util( sizeof(GFF_to_features) );
+  temp = (GFF_to_Gaze_entities *) malloc_util( sizeof(GFF_to_Gaze_entities) );
   temp->gff_source = NULL;
   temp->gff_feature = NULL;
   temp->gff_strand = NULL;
   temp->gff_frame = NULL;
-  temp->features = new_Array( sizeof(Feature *), TRUE);
-  temp->segments = new_Array( sizeof(Segment *), TRUE);
+  temp->features = new_Array( sizeof(Gaze_entity *), TRUE);
+  temp->segments = new_Array( sizeof(Gaze_entity *), TRUE);
 
   return temp;
 }

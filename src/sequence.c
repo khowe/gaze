@@ -16,7 +16,7 @@
 
 
 /*********************************************************************
- FUNCTION: convert_gff_line_to_feats_and_segs
+ FUNCTION: convert_gff_line_to_Gaze_entities
  DESCRIPTION:
  RETURNS:
  ARGS: 
@@ -24,15 +24,15 @@
    - convert_gff_Gaze_Sequence
    - convert_gff_Gaze_Sequence_list
  *********************************************************************/
-static void convert_gff_line_to_feats_and_segs(Gaze_Sequence *g_seq,
-					       GFF_line *gff_line,
-					       Array *gff2fts) {
+static void convert_gff_line_to_Gaze_entities(Gaze_Sequence *g_seq,
+					     GFF_line *gff_line,
+					     Array *gff2fts) {
   int i, j;
 
   if ((gff_line->end >= g_seq->seq_region.s) && (gff_line->start <= g_seq->seq_region.e)) {
     /* we have a partial overlap */
     for(i=0; i < gff2fts->len; i++) {
-      GFF_to_features *con = index_Array( gff2fts, GFF_to_features *, i);
+      GFF_to_Gaze_entities *con = index_Array( gff2fts, GFF_to_Gaze_entities *, i);
       
       if (((con->gff_source == NULL) || strcmp(con->gff_source, gff_line->source) == 0) &&
 	  ((con->gff_feature == NULL) || strcmp(con->gff_feature, gff_line->type) == 0) &&
@@ -42,13 +42,15 @@ static void convert_gff_line_to_feats_and_segs(Gaze_Sequence *g_seq,
 	if ((gff_line->start >= g_seq->seq_region.s) && (gff_line->end <= g_seq->seq_region.e)) {
 	  /* only features completly within the given region are considered */
 	  for(j=0; j < con->features->len; j++) {
-	    
-	    Feature *ft = clone_Feature( index_Array( con->features,
-						      Feature *,
-						      j ));
+	    Gaze_entity *ge = index_Array( con->features, Gaze_entity *, j );
+	    Feature *ft = new_Feature();
+
+	    ft->feat_idx = ge->entity_idx;
 	    ft->real_pos.s = gff_line->start;
 	    ft->real_pos.e = gff_line->end;
 	    ft->score = gff_line->score;
+	    if (ge->has_score)
+	      ft->score = ge->score;
 	    
 	    if (ft->score < index_Array( g_seq->min_scores, double, ft->feat_idx ))
 	      index_Array( g_seq->min_scores, double, ft->feat_idx ) = ft->score;
@@ -59,10 +61,15 @@ static void convert_gff_line_to_feats_and_segs(Gaze_Sequence *g_seq,
 	
 	/* ...whereas all overlapping segments are added */
 	for(j=0; j < con->segments->len; j++) {
-	  Segment *seg = clone_Segment( index_Array( con->segments, Segment *, j ));
+	  Gaze_entity *ge = index_Array( con->segments, Gaze_entity *, j );
+	  Segment *seg = new_Segment();
+
+	  seg->seg_idx = ge->entity_idx;
 	  seg->pos.s = gff_line->start;
 	  seg->pos.e = gff_line->end;
 	  seg->score = gff_line->score;
+	  if (ge->has_score)
+	    seg->score = ge->score;
 
 	  append_to_Segment_list( index_Array( g_seq->segment_lists, Segment_list *, seg->seg_idx ), 
 				  seg );
@@ -475,7 +482,7 @@ void convert_dna_Gaze_Sequence ( Gaze_Sequence *g_seq,
   /* first get the features from the DNA... */
 
   for (i=0; i < dna2fts->len; i++) {
-    DNA_to_features *con = index_Array(dna2fts, DNA_to_features *, i);
+    DNA_to_Gaze_entities *con = index_Array(dna2fts, DNA_to_Gaze_entities *, i);
     char *pattern = con->dna_motif;
     int pattern_len = strlen( pattern );
     char *match, *ptr;
@@ -493,21 +500,25 @@ void convert_dna_Gaze_Sequence ( Gaze_Sequence *g_seq,
       end_match = start_match + pattern_len - 1;
 
       for(j=0; j < con->features->len; j++) {
-	Feature *ft = clone_Feature( index_Array( con->features,
-						  Feature *,
-						  j ));
+	Gaze_entity *ge = index_Array( con->features, Gaze_entity *, j );
+	Feature *ft = new_Feature();
+
+	ft->feat_idx = ge->entity_idx;
 	ft->real_pos.s = start_match;
 	ft->real_pos.e = end_match;
 
-	ft->score = con->has_score ? con->score : index_Array( g_seq->min_scores, double, ft->feat_idx );
+	ft->score = ge->has_score ? ge->score : index_Array( g_seq->min_scores, double, ft->feat_idx );
 	append_val_Array( g_seq->features, ft );
       }
 
       for(j=0; j < con->segments->len; j++) {
-	Segment *seg = clone_Segment( index_Array( con->segments, Segment *, j ));
+	Gaze_entity *ge = index_Array( con->segments, Gaze_entity *, j );
+	Segment *seg = new_Segment(); 
+
+	seg->seg_idx = ge->entity_idx;
 	seg->pos.s = start_match;
 	seg->pos.e = end_match;
-	seg->score = con->has_score ? con->score : 0;
+	seg->score = ge->has_score ? ge->score : 0.0;
 
 	append_to_Segment_list( index_Array( g_seq->segment_lists, Segment_list *, seg->seg_idx ),
 				seg );
@@ -573,9 +584,9 @@ void convert_gff_Gaze_Sequence( Gaze_Sequence *g_seq,
 	continue;
       else {
 	useful_data = TRUE;
-	convert_gff_line_to_feats_and_segs( g_seq,
-					    gff_line,
-					    gff2fts );
+	convert_gff_line_to_Gaze_entities( g_seq,
+					   gff_line,
+					   gff2fts );
 	
       }
     }
@@ -1106,9 +1117,9 @@ void convert_gff_Gaze_Sequence_list( Gaze_Sequence_list *glist,
       else
 	continue;
 
-      convert_gff_line_to_feats_and_segs( g_seq,
-					  gff_line,
-					  gff2fts );
+      convert_gff_line_to_Gaze_entities( g_seq,
+					 gff_line,
+					 gff2fts );
       
     }
     fclose( file );
