@@ -1,4 +1,4 @@
-/*  Last edited: Oct  5 14:09 2001 (klh) */
+/*  Last edited: Apr 23 15:38 2002 (klh) */
 /**********************************************************************
  ** File: structure.c
  ** Author : Kevin Howe
@@ -147,30 +147,21 @@ void print_Gaze_Structure( Gaze_Structure *gs, FILE *out ) {
 		g_array_index(gs->take_dna, StartEnd *, i )->s,
 		g_array_index(gs->take_dna, StartEnd *, i )->e);
     }
-    if (fi->kill_feat_quals_up != NULL) {
+    if (fi->kill_feat_quals != NULL) {
       fprintf(out, "  Killers for all upstream sources:\n");
-      for( j=0; j < fi->kill_feat_quals_up->len; j++) {
-	Killer_Feature_Qualifier *kq = g_array_index(fi->kill_feat_quals_up, Killer_Feature_Qualifier *, j);
+      for( j=0; j < fi->kill_feat_quals->len; j++) {
+	Killer_Feature_Qualifier *kq = g_array_index(fi->kill_feat_quals, Killer_Feature_Qualifier *, j);
 	if ( kq != NULL) {
 	  fprintf(out, "    id:%s", g_array_index( gs->feat_dict, char *, j));
-	  if (kq->has_phase)
-	    fprintf(out, ", phase:%d", kq->phase );
+	  if (kq->has_src_phase)
+	    fprintf(out, ", src_phase:%d", kq->phase );
+	  else if (kq->has_tgt_phase)
+	    fprintf(out, ", tgt_phase:%d", kq->phase );
 	  fprintf( out, "\n" );
 	}
       }
     }
-    if (fi->kill_feat_quals_down != NULL) {
-      fprintf(out, "  Killer features for all downstream targets:\n");
-      for( j=0; j < fi->kill_feat_quals_down->len; j++) {
-	Killer_Feature_Qualifier *kq = g_array_index(fi->kill_feat_quals_down, Killer_Feature_Qualifier *, j);
-	if ( kq != NULL) {
-	  fprintf(out, "    id:%s", g_array_index( gs->feat_dict, char *, j));
-	  if (kq->has_phase)
-	    fprintf(out, ", phase:%d", kq->phase );
-	  fprintf( out, "\n" );
-	}
-      }
-    }
+
     if (fi->sources != NULL) {
       fprintf(out, "  Sources:\n");
       for( j=0; j < fi->sources->len; j++) {
@@ -180,7 +171,6 @@ void print_Gaze_Structure( Gaze_Structure *gs, FILE *out ) {
 	  int *mindis = fs->min_dist;
 	  int *maxdis = fs->max_dist;
 	  int *len_fun = fs->len_fun;
-	  char *out_feat = fs->out_feature;
 	  fprintf(out, "    src:%s", g_array_index(gs->feat_dict, char *, j));
 	  if (mindis != NULL) 
 	    fprintf(out, " min:%d", *mindis);
@@ -192,9 +182,8 @@ void print_Gaze_Structure( Gaze_Structure *gs, FILE *out ) {
 	    char *name = g_array_index( gs->len_fun_dict, char *, *len_fun );
 	    fprintf(out, " len_fun:%s", name);
 	  }
-	  if (out_feat != NULL) {
-	    fprintf(out, " label:%s", out_feat);
-	  }
+	  if (fs->out_qual != NULL && fs->out_qual->feature != NULL)
+	    fprintf(out, " label:%s", fs->out_qual->feature);
 	  fprintf(out, "\n");
 	  
 	  if (fs->seg_quals != NULL ) {
@@ -220,15 +209,17 @@ void print_Gaze_Structure( Gaze_Structure *gs, FILE *out ) {
 	    }
 	  }
 	  if (fs->kill_feat_quals != NULL ) {
-	    fprintf( out, "      Killer features for just this source-target:\n");
+	    fprintf( out, "      Killer features specific this source-target:\n");
 	    for (k=0; k < fs->kill_feat_quals->len; k++) {
 	      Killer_Feature_Qualifier *kq = g_array_index( fs->kill_feat_quals, 
 							    Killer_Feature_Qualifier *, 
 							    k);
 	      if (kq != NULL) {
 		fprintf(out, "       id:%s ", g_array_index( gs->feat_dict, char *, k));
-		if (kq->has_phase)
-		  fprintf(out, "phase:%d ", kq->phase);
+		if (kq->has_src_phase)
+		  fprintf(out, "src_phase:%d ", kq->phase);
+		else if (kq->has_tgt_phase)
+		  fprintf(out, "tgt_phase:%d ", kq->phase);
 		fprintf(out, "\n");
 	      }
 	    }
@@ -343,85 +334,46 @@ void fill_in_Gaze_Structure( Gaze_Structure *gs) {
 	Feature_Relation *src_tgt = g_array_index( tgt_inf->sources, Feature_Relation *, src_idx);
 
 	if (src_tgt != NULL) {
-	  Feature_Info *src_inf = g_array_index( gs->feat_info, Feature_Info *, src_idx );
-
-	  /* Firstly, propagate global segments and killer features to local sources */
+	  /* Firstly, propagate global information locally to local sources */
 
 	  if (tgt_inf->seg_quals != NULL) {
-	    if (src_tgt->seg_quals == NULL) {
+	    if (src_tgt->seg_quals == NULL)
 	      src_tgt->seg_quals = g_array_new( FALSE, TRUE, sizeof(Segment_Qualifier *));
-	      g_array_set_size( src_tgt->seg_quals, tgt_inf->seg_quals->len );
-	    }
 	    for (i=0; i < tgt_inf->seg_quals->len; i++) {
-	      /* This ensures that we don't overwrite more specific useseg specified in a source */
-	      if (g_array_index( src_tgt->seg_quals, Segment_Qualifier *, i) == NULL)
-		g_array_index( src_tgt->seg_quals, Segment_Qualifier *, i) =
-		  clone_Segment_Qualifier( g_array_index( tgt_inf->seg_quals, Segment_Qualifier *, i));
+	      Segment_Qualifier *new_sq = clone_Segment_Qualifier( g_array_index( tgt_inf->seg_quals, Segment_Qualifier *, i));
+	      g_array_append_val( src_tgt->seg_quals, new_sq );
 	    }
 	  }
 
-	  if (tgt_inf->kill_feat_quals_up != NULL) {
-	    if (src_tgt->kill_feat_quals == NULL) {
+	  if (tgt_inf->kill_feat_quals != NULL) {
+	    if (src_tgt->kill_feat_quals == NULL) 
 	      src_tgt->kill_feat_quals = g_array_new( FALSE, TRUE, sizeof(Killer_Feature_Qualifier *));
-	      g_array_set_size( src_tgt->kill_feat_quals, tgt_inf->kill_feat_quals_up->len );
-	    }
-	    for (i=0; i < tgt_inf->kill_feat_quals_up->len; i++) {
-	      /* This ensures that we don't overwrite more specific killfeats specified in a source */
-	      if (g_array_index( src_tgt->kill_feat_quals, Killer_Feature_Qualifier *, i) == NULL)
-		g_array_index( src_tgt->kill_feat_quals, Killer_Feature_Qualifier *, i) =
-		  clone_Killer_Feature_Qualifier( g_array_index( tgt_inf->kill_feat_quals_up, Killer_Feature_Qualifier *, i));
+	    for (i=0; i < tgt_inf->kill_feat_quals->len; i++) {
+	      Killer_Feature_Qualifier *new_kq = 
+		clone_Killer_Feature_Qualifier( g_array_index( tgt_inf->kill_feat_quals, Killer_Feature_Qualifier *, i));
+	      g_array_append_val( src_tgt->kill_feat_quals, new_kq );
 	    }
 	  }
 
-
-	  /* now symmetricalise the structure */
-
-	  if (src_inf->targets == NULL) {
-	    src_inf->targets = g_array_new( FALSE, TRUE, sizeof( Feature_Relation *));
-	    g_array_set_size( src_inf->targets, tgt_inf->sources->len );
-	  }
-	  
-	  if ( g_array_index( src_inf->targets, Feature_Relation *, tgt_idx ) == NULL)
-	    g_array_index( src_inf->targets, Feature_Relation *, tgt_idx ) =
-	      clone_Feature_Relation( src_tgt );
-	  
-	  if (src_tgt->phase != NULL) {
-	    /* have to calculate the phases for downstream killers with respect to the
-	       source (as opposed to upstream killers with respect to the target, which
-	       were read in from the structure file). To do this, we need to perform some
-	       offset magic which requires the source to have an offset with respect to 
-	       the target. If it doesn't, then we cannot calculate, but this is handy because
-	       it is inappropriate to calc. killer offsets for sources that 
-	       have no phase with respect to the considered target, e.g. BEGIN */
-
-	    if ( tgt_inf->kill_feat_quals_up != NULL) {
-	      for( i=0; i < tgt_inf->kill_feat_quals_up->len; i++ ) {
-		Killer_Feature_Qualifier *kq = g_array_index( tgt_inf->kill_feat_quals_up, Killer_Feature_Qualifier *, i); 
-		if (kq != NULL) {
-		  if (src_inf->kill_feat_quals_down == NULL) {
-		    src_inf->kill_feat_quals_down = g_array_new(FALSE, TRUE, sizeof( Killer_Feature_Qualifier *));
-		    g_array_set_size( src_inf->kill_feat_quals_down, gs->feat_dict->len );
-		  }
-		  if (g_array_index( src_inf->kill_feat_quals_down, Killer_Feature_Qualifier *, i) == NULL) {
-		    Killer_Feature_Qualifier *new_kq = new_Killer_Feature_Qualifier();
-		    new_kq->has_phase = kq->has_phase;
-
-		    new_kq->phase = (*(src_tgt->phase) - kq->phase) % 3;
-		    if (new_kq->phase < 0) 
-		      new_kq->phase += 3;
-		    g_array_index( src_inf->kill_feat_quals_down, Killer_Feature_Qualifier *, i) = new_kq;
-		  }
-		}
-	      }
+	  if (tgt_inf->out_qual != NULL) {
+	    if (src_tgt->out_qual == NULL) 
+	      src_tgt->out_qual = clone_Output_Qualifier( tgt_inf->out_qual );
+	    else {
+	      if (src_tgt->out_qual->feature == NULL && tgt_inf->out_qual->feature == NULL)
+		src_tgt->out_qual->feature = g_strdup (tgt_inf->out_qual->feature );
+	      if (src_tgt->out_qual->strand == NULL && tgt_inf->out_qual->strand == NULL)
+		src_tgt->out_qual->strand = g_strdup (tgt_inf->out_qual->strand );
+	      if (src_tgt->out_qual->frame == NULL && tgt_inf->out_qual->frame == NULL)
+		src_tgt->out_qual->frame = g_strdup (tgt_inf->out_qual->frame );
+	      if (tgt_inf->out_qual->need_to_print == TRUE) 
+		src_tgt->out_qual->need_to_print = TRUE;
 	    }
 	  }
 	}
       }
     }
 
-    /* Finally, destroy the global segment qualifiers, because they are never used.
-       However, don't destoy the global killer qualifiers, because they ARE used */
-
+    /* Finally, destroy the global qualifiers, beacause they are never used */
     if (tgt_inf->seg_quals != NULL) {
       for (i=0; i < tgt_inf->seg_quals->len; i++) {
 	/* This ensures that we don't overwrite more specific useseg specified in a source */
@@ -433,6 +385,22 @@ void fill_in_Gaze_Structure( Gaze_Structure *gs) {
       g_array_free( tgt_inf->seg_quals, TRUE );
       tgt_inf->seg_quals = NULL;
     }
-
+    if (tgt_inf->kill_feat_quals != NULL) {
+      for (i=0; i < tgt_inf->kill_feat_quals->len; i++) {
+	/* This ensures that we don't overwrite more specific useseg specified in a source */
+	if (g_array_index( tgt_inf->kill_feat_quals, Killer_Feature_Qualifier *, i) != NULL) {
+	  free_Killer_Feature_Qualifier( g_array_index( tgt_inf->kill_feat_quals, 
+							Killer_Feature_Qualifier *, 
+							i));
+	  g_array_index(  tgt_inf->kill_feat_quals, Killer_Feature_Qualifier *, i) = NULL;
+	}
+      }
+      g_array_free( tgt_inf->kill_feat_quals, TRUE );
+      tgt_inf->kill_feat_quals = NULL;
+    }
+    if (tgt_inf->out_qual != NULL) {
+      free_Output_Qualifier( tgt_inf->out_qual );
+      tgt_inf->out_qual = NULL;
+    }
   }
 }

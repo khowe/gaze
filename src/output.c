@@ -1,4 +1,4 @@
-/*  Last edited: Mar 21 16:13 2002 (klh) */
+/*  Last edited: Apr 23 15:45 2002 (klh) */
 /**********************************************************************
  ** File: output.c
  ** Author : Kevin Howe
@@ -10,55 +10,44 @@
 #include "output.h"
 
 
-
-
 /*********************************************************************
- FUNCTION: print_gff_Gaze_Features
+ FUNCTION: Gaze_Output
  DESCRIPTION:
-   Prints out the given path as a list of Gaze features (rather than
-   as a list of derived feature names and the regions between them,
-   as in print_GFF_path)
+   Thisd 
  RETURNS:
  ARGS: 
  NOTES:
-   1. This function does not check whether the given feature list
-   represents a true path.
-   2. Score, Strand and frame are given uninformative values. However,
-   the output generated will mainly be used for reading PATHs back
-   into GAZE, which does not require score, strand, or frame 
-   information
  *********************************************************************/
-void print_GFF_Gaze_Features( FILE *fh,
-			      GArray *fts, 
-			      Gaze_Structure *gs,
-			      char *seq_name) {
-  Feature *f1;
-  int i;
+Gaze_Output *new_Gaze_Output( void ) {
+  Gaze_Output *out = (Gaze_Output *) g_malloc( sizeof( Gaze_Output ) );
 
-  fprintf( fh, "##gff-version 2\n");
-  fprintf( fh, "##sequence-region %s %d %d\n", seq_name, 
-	   g_array_index( fts, Feature *, 0)->real_pos.s,
-	   g_array_index( fts, Feature *, fts->len - 1)->real_pos.e);
-  fprintf( fh, "## List of GAZE features implying a gene structure of %s\n", seq_name);
-  fprintf( fh, "##  Score of path : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->path_score);
-  fprintf( fh, "##  Forward score : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->forward_score);
-  fprintf( fh, "##  Probability of path : %.6f\n", exp(g_array_index(fts,Feature *,fts->len-1)->path_score -
-						       g_array_index(fts,Feature *,fts->len-1)->forward_score));
+  out->fh = NULL;
+  out->seq_name = NULL;    
+  out->posterior = FALSE;
+  out->use_threshold = FALSE;
+  out->threshold = 0.0;
 
-  /* leave off BEGIN and END */
-  
-  for( i=1; i < fts->len - 2; i++) {
-    f1 = g_array_index( fts, Feature *, i);
-
-    fprintf(fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t.\t.\n", 
-	    seq_name, g_array_index( gs->feat_dict,
-				     char *,
-				     f1->feat_idx ),
-	    f1->real_pos.s, f1->real_pos.e,
-	    f1->score);
-  }
+  return out;
 }
 
+
+/*********************************************************************
+ FUNCTION: free_Gaze_Output
+ DESCRIPTION:
+   An Output_line is a shopping bag of things needed to produce
+   a line of GAZE output
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void free_Gaze_Output( Gaze_Output *out ) {
+  if (out != NULL) {
+    if (out->seq_name != NULL)
+      g_free( out->seq_name );
+
+    g_free( out );
+  }
+}
 
 
 
@@ -69,23 +58,21 @@ void print_GFF_Gaze_Features( FILE *fh,
  ARGS: 
  NOTES:
  *********************************************************************/
-void print_GFF_path( FILE *fh,
-		     GArray *fts, 
-		     Gaze_Structure *gs,
-		     char *seq_name) {
+void print_GFF_path( Gaze_Output *out,
+		     GArray *fts,
+		     Gaze_Structure *gs) {
+
   Feature *f1, *f2 = NULL;
   Feature_Info *f1_info, *f2_info;
   Feature_Relation *src;
-  char empty = '.';
-  char strand, frame;
+  double feature_score, region_score;
   int i;
 
-  fprintf( fh, "##gff-version 2\n");
-  fprintf( fh, "##sequence-region %s %d %d\n", seq_name, 
-	   g_array_index( fts, Feature *, 0)->real_pos.s,
-	   g_array_index( fts, Feature *, fts->len - 1)->real_pos.e);
-  fprintf( fh, "##source-version GAZE 1.0\n");
-  fprintf( fh, "##  Score of path : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->path_score);
+
+  fprintf( out->fh, "##  Score of path : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->path_score);
+  fprintf( out->fh, "##  Probability of path : %.6f\n", 
+	   exp ( g_array_index(fts, Feature *,fts->len-1)->path_score -
+		 g_array_index(fts, Feature *, fts->len-1)->forward_score) );
 
   for( i=0; i < fts->len - 1; i++) {
     f1 = g_array_index( fts, Feature *, i);
@@ -102,83 +89,120 @@ void print_GFF_path( FILE *fh,
     }
 
     /* first print feature itself, then print the region */
-
-    fprintf(fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t.\t.\n", 
-	    seq_name, g_array_index( gs->feat_dict,
-				     char *,
-				     f1->feat_idx ),
-	    f1->real_pos.s, f1->real_pos.e,
-	    f1->score);
-
-    strand = src->out_strand ? src->out_strand : empty;
-    frame = src->out_frame ? src->out_frame : empty;
+    feature_score = f1->score;
+    if (out->posterior)
+      feature_score = exp( f1->forward_score + 
+			   f1->backward_score - 
+			   g_array_index( fts, Feature *, 0)->backward_score);
     
-    fprintf(fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t%c\t%c\n", 
-	    seq_name, src->out_feature,
-	    /*
-	    f1->real_pos.s + f1_info->start_offset,
-	    f2->real_pos.e - f2_info->end_offset,*/
-	    f1->adj_pos.s, f2->adj_pos.e,
-	    f2->path_score - f1->path_score - f2->score,
-	    strand, frame);
+
+    fprintf(out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t.\t.\n", 
+	    out->seq_name, 
+	    g_array_index( gs->feat_dict, char *, f1->feat_idx ),
+	    f1->real_pos.s, 
+	    f1->real_pos.e,
+	    feature_score);
+    
+    region_score = f2->path_score - f1->path_score - f2->score; 
+    
+    if (out->posterior) 
+      region_score = exp( f1->forward_score +
+			  f2->backward_score +
+			  region_score + 
+			  f2->score -
+			  g_array_index( fts, Feature *, 0)->backward_score );
+
+    fprintf(out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t%s\t%s\n", 
+	    out->seq_name, 
+	    src->out_qual->feature != NULL ? src->out_qual->feature : "Not_Given",
+	    f1->adj_pos.s, 
+	    f2->adj_pos.e,
+	    region_score,
+	    src->out_qual->strand != NULL ? src->out_qual->strand : ".",
+	    src->out_qual->frame != NULL ? src->out_qual->frame : "." );
   }
 
   /* finally, the last feature */
 
+  feature_score = f2->score;
+  if (out->posterior)
+    feature_score = exp( f2->forward_score + 
+			 f2->backward_score - 
+			 g_array_index( fts, Feature *, 0)->backward_score);
   if (f2 != NULL) {
-    fprintf(fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t.\t.\n", 
-	    seq_name, g_array_index( gs->feat_dict,
-				     char *,
-				     f2->feat_idx ),
-	    f2->real_pos.s, f2->real_pos.e, f2->score);
+    fprintf(out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t.\t.\n", 
+	    out->seq_name, 
+	    g_array_index( gs->feat_dict, char *, f2->feat_idx ),
+	    f2->real_pos.s, 
+	    f2->real_pos.e, 
+	    feature_score);
   }
 }
 
 
 
-
 /*********************************************************************
- FUNCTION: print_post_probs
+ FUNCTION: print_GFF_Gaze_Features
  DESCRIPTION:
  RETURNS:
  ARGS: 
  NOTES:
  *********************************************************************/
-void print_post_probs( FILE *fh,
-		       GArray *fts, 
-		       double thresh,
-		       Gaze_Structure *gs, 
-		       char *seq_name) {
+void print_GFF_Gaze_Features( Gaze_Output *out,
+			      GArray *fts,
+			      Gaze_Structure *gs) {
+
 
   int i, discarded = 0;
 
-  fprintf( fh, "##gff-version 2\n");
-  fprintf( fh, "##sequence-region %s %d %d\n", seq_name, 
-	   g_array_index( fts, Feature *, 0)->real_pos.s,
-	   g_array_index( fts, Feature *, fts->len - 1)->real_pos.e);
-  fprintf( fh, "##source-version GAZE 1.0\n");
-  fprintf( fh, "## GAZE posterior feature probabilities above %.2f\n", thresh);
-  fprintf( fh, "##     Fend = %.10f,     Bbegin = %.10f\n", 
-	   g_array_index( fts, Feature *, fts->len - 1)->forward_score,
-	   g_array_index( fts, Feature *, 0)->backward_score );
+  if (out->posterior) {
+    fprintf( out->fh, "## GAZE feature scored by posterior probability\n");
+    fprintf( out->fh, "##     Fend = %.10f,     Bbegin = %.10f\n", 
+	     g_array_index( fts, Feature *, fts->len - 1)->forward_score,
+	     g_array_index( fts, Feature *, 0)->backward_score );
+  }
+
+  if (out->use_threshold)
+    fprintf( out->fh, "##   (only features scoring above %.2f are shown)\n", out->threshold );
 
   for(i=0; i < fts->len; i++) {
     Feature *f = g_array_index( fts, Feature *, i);
-    
-    double fw = f->forward_score;
-    double bk = f->backward_score;
-    double sum = g_array_index(fts, Feature *, 0)->backward_score;
-    double prob = exp( fw + bk - sum );
-    
-    if (prob > thresh) 
-      fprintf(fh, "%s\tGAZE\t%s\t%d\t%d\t%.8f\t.\t.\t%s\n", 
-	      seq_name, g_array_index( gs->feat_dict,
-				       char *,
-				       f->feat_idx ),
-	      f->real_pos.s, f->real_pos.e, prob, f->is_correct?"TRUE":"");
+    double score = f->score;
+
+    if (out->posterior) {
+      score = exp( f->forward_score + 
+		   f->backward_score - 
+		   g_array_index( fts, Feature *, 0)->backward_score );
+    }
+
+    if (! out->use_threshold || score > out->threshold) 
+      fprintf(out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.8f\t.\t.\t%s\n", 
+	      out->seq_name, 
+	      g_array_index( gs->feat_dict,
+			     char *,
+			     f->feat_idx ),
+	      f->real_pos.s, f->real_pos.e, score, f->is_correct?"TRUE":"");
     else
       discarded++;
-
   }
-  fprintf( fh, "## Discarded %d features with post. probs. %.2f or below\n", discarded, thresh );
+
+  if (out->use_threshold)
+    fprintf( out->fh, "## Discarded %d features with post. probs. %.2f or below\n", discarded, out->threshold );
 }
+
+
+
+/*********************************************************************
+ FUNCTION: write_GFF_header
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void write_GFF_header( Gaze_Output *out, int seq_begin, int seq_end ) {
+
+  fprintf( out->fh, "##gff-version 2\n");
+  fprintf( out->fh, "##sequence-region %s %d %d\n", out->seq_name, seq_begin, seq_end );
+  fprintf( out->fh, "##source-version GAZE 1.0\n");
+}
+

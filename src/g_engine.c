@@ -1,4 +1,4 @@
-/*  Last edited: Apr 17 18:27 2002 (klh) */
+/*  Last edited: Apr 23 15:35 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -157,7 +157,7 @@ void forwards_calc( GArray *features,
 		    GArray *segments,
 		    Gaze_Structure *gs,
 		    enum DP_Calc_Mode sum_mode,
-		    FILE *exon_fp) {
+		    Gaze_Output *g_out) {
   
   int ft_idx, prev_idx;
   GArray *temp;
@@ -184,7 +184,7 @@ void forwards_calc( GArray *features,
 			     g_res, 
 			     sum_mode,
 			     MAX_TRACEBACK,
-			     exon_fp);
+			     g_out);
 
     g_array_index( features, Feature *, ft_idx )->forward_score = g_res->score;
     g_array_index( features, Feature *, ft_idx )->path_score = g_res->pth_score;
@@ -258,9 +258,9 @@ void scan_through_sources_dp(GArray *features,
 			     Gaze_DP_struct *g_res,
 			     enum DP_Calc_Mode sum_mode,
 			     enum DP_Traceback_Mode trace_mode,
-			     FILE *exon_fp) {
+			     Gaze_Output *g_out) {
   
-  int src_type, src_idx, max_index = 0; /* Initialsied to get arounc gcc warnings */
+  int src_type, src_idx, kill_idx, max_index = 0; /* Initialsied to get arounc gcc warnings */
   int frame, k, index_count[3];
   int last_necessary_idx, local_fringe, last_idx_for_frame[3];
   int left_pos, right_pos, distance;
@@ -310,31 +310,10 @@ void scan_through_sources_dp(GArray *features,
     touched_score = FALSE;
     
     /* set up the boundaries for the scan. We do not want to go past:
-       1. killers that are global to all sources of this target
-       2. The last forced feature */
+       1. The last forced feature */
+
     last_necessary_idx = 0; 
-    
-    if ( tgt_info->kill_feat_quals_up != NULL) {
-      for ( src_type = 0; src_type < tgt_info->sources->len; src_type++) {
-	if ((kq = g_array_index( tgt_info->kill_feat_quals_up, 
-				 Killer_Feature_Qualifier *, 
-				 src_type)) != NULL) {
-	  if (kq->has_phase) {
-	    GArray *apt_list = (GArray *) g_res->feats[src_type][(right_pos - kq->phase + 1) % 3];
-	    if (apt_list->len > 0 && g_array_index( apt_list, int, apt_list->len - 1) > last_necessary_idx )
-	      last_necessary_idx = g_array_index( apt_list, int, apt_list->len - 1);
-	  }			
-	  else {
-	    /* phaseless killer - need to check all frames */
-	    for (frame=0; frame < 3; frame++) {
-	      GArray *apt_list = (GArray *) g_res->feats[src_type][frame];
-	      if (apt_list->len > 0 && g_array_index( apt_list, int, apt_list->len - 1) > last_necessary_idx )
-		last_necessary_idx = g_array_index( apt_list, int, apt_list->len - 1);
-	    }
-	  }
-	}
-      }
-    }
+
     if (g_res->last_selected > last_necessary_idx)
       last_necessary_idx = g_res->last_selected;
     
@@ -344,58 +323,60 @@ void scan_through_sources_dp(GArray *features,
       if ((reg_info = g_array_index(tgt_info->sources, Feature_Relation *, src_type)) != NULL) {
 	GArray **feats = g_res->feats[src_type];
 	
-	for(frame = 0; frame < 3; frame ++) {
+	for(frame = 0; frame < 3; frame++) {
 	  
 	  last_idx_for_frame[frame] = last_necessary_idx;
 	  
 	  /* first, identify the killers local to this feature pair, and make
 	     sure that our search back through the sources does not go past a killer */
 	  
-	  if (tgt_info->kill_feat_quals_up == NULL) {
-	    /* that test ensured that if we have a killer, it is local to this
-	       src-tgt pair, and should therefore be measured from the source.
-	       This is hacky and should be changed (with a source_phase tag
-	       for example) or at the very least, fully documented */
-	  
-	    if (reg_info->kill_feat_quals != NULL) {
-	      /* the following can be speeded up quite easiy, now that we
-		 have full indexing into feature types. Requires the killers
-		 to be stored as a simple list in the structure. Ill do it 
-		 the slow way for now though */
-	      int kill_idx;
-	      for(kill_idx=0; kill_idx < reg_info->kill_feat_quals->len; kill_idx++) {
-		if ( (kq = g_array_index( reg_info->kill_feat_quals,
-					  Killer_Feature_Qualifier *,
-					  kill_idx )) != NULL) {
-		  /* The following checks to see if last killer in the correct
-		     frame has an index greater than the source; if not, none
-		     of them can have. However, this does not allow for weird 
-		     edge effects that occur when killers overlap with other
-		     features. This may or may not make a difference with the
-		     new feature ordering */
-		  
-		  if (kq->has_phase) {
-		    /* the frame calcualtion here is slightly hacky; we have to allow for the
+	  if (reg_info->kill_feat_quals != NULL) {
+	    
+	    for(kill_idx=0; kill_idx < reg_info->kill_feat_quals->len; kill_idx++) {
+	      if ( (kq = g_array_index( reg_info->kill_feat_quals,
+					Killer_Feature_Qualifier *,
+					kill_idx )) != NULL) {
+		/* The following checks to see if last killer in the correct
+		   frame has an index greater than the source; if not, none
+		   of them can have. However, this does not allow for weird 
+		   edge effects that occur when killers overlap with other
+		   features. This may or may not make a difference with the
+		   new feature ordering */
+		
+		if (kq->has_tgt_phase) {
+		  GArray *apt_list = (GArray *) g_res->feats[kq->feat_idx][(right_pos - kq->phase + 1) % 3];
+		  /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
+		     (right_pos - {left_pos % 3} + 1) % 3 == phase -->
+		     (right_pos - {left_pos % 3} + 1) % 3 - phase == 0 -->
+		     (right_pos - {left_pos % 3} + 1 - phase) % 3 == 0 -->
+		     (right_pos - phase + 1) % 3 - {left_pos % 3} == 0 -->
+		     (right_pos - phase + 1) % 3 == {left_pos % 3} */
+		  if (apt_list->len > 0 
+		      && g_array_index( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame] )
+		    last_idx_for_frame[frame] = g_array_index( apt_list, int, apt_list->len - 1);
+		}		  
+		else if (kq->has_src_phase) {
+		    /* the frame calculation here is slightly hacky; we have to allow for the
 		       fact that we need the distance from the source forward to the apt. killer.
 		       BUT the the killers are stored by the frame of their adjusted START, 
 		       rather than their end. So, we rely on the fact that all killers that have
 		       a phase are width 3, which might not be so unreasonable */
-		    GArray *apt_list = (GArray *) g_res->feats[kill_idx][(frame + kq->phase) % 3];
+		  GArray *apt_list = (GArray *) g_res->feats[kq->feat_idx][(frame + kq->phase) % 3];
+		  if (apt_list->len > 0 
+		      && g_array_index( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame] )
+		    last_idx_for_frame[frame] = g_array_index( apt_list, int, apt_list->len - 1);
+		}
+		else {
+		  /* phaseless killer - need to check all frames */
+		  for (k=0; k < 3; k++) {
+		    GArray *apt_list = (GArray *) g_res->feats[kq->feat_idx][k];
 		    if (apt_list->len > 0 
-			&& g_array_index( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame] )
+			&& g_array_index( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame]) {
 		      last_idx_for_frame[frame] = g_array_index( apt_list, int, apt_list->len - 1);
-		  }			
-		  else {
-		    /* phaseless killer - need to check all frames */
-		    for (k=0; k < 3; k++) {
-		      GArray *apt_list = (GArray *) g_res->feats[kill_idx][k];
-		      if (apt_list->len > 0 
-			  && g_array_index( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame]) {
-			last_idx_for_frame[frame] = g_array_index( apt_list, int, apt_list->len - 1);
-		      }			
-		    }
+		    }			
 		  }
 		}
+
 	      }
 	    }
 	  }
@@ -603,22 +584,30 @@ void scan_through_sources_dp(GArray *features,
 		    fprintf( stderr, "scre: v=%.3f, f=%.8f (seg:%.3f len:%.3f)\n",
 			     viterbi_temp, forward_temp, seg_score, len_pen );
 #endif
-		  
-		  /* finally, if an exon list is needed, print it. Assumptions:
-		     1. Exons have an out_frame, unlike other regions
-		     2. The fwd score for src and the bkwd score for tgt are calc'd already
-		  */
-		  if (exon_fp != NULL) {
-		    if (reg_info->out_frame)
-		      fprintf(exon_fp, "%-10s %c %c %8d %8d %.4f\n", 
-			      reg_info->out_feature, reg_info->out_strand, reg_info->out_frame,
-			      left_pos, right_pos, 
-			      exp( src->forward_score + 
-				   trans_score + tgt->score +				   
-				   tgt->backward_score - 
-				   g_array_index( features, Feature *, 0)->backward_score ));
+		  if (g_out != NULL) {
+		    /* the following should be changed to a structure file lookup */
+		    if (reg_info->out_qual != NULL && reg_info->out_qual->need_to_print) {
+		      
+		      double reg_score = trans_score;
+		      
+		      if (g_out->posterior) 
+			reg_score = exp( src->forward_score + 
+					 trans_score + tgt->score +				   
+					 tgt->backward_score - 
+					 g_array_index( features, Feature *, 0)->backward_score );
+		      
+		      
+		      fprintf(g_out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.5f\t%s\t%s\t\n",
+			      g_out->seq_name, 
+			      reg_info->out_qual->feature,
+			      left_pos, 
+			      right_pos, 
+			      reg_score,
+			      reg_info->out_qual->strand, 
+			      reg_info->out_qual->frame );
+		      
+		    }
 		  }
-		  /***/
 		} /* if killed by DNA */
 		else {
 		  /* source might not be killed for future incidences, so update fringe index */
@@ -704,7 +693,6 @@ void scan_through_sources_dp(GArray *features,
     }
     
     if (touched_score) {
-      g_res->pth_score = max_score;
       
       if (sum_mode == STANDARD_SUM || sum_mode == PRUNED_SUM) {
 	/* the trick of subtracting the max before exponentiating avoids
@@ -744,8 +732,10 @@ void scan_through_sources_dp(GArray *features,
 	  }
 	}
       }
-      else if (trace_mode == MAX_TRACEBACK)
+      else if (trace_mode == MAX_TRACEBACK) {
 	g_res->pth_trace = max_index;
+	g_res->pth_score = max_score;	
+      }
       
 #ifdef TRACE
       fprintf(stderr, "  RESULT: v=%.3f, max=%d, f=%.8f\n", 
@@ -798,7 +788,7 @@ void scan_through_targets_dp(GArray *features,
 			     Gaze_DP_struct *g_res,
 			     enum DP_Calc_Mode sum_mode) {
 
-  int tgt_type, tgt_idx;
+  int tgt_type, tgt_idx, kill_idx;
   int frame, k, index_count[3]; 
   int left_pos, right_pos, distance;
   int last_necessary_idx, local_fringe, last_idx_for_frame[3];
@@ -838,34 +828,26 @@ void scan_through_targets_dp(GArray *features,
 
   if (! src->invalid ) { 
     touched_score = FALSE;
-    
+  
+    /* TODO:
+       Backward calcuation wont work at the moment, because Ive taken away the
+       concept of downstream global killers. There is a long term fix for this:
+       - all killers must have src_phase OR target phase, so that we know to
+         measure the sistrance from the source or the target. 
+       - The local killer look-up operation needs to be done for all feature-pairs
+         now, but the src_phase / tgt_phase makes this unambiguous
+	 
+       This could slow down the calculation a lot. Now we need to obtain
+       a "killer fringe" for every potential target-type for a given source, rather
+       than just those for which there are no global killers but some local killers
+       (i.e. BEGIN and END). 
+    */  
+
     /* set up the boundaries for the scan. We do not want to go past 
-       1. killers that are global to all targets of this source
-       2. The last forced feature */
+       1. The last forced feature */
+
     last_necessary_idx = features->len - 1; 
 
-    if ( src_info->kill_feat_quals_down != NULL) {    
-      for ( tgt_type = 0; tgt_type < gs->feat_dict->len; tgt_type++) {
-	if ((kq = g_array_index( src_info->kill_feat_quals_down, 
-				 Killer_Feature_Qualifier *, 
-				 tgt_type)) != NULL) {
-	  if (kq->has_phase) {
-	    GArray *apt_list = (GArray *) g_res->feats[tgt_type][(left_pos + kq->phase - 1) % 3];
-	    if (apt_list->len > 0 && g_array_index(apt_list, int, apt_list->len - 1) < last_necessary_idx )
-	      last_necessary_idx = g_array_index(apt_list, int, apt_list->len - 1);
-	  }	
-	  else {
-
-	    /* phaseless killer - need to check all frames */
-	    for (frame=0; frame < 3; frame++) {
-	      GArray *apt_list = (GArray *) g_res->feats[tgt_type][frame];
-	      if (apt_list->len > 0 && g_array_index( apt_list, int, apt_list->len - 1) < last_necessary_idx )
-		last_necessary_idx = g_array_index( apt_list, int, apt_list->len - 1);
-	    }
-	  }
-	}
-      }
-    }
     if (g_res->last_selected < last_necessary_idx)
       last_necessary_idx = g_res->last_selected;
     
@@ -885,54 +867,57 @@ void scan_through_targets_dp(GArray *features,
 	  
 	  last_idx_for_frame[frame] = last_necessary_idx;
 
-	  /* first, identify the killers local to this feature pair, and make
-	     sure that our search forward through the targets does not go past 
-	     a killer */
-	  
-	  if (src_info->kill_feat_quals_down == NULL) {
-	    /* that test ensured that if we have a killer, it is local to this
-	       src-tgt pair, and should therefore be measured from the target.
-	       This is hacky and should be changed (with a source_phase tag
-	       for example) or at the very least, fully documented */
-	    
-	    if (reg_info->kill_feat_quals != NULL) {
-	      /* the following can be speeded up quite easiy, now that we
-		 have full indexing into feature types. Requires the killers
-		 to be stored as a simple list in the structure. Ill do it 
-		 the slow way for now though */
-	      int kill_idx;
-	      for(kill_idx=0; kill_idx < reg_info->kill_feat_quals->len; kill_idx++) {
-		if ( (kq = g_array_index( reg_info->kill_feat_quals,
-					  Killer_Feature_Qualifier *,
-					  kill_idx )) != NULL) {
-		  /* The following checks to see if last killer in the correct
-		     frame has an index less than the target; if not, none
-		     of them can have. However, this does not allow for weird 
-		     edge effects that occur when killers overlap with other
-		     features. This may or may not make a difference with the
-		     new feature ordering */
-		  
-		  if (kq->has_phase) {
-		    /* the frame calcualtion here is slightly hacky; we have to allow for the
-		       fact that we need the distance from the target back to the apt. killer.
-		       BUT, the the killers are stored by the frame of their adjusted END, 
-		       rather than their start. So, we rely on the fact that all killers are 
-		       stops of width 3, which is undesirable */
-		    GArray *apt_list = (GArray *) g_res->feats[kill_idx][(frame + 3 - kq->phase) % 3];
+	  if (reg_info->kill_feat_quals != NULL) {
+	    /* the following can be speeded up quite easiy, now that we
+	       have full indexing into feature types. Requires the killers
+	       to be stored as a simple list in the structure. Ill do it 
+	       the slow way for now though */
+
+	    for(kill_idx=0; kill_idx < reg_info->kill_feat_quals->len; kill_idx++) {
+	      if ( (kq = g_array_index( reg_info->kill_feat_quals,
+					Killer_Feature_Qualifier *,
+					kill_idx )) != NULL) {
+		/* The following checks to see if last killer in the correct
+		   frame has an index less than the target; if not, none
+		   of them can have. However, this does not allow for weird 
+		   edge effects that occur when killers overlap with other
+		   features. This may or may not make a difference with the
+		   new feature ordering */
+		
+		if (kq->has_src_phase) {
+		  GArray *apt_list = (GArray *) g_res->feats[kq->feat_idx][(left_pos + kq->phase - 1) % 3];
+		  /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
+	                  (right_pos - left_pos + 1) % 3 - phase == 0 -->
+			  (right_pos - left_pos + 1 - phase) % 3 == 0 -->
+			  (left_pos - right_pos - 1 + phase) % 3 == 0 -->
+			  (left_pos - {right_pos % 3} + phase - 1) % 3 == 0 -->
+			  (left_pos + phase - 1) % 3 - {right_pos % 3} == 0 -->
+			  (left_pos + phase - 1) % 3 == {right_pos % 3} */
+		  if (apt_list->len > 0 
+		      && g_array_index( apt_list, int, apt_list->len - 1) < last_idx_for_frame[frame] ) {
+		    last_idx_for_frame[frame] = g_array_index( apt_list, int, apt_list->len - 1);
+		  }
+		}
+		if (kq->has_tgt_phase) {
+		  /* the frame calcualtion here is slightly hacky; we have to allow for the
+		     fact that we need the distance from the target back to the apt. killer.
+		     BUT, the the killers are stored by the frame of their adjusted END, 
+		     rather than their start. So, we rely on the fact that all killers that have 
+		     a phase are width 3, which might not be so unreasonable */
+		  GArray *apt_list = (GArray *) g_res->feats[kq->feat_idx][(frame + 3 - kq->phase) % 3];
+		  if (apt_list->len > 0 
+		      && g_array_index( apt_list, int, apt_list->len - 1) < last_idx_for_frame[frame] ) {
+		    last_idx_for_frame[frame] = g_array_index( apt_list, int, apt_list->len - 1);
+		  }
+		}	
+		else {
+		  /* phaseless killer - need to check all frames */
+		  for (k=0; k < 3; k++) {
+		    GArray *apt_list = (GArray *) g_res->feats[kill_idx][k];
 		    if (apt_list->len > 0 
-			&& g_array_index( apt_list, int, apt_list->len - 1) < last_idx_for_frame[frame] ) {
+			&& g_array_index( apt_list, int, apt_list->len - 1) < last_idx_for_frame[frame]) {
 		      last_idx_for_frame[frame] = g_array_index( apt_list, int, apt_list->len - 1);
-		    }
-		  }			
-		  else {
-		    /* phaseless killer - need to check all frames */
-		    for (k=0; k < 3; k++) {
-		      GArray *apt_list = (GArray *) g_res->feats[kill_idx][k];
-		      if (apt_list->len > 0 
-			  && g_array_index( apt_list, int, apt_list->len - 1) < last_idx_for_frame[frame]) {
-			last_idx_for_frame[frame] = g_array_index( apt_list, int, apt_list->len - 1);
-		      }			
-		    }
+		    }			
 		  }
 		}
 	      }

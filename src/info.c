@@ -1,4 +1,4 @@
-/*  Last edited: Jan 24 16:18 2002 (klh) */
+/*  Last edited: Apr 23 15:26 2002 (klh) */
 /**********************************************************************
  ** File: info.c
  ** Author : Kevin Howe
@@ -28,9 +28,9 @@ Feature_Info *empty_Feature_Info(void) {
   temp->is_killer_feat = FALSE;
   temp->sources = NULL;
   temp->targets = NULL;
-  temp->kill_feat_quals_up = NULL;
-  temp->kill_feat_quals_down = NULL;
   temp->seg_quals = NULL;
+  temp->kill_feat_quals = NULL;
+  temp->out_qual = NULL;
 
   return temp;
 }
@@ -59,25 +59,17 @@ void free_Feature_Info(Feature_Info *ft_info) {
       }
       g_array_free( ft_info->targets, TRUE);
     }
-    if (ft_info->kill_feat_quals_up != NULL) {
-      for(i=0; i < ft_info->kill_feat_quals_up->len; i++) {
-	if (g_array_index(ft_info->kill_feat_quals_up, Killer_Feature_Qualifier *, i)) {
-	 free_Killer_Feature_Qualifier( g_array_index( ft_info->kill_feat_quals_up, Killer_Feature_Qualifier *, i));
+    if (ft_info->kill_feat_quals != NULL) {
+      for(i=0; i < ft_info->kill_feat_quals->len; i++) {
+	if (g_array_index(ft_info->kill_feat_quals, Killer_Feature_Qualifier *, i) != NULL) {
+	 free_Killer_Feature_Qualifier( g_array_index( ft_info->kill_feat_quals, Killer_Feature_Qualifier *, i));
 	}
       }
-      g_array_free( ft_info->kill_feat_quals_up, TRUE);
-    }
-    if (ft_info->kill_feat_quals_down != NULL) {
-      for(i=0; i < ft_info->kill_feat_quals_down->len; i++) {
-	if (g_array_index(ft_info->kill_feat_quals_down, Killer_Feature_Qualifier *, i)) {
-	  free_Killer_Feature_Qualifier( g_array_index( ft_info->kill_feat_quals_down, Killer_Feature_Qualifier *, i));
-	}
-      }
-      g_array_free( ft_info->kill_feat_quals_down, TRUE);
+      g_array_free( ft_info->kill_feat_quals, TRUE);
     }
     if (ft_info->seg_quals != NULL) {
       for(i=0; i < ft_info->seg_quals->len; i++) {
-	if (g_array_index(ft_info->seg_quals, Segment_Qualifier *, i)) 
+	if (g_array_index(ft_info->seg_quals, Segment_Qualifier *, i) != NULL) 
 	  free_Segment_Qualifier( g_array_index( ft_info->seg_quals, Segment_Qualifier *, i));
       }
       g_array_free( ft_info->seg_quals, TRUE);
@@ -154,11 +146,9 @@ Feature_Relation *clone_Feature_Relation(Feature_Relation *src) {
     else
       dest->len_fun =NULL;
  
-   
-    dest->out_feature = (src->out_feature != NULL)?g_strdup( src->out_feature ):NULL;
-    dest->out_strand = src->out_strand;
-    dest->out_frame = src->out_frame;
-    
+    if (src->out_qual != NULL)
+      dest->out_qual = clone_Output_Qualifier( src->out_qual );
+
     if (src->seg_quals != NULL) {
       dest->seg_quals = g_array_new( FALSE, TRUE, sizeof(Segment_Qualifier *));
       g_array_set_size( dest->seg_quals, src->seg_quals->len );
@@ -208,6 +198,15 @@ void free_Feature_Relation(Feature_Relation *ft_src) {
   int i;
 
   if (ft_src != NULL) {
+    if (ft_src->min_dist != NULL)
+      g_free(ft_src->min_dist);
+    if (ft_src->max_dist != NULL)
+      g_free(ft_src->max_dist);
+    if (ft_src->phase != NULL) 
+      g_free(ft_src->phase);
+    if (ft_src->len_fun != NULL)
+      g_free( ft_src->len_fun );
+
     if (ft_src->seg_quals != NULL) {
       for (i=0; i < ft_src->seg_quals->len; i++)
 	  free_Segment_Qualifier( g_array_index( ft_src->seg_quals, Segment_Qualifier  *, i));
@@ -226,16 +225,8 @@ void free_Feature_Relation(Feature_Relation *ft_src) {
       g_array_free( ft_src->kill_dna_quals, TRUE );
     }
 
-    if (ft_src->min_dist != NULL)
-      g_free(ft_src->min_dist);
-    if (ft_src->max_dist != NULL)
-      g_free(ft_src->max_dist);
-    if (ft_src->phase != NULL) 
-      g_free(ft_src->phase);
-    if (ft_src->len_fun != NULL)
-      g_free( ft_src->len_fun );
-    if (ft_src->out_feature != NULL)
-      g_free( ft_src->out_feature );
+    if (ft_src->out_qual != NULL)
+      free_Output_Qualifier( ft_src->out_qual );
 
     g_free( ft_src );
   }
@@ -258,13 +249,11 @@ Feature_Relation *new_Feature_Relation(void) {
   temp->min_dist = NULL;
   temp->max_dist = NULL;
   temp->phase = NULL;
+  temp->len_fun = NULL;
   temp->seg_quals = NULL;
   temp->kill_feat_quals = NULL;
   temp->kill_dna_quals = NULL;
-  temp->len_fun = NULL;
-  temp->out_feature = NULL;
-  temp->out_strand = '\0';
-  temp->out_frame = '\0';
+  temp->out_qual = NULL;
   
   return temp;
 }
@@ -449,7 +438,9 @@ Killer_Feature_Qualifier *clone_Killer_Feature_Qualifier(Killer_Feature_Qualifie
 
   if (src != NULL) {
     dest = new_Killer_Feature_Qualifier();
-    dest->has_phase = src->has_phase;
+    dest->feat_idx = src->feat_idx;
+    dest->has_tgt_phase = src->has_tgt_phase;
+    dest->has_src_phase = src->has_src_phase;
     dest->phase = src->phase;
   }    
 
@@ -482,10 +473,80 @@ Killer_Feature_Qualifier *new_Killer_Feature_Qualifier(void) {
   Killer_Feature_Qualifier *temp;
   
   temp = (Killer_Feature_Qualifier *) g_malloc( sizeof(Killer_Feature_Qualifier) );
-  temp->has_phase = FALSE;
+  temp->feat_idx = 0;
+  temp->has_tgt_phase = FALSE;
+  temp->has_src_phase = FALSE;
   temp->phase = 0;
   
   return temp;
+}
+
+
+/*********** Output_Qualifier **********************************/
+
+/*********************************************************************
+ FUNCTION: clone_Output_Qualifier
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+Output_Qualifier *clone_Output_Qualifier( Output_Qualifier *src ) {
+  Output_Qualifier *tgt = NULL;
+
+  if (src != NULL) {
+    if (src->feature != NULL)
+      tgt->feature = g_strdup( src->feature );
+    if (src->strand != NULL)
+      tgt->strand = g_strdup( src->strand );
+    if (src->frame != NULL) 
+      tgt->frame = g_strdup( src->frame );
+      
+    tgt->need_to_print = src->need_to_print;
+  }
+  
+  return tgt;
+}
+
+
+/*********************************************************************
+ FUNCTION: free_Output_Qualifier
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void free_Output_Qualifier( Output_Qualifier *oq ) {
+  if (oq != NULL) {
+    if (oq->feature != NULL)
+      g_free( oq->feature );
+    if (oq->strand != NULL) 
+      g_free( oq->strand );
+    if (oq-> frame != NULL) 
+      g_free( oq->frame );
+
+    g_free( oq );
+  }
+}
+
+
+/*********************************************************************
+ FUNCTION: new_Output_Qualifier
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+
+Output_Qualifier *new_Output_Qualifier( void ) {
+  Output_Qualifier *oq = (Output_Qualifier *) g_malloc( sizeof( Output_Qualifier ) );
+
+  oq->feature = NULL;
+  oq->strand = NULL;
+  oq->frame = NULL;
+  oq->need_to_print = FALSE;
+
+  return oq;
 }
 
 
@@ -557,6 +618,7 @@ Segment_Qualifier *clone_Segment_Qualifier(Segment_Qualifier *src) {
 
   if (src != NULL) {
     dest = new_Segment_Qualifier();
+    dest->seg_idx = src->seg_idx;
     dest->use_projected = src->use_projected;
     dest->score_sum = src->score_sum;
     dest->is_exact_src = src->is_exact_src;
@@ -596,6 +658,7 @@ Segment_Qualifier *new_Segment_Qualifier(void) {
   
   temp = (Segment_Qualifier *) g_malloc( sizeof(Segment_Qualifier) );
 
+  temp->seg_idx = 0;
   temp->use_projected = FALSE;
   temp->score_sum = FALSE;
   temp->is_exact_src = FALSE;

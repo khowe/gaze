@@ -1,4 +1,4 @@
-/*  Last edited: Apr 17 18:22 2002 (klh) */
+/*  Last edited: Apr 23 13:32 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -23,34 +23,35 @@
 static char gaze_usage_string[] = "\
 Usage: gaze <options>\n\
 Options are:\n\
-\
-Input files:\
+\n\
+Input files:\n\
 \
  -structure_file <s>    XML file containing the gaze structure\n\
  -features_file <s>     name of the GFF file containing the features\n\
  -dna_file <s>          file containing the DNA sequence\n\
- -path_file <s>         name of a GFF file containing a user-specified path\n\
+ -gene_file <s>         name of a GFF file containing a user-specified gene structure\n\
  -defaults <s>          name of the file of default options (def: './gaze.defaults')\n\
-\
-Output files:\
-\
- -output_file <s>       print gene structure to given file (def: stdout)\n\
- -exon_file <s>         print candidate exons to given file\n\
-\
-Where to look for genes:\
-\
+\n\
+Output files:\n\
+ -out_file <s>       print gene structure to given file (def: stdout)\n\
+\n\
+Where to look for genes:\n\
  -begin_dna <n>         residue number to start looking for genes (def: 1)\n\
  -end_dna <n>           residue number to stop looking for genes (def: sequence length)\n\
  -offset_dna <n>        residue number of the first residue in the DNA file (def: 1)\n\
+\n\
+Output format:\n\
+ -output <c>            The output type. Should be one of the following:\n\
+                          B  (B)est (highest scoring) gene structure (default)\n\
+                          S  (S)ampled gene structure based on forward score\n\
+                          F  (F)eature candidates (most sensibly used with -posterior)\n\
+                          R  (R)egion candidates (for regions indicated in structure file\n\
+\n\
+Other options:\n\
 \
-Other options:\
-\
- -no_path               do not print out best path (usually used with -post_probs)\n\
- -post_probs <n>        calculate and show post. probs. for features scoring above given threshold\n\
+ -posterior             Show element scores as posteriror probs. rather than raw scores\n\
  -selected              look out for Selected features in input\n\
  -full_calc             perform full dynamic programming (as opposed to faster heurstic method)\n\
- -sample_gene           calculate and show sampled gene\n\
-\
  -verbose               write basic progess information to stderr\n\
  -help                  show this message\n" ;
 
@@ -61,17 +62,14 @@ static Option options[] = {
   { "-dna_file", STRING_ARG },
   { "-structure_file", STRING_ARG },
   { "-feature_file", STRING_ARG },
-  { "-output_file", STRING_ARG },
-  { "-exon_file", STRING_ARG },
-  { "-path", STRING_ARG },
+  { "-out_file", STRING_ARG },
+  { "-gene_file", STRING_ARG },
   { "-defaults_file", STRING_ARG },
-  { "-selected", NO_ARGS },
+  { "-output", CHAR_ARG },
   { "-help", NO_ARGS },
   { "-verbose", NO_ARGS },
-  { "-post_probs", STRING_ARG },
-  { "-no_path", NO_ARGS },
+  { "-posterior", NO_ARGS },
   { "-full_calc", NO_ARGS },
-  { "-sample_gene", NO_ARGS },
   { "-sigma", FLOAT_ARG }
 };
 
@@ -87,19 +85,24 @@ static struct {
   GArray *feature_files;      /* of FILE */
   char *dna_file_name;
   FILE *dna_file;
-  char *output_file_name;
-  FILE *output_file;
-  char *path_file_name;
-  FILE *path_file;
-  char *exon_file_name;
-  FILE *exon_file;
+  char *out_file_name;
+  FILE *out_file;
+  char *gene_file_name;
+  FILE *gene_file;
+  enum {
+    BEST_PATH,
+    SAMPLE_PATH,
+    ALL_FEATURES,
+    ALL_REGIONS 
+  } output;    
   gboolean full_calc;
   gboolean use_selected;
   gboolean verbose;
-  gboolean post_probs;
-  gboolean no_path;
-  double post_prob_thresh;
-  gboolean sample_gene;
+
+  gboolean posterior;
+  gboolean use_threshold;
+  double threshold;
+
 } gaze_options;
 
 
@@ -122,33 +125,36 @@ static gboolean process_Gaze_Options(char *optname,
   else if (strcmp(optname, "-sigma") == 0) gaze_options.sigma = atof( optarg );
   else if (strcmp(optname, "-selected") == 0) gaze_options.use_selected = TRUE;	     
   else if (strcmp(optname, "-verbose") == 0) gaze_options.verbose = TRUE;
-  else if (strcmp(optname, "-no_path") == 0) gaze_options.no_path = TRUE;
-  else if (strcmp(optname, "-post_probs") == 0) {
-    gaze_options.post_probs = TRUE;
-    gaze_options.post_prob_thresh = atof( optarg );
-  }
+  else if (strcmp(optname, "-posterior") == 0) gaze_options.posterior = TRUE;  
   else if (strcmp(optname, "-full_calc") == 0) gaze_options.full_calc = TRUE;
-  else if (strcmp(optname, "-sample_gene") == 0) gaze_options.sample_gene = TRUE;
-  else if (strcmp(optname, "-output_file") == 0) {
-    if ((gaze_options.output_file = fopen( optarg, "w")) == NULL) {
+  else if (strcmp(optname, "-output") == 0) {
+    char output = (char) toupper( (int) optarg[0] );
+    if (output == 'B')
+      gaze_options.output = BEST_PATH;
+    else if (output == 'S')
+      gaze_options.output = SAMPLE_PATH;
+    else if (output == 'F')
+      gaze_options.output = ALL_FEATURES;
+    else if (output == 'R')
+      gaze_options.output = ALL_REGIONS;
+    else {
+      fprintf( stderr, "Unrecognised qualifier for -output (%s)\n", optarg );
+      options_error = TRUE;
+    }
+  }
+  else if (strcmp(optname, "-threshold") == 0) {
+    gaze_options.use_threshold = TRUE;
+    gaze_options.threshold = atof( optarg );
+  }
+  else if (strcmp(optname, "-out_file") == 0) {
+    if ((gaze_options.out_file = fopen( optarg, "w")) == NULL) {
       fprintf( stderr, "Could not open output file %s for writing\n", optarg );
       options_error = TRUE;
     }
     else {
-      if (gaze_options.output_file_name != NULL)
-	g_free( gaze_options.output_file_name );
-      gaze_options.output_file_name = g_strdup( optarg );
-    }
-  }
-  else if (strcmp(optname, "-exon_file") == 0) {
-    if ((gaze_options.exon_file = fopen( optarg, "w")) == NULL) {
-      fprintf( stderr, "Could not open exon file %s for writing\n", optarg );
-      options_error = TRUE;
-    }
-    else {
-      if (gaze_options.exon_file_name != NULL)
-	g_free( gaze_options.exon_file_name );
-      gaze_options.exon_file_name = g_strdup( optarg );
+      if (gaze_options.out_file_name != NULL)
+	g_free( gaze_options.out_file_name );
+      gaze_options.out_file_name = g_strdup( optarg );
     }
   }
   else if (strcmp(optname, "-dna_file") == 0) {
@@ -171,6 +177,17 @@ static gboolean process_Gaze_Options(char *optname,
       if (gaze_options.structure_file_name != NULL)
 	g_free( gaze_options.structure_file_name );
       gaze_options.structure_file_name = g_strdup( optarg );
+    }
+  }
+  else if (strcmp(optname, "-gene_file") == 0) {
+    if ((gaze_options.gene_file = fopen( optarg, "r")) == NULL) {
+      fprintf( stderr, "Could not open gene file %s for reading\n", optarg );
+      options_error = TRUE;
+    }
+    else {
+      if (gaze_options.gene_file_name != NULL)
+	g_free( gaze_options.gene_file_name );
+      gaze_options.gene_file_name = g_strdup( optarg );
     }
   }
   else if (strcmp(optname, "-feature_file") == 0) {
@@ -201,17 +218,7 @@ static gboolean process_Gaze_Options(char *optname,
       }
     } 
   }
-  else if (strcmp(optname, "-path") == 0) {
-    if ((gaze_options.path_file = fopen( optarg, "r")) == NULL) {
-      fprintf( stderr, "Could not open path file %s for reading\n", optarg );
-      options_error = TRUE;
-    }
-    else {
-      if (gaze_options.path_file_name != NULL)
-	g_free( gaze_options.path_file_name );
-      gaze_options.path_file_name = g_strdup( optarg );
-    }
-  }
+
   /* else do nothing */
 
   return options_error;
@@ -283,19 +290,17 @@ static int parse_command_line( int argc, char *argv[] ) {
   gaze_options.feature_files = g_array_new( FALSE, TRUE, sizeof( FILE *) );
   gaze_options.structure_file_name = NULL;
   gaze_options.structure_file = NULL;
-  gaze_options.output_file_name = g_strdup( "stdout ");
-  gaze_options.output_file = stdout;
-  gaze_options.path_file_name = NULL;
-  gaze_options.path_file = NULL;;
-  gaze_options.exon_file_name = NULL;
-  gaze_options.exon_file = NULL;;
+  gaze_options.out_file_name = g_strdup( "stdout ");
+  gaze_options.out_file = stdout;
+  gaze_options.gene_file_name = NULL;
+  gaze_options.gene_file = NULL;;
   gaze_options.use_selected = FALSE;
   gaze_options.verbose = FALSE;
   gaze_options.full_calc = FALSE;
-  gaze_options.post_probs = FALSE;
-  gaze_options.post_prob_thresh = 0.0;
-  gaze_options.no_path = FALSE;
-  gaze_options.sample_gene = FALSE;
+  gaze_options.posterior = FALSE;
+  gaze_options.use_threshold = FALSE;
+  gaze_options.threshold = 0.0;
+  gaze_options.output = BEST_PATH;
 
   if (process_default_Options( defaults_fh, &process_Gaze_Options  )) {
     return 0;
@@ -304,12 +309,12 @@ static int parse_command_line( int argc, char *argv[] ) {
   /* anything left on the command line has priority, so will
      overwrite settings made so far */
 
-
+  
   while (! options_error && get_option( argc, argv, options,
 					sizeof(options) / sizeof( Option ),
 					&optindex, &optname, &optarg, 
 					&options_error )) {
-
+    
     options_error = process_Gaze_Options( optname, optarg );
   }
   /* check that compulsory args were actually given */
@@ -336,7 +341,6 @@ static int parse_command_line( int argc, char *argv[] ) {
 }
 
 
-
 /*********************************************************************
                         MAIN
  *********************************************************************/
@@ -344,9 +348,10 @@ static int parse_command_line( int argc, char *argv[] ) {
 int main (int argc, char *argv[]) {
 
   Gaze_Structure *gs;
+  Gaze_Output *g_out;
   GArray *features, *segments, *min_scores, *feature_path = NULL;
   Feature *beg_ft, *end_ft;
-  char *seq_name, *dna_seq;
+  char *dna_seq;
   int i,j,k, num_segs = 0;
   enum DP_Calc_Mode calc_mode;
 
@@ -358,6 +363,14 @@ int main (int argc, char *argv[]) {
   
   if ((gs = parse_Gaze_Structure( gaze_options.structure_file )) == NULL)
     exit(1);
+
+  /** set up the output object */
+  g_out = new_Gaze_Output();
+  g_out->fh = gaze_options.out_file;
+  g_out->posterior = gaze_options.posterior;
+  g_out->use_threshold = gaze_options.use_threshold;
+  g_out->threshold = gaze_options.threshold;
+  /***/
 
   features = g_array_new( FALSE, TRUE, sizeof(Feature *));
 
@@ -397,12 +410,12 @@ int main (int argc, char *argv[]) {
   
   if (gaze_options.verbose)
     fprintf(stderr, "Reading the gff files...\n");
-  seq_name = get_features_from_gff( gaze_options.feature_files, features, segments, 
-				    gs->gff_to_feats, min_scores, 
-				    gaze_options.begin_dna, gaze_options.end_dna, 
-				    gaze_options.use_selected ); 
-
-  if (seq_name == NULL)
+  g_out->seq_name = get_features_from_gff( gaze_options.feature_files, features, segments, 
+					   gs->gff_to_feats, min_scores, 
+					   gaze_options.begin_dna, gaze_options.end_dna, 
+					   gaze_options.use_selected ); 
+  
+  if (g_out->seq_name == NULL)
     exit(1);
 
   /* ...and from the DNA files */
@@ -471,7 +484,7 @@ int main (int argc, char *argv[]) {
     for (j=0; j < seg_lists->orig->len; j++) {
       GArray *o = g_array_index( seg_lists->orig, GArray *, j);
       GArray *p;
-
+      
       for (k=0; k < o->len; k++) {
 	Segment *seg = g_array_index( o, Segment *, k );
 	seg->score *= multiplier;
@@ -479,20 +492,14 @@ int main (int argc, char *argv[]) {
 	/* the following makes it a per-residue score */
 	seg->score /= (seg->pos.e - seg->pos.s + 1);
       }
-
+      
       qsort( o->data, o->len, sizeof(Segment *), &order_segments); 
       index_Segments( o );
       p = project_Segments( o );
       index_Segments( p );
-
+      
       g_array_index( seg_lists->proj, GArray *, j) = p;
     }      
-
-    /* 4th element gives total projected segs of this type, regardless of frame.
-       For segments that are frame-dependent, this total will be wrong, but it's 
-       impossible at this stage to work out which segments will be used in a 
-       frame-dependent manner and which will not; in fact it is possible for the 
-       same segment type to be used in both ways. */
   }
 
   if (gaze_options.verbose)
@@ -510,76 +517,87 @@ int main (int argc, char *argv[]) {
 	g_array_index( lf->value_map, double, j ) * gaze_options.sigma;
     }
   }
+  
 
+  
+  /************************************************************************
+         Dynamic programming
+  ************************************************************************/
 
-  if ( gaze_options.path_file != NULL) {
-    /******** read in, score and print out the given path ******/
-    
+  /* need to write the head first because forwards_calc produces 
+     the output of all candidate regions, for space-saving reasons */
+  write_GFF_header( g_out, gaze_options.begin_dna, gaze_options.end_dna );
+  
+  calc_mode = gaze_options.full_calc ? STANDARD_SUM : PRUNED_SUM;
+  
+  if (g_out->posterior) {
+    if (gaze_options.verbose)
+      fprintf(stderr, "Doing backward calculation...\n"); 
+    backwards_calc( features, 
+		    segments, 
+		    gs, 
+		    calc_mode);
+  }
+  
+  if (gaze_options.verbose)
+    fprintf(stderr, "Doing forward calculation...\n");
+  
+  forwards_calc( features, 
+		 segments, 
+		 gs, 
+		 calc_mode, 
+		 gaze_options.output == ALL_REGIONS ? g_out : NULL );
+  
+  if (gaze_options.gene_file != NULL) {
+
+    /* read in and score the path */
     if (gaze_options.verbose)
       fprintf(stderr, "Reading the gff correct path file...\n");
     
-    if ( (feature_path = read_in_path(gaze_options.path_file, gs->feat_dict, features, stderr)) == NULL || 
+    if ( (feature_path = read_in_path(gaze_options.gene_file, 
+				      gs->feat_dict, 
+				      features, 
+				      stderr)) == NULL || 
 	 ! is_legal_path( feature_path, gs, stderr ))
       exit(1);
     
     /* the following is called for its side effect of filling in path
        score up-to-and-including each feature in the path */ 
     calculate_path_score( feature_path, segments, gs );    
-    print_GFF_path( gaze_options.output_file, feature_path, gs, seq_name );      
+    print_GFF_path( g_out, feature_path, gs );      
   }
-  else {
-    /*********** do the dynamic programming *****************/
-
-    calc_mode = gaze_options.full_calc ? STANDARD_SUM : PRUNED_SUM;
-
-    if (gaze_options.post_probs || gaze_options.exon_file ) {
+  else if (gaze_options.output == BEST_PATH || gaze_options.output == SAMPLE_PATH) {
+      /* obtain a path by traceback */
       
-      if (gaze_options.verbose)
-	fprintf(stderr, 
-		"Doing backward calculation...\n"); 
-      backwards_calc( features, 
-		      segments, 
-		      gs, 
-		      calc_mode);
-    }
-    
-    if (gaze_options.verbose)
-      fprintf(stderr, 
-	      "Doing forward calculation...\n");
-
-    forwards_calc( features, 
-		   segments, 
-		   gs, 
-		   calc_mode, 
-		   gaze_options.exon_file );
-        
-    if (! gaze_options.no_path) {
       if (gaze_options.verbose)
 	fprintf( stderr, "Tracing back...\n");
       feature_path = trace_back_general(features, 
 					segments, 
 					gs,
-					gaze_options.sample_gene ? SAMPLE_TRACEBACK : MAX_TRACEBACK ); 
+					MAX_TRACEBACK ); 
+      
+      print_GFF_path( g_out, feature_path, gs );        
+  }
+  else if (gaze_options.output == ALL_FEATURES) {
+    /* output must be simple list. In one case, regions will have already been
+       printed during the forwards calculation. In the other case, we need
+       to print a feature list */
     
-      print_GFF_path( gaze_options.output_file, feature_path, gs, seq_name );
-    }    
-
-    if (gaze_options.post_probs) {
-      /* before printing the posterior probabilities, re-sort the features in the standard
-	 way. The method of sorting used for the D.P. will not list the complete set of 
-	 features in an order that is intuitive */ 
-      qsort( features->data, features->len, sizeof(Feature *), &order_features_standard); 
-      print_post_probs( gaze_options.output_file, features, gaze_options.post_prob_thresh, gs, seq_name);
-    }
+    /* before printing the posterior probabilities, re-sort the features in the standard
+       way. The method of sorting used for the D.P. will not list the complete set of 
+       features in an order that is intuitive */ 
+    qsort( features->data, features->len, sizeof(Feature *), &order_features_standard); 
+    print_GFF_Gaze_Features( g_out, features, gs );
   }
 
+
+  free_Gaze_Output( g_out );
   for(i=0; i < features->len; i++)
     free_Feature( g_array_index( features, Feature *, i));
   g_array_free( features, TRUE);
   for(i=0; i < segments->len; i++)
     free_Segment_lists( g_array_index( segments, Segment_lists *, i ));
   g_array_free( segments, TRUE);
-  g_free( seq_name );
   if (feature_path != NULL)
     g_array_free (feature_path, TRUE );
   free_Gaze_Structure( gs );

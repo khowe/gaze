@@ -1,4 +1,4 @@
-/*  Last edited: Apr  9 14:47 2002 (klh) */
+/*  Last edited: Apr 23 13:00 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -38,8 +38,9 @@ GArray *calculate_post_accuracies( GArray *feats, int bins, double sigma ) {
     Feature *ft = g_array_index( feats, Feature *, i);
 
     double post_prob = exp( ft->forward_score +
-			    ft->backward_score -
-			    g_array_index( feats, Feature *, 0)->backward_score);
+			    ft->backward_score - 
+			    g_array_index( feats, Feature *, 0)->backward_score );
+						   
     int index = (int) (post_prob * (double) bins);
 
     /* the following is to allow for the special case of a post prob of 1 */
@@ -110,7 +111,7 @@ double calculate_segment_score( Feature *src, Feature *tgt,
       Segment_Qualifier *qual = g_array_index( seg_quals, Segment_Qualifier *, i);
 
       if (qual != NULL) {
-	Segment_lists *sl = g_array_index( segments, Segment_lists *, i);
+	Segment_lists *sl = g_array_index( segments, Segment_lists *, qual->seg_idx);
 
 	GArray *list = (qual->use_projected) ? sl->proj : sl->orig;
 	GArray *segs;
