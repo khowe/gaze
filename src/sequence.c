@@ -909,31 +909,34 @@ void read_dna_Gaze_Sequence( Gaze_Sequence *g_seq,
     only the best-scoring feature of each type at each location
  *********************************************************************/
 void remove_duplicate_features( Gaze_Sequence *g_seq) {
-  int i,j;
+  int i,j, last_one_pos = 0;
 
   Feature *last_one = NULL;
 
   for(i=0; i < g_seq->features->len; i++ ) {
     Feature *this_one = index_Array( g_seq->features, Feature *, i );
 
-    if (last_one != NULL) {
-      if (last_one->real_pos.s == this_one->real_pos.s 
-	  && last_one->real_pos.e == this_one->real_pos.e
-	  && last_one->feat_idx == this_one->feat_idx) {
+    if (last_one != NULL
+	&& last_one->real_pos.s == this_one->real_pos.s 
+	&& last_one->real_pos.e == this_one->real_pos.e
+	&& last_one->feat_idx == this_one->feat_idx) {
 	
 	if (this_one->score > last_one->score) {
 	  free_Feature( last_one );
-	  index_Array( g_seq->features, Feature *, i-1) = NULL;
+	  index_Array( g_seq->features, Feature *, last_one_pos) = NULL;
+
+	  last_one = this_one;
+	  last_one_pos = i;
 	}
 	else {
 	  free_Feature( this_one );
 	  index_Array( g_seq->features, Feature *, i ) = NULL; 
-	  this_one = last_one;
 	}
-      }
     }
-
-    last_one = this_one;
+    else {
+      last_one = this_one;
+      last_one_pos = i;
+    }
   }
 
   /* now condense the array */
