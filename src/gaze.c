@@ -405,15 +405,14 @@ static int parse_command_line( int argc, char *argv[] ) {
 	append_val_Array( gaze_options.sequence_starts, start );
 	append_val_Array( gaze_options.sequence_ends, end );
       }
-    }
-    
+    }    
     free_Array( nmstends, TRUE );
-  }
   
-  if ( gaze_options.sequence_names->len == 0 ) {
-    fprintf( stderr, "Error: you have not give any sequences for GAZE to work on\n");
-    options_error = TRUE;
-  } 
+    if ( gaze_options.sequence_names->len == 0 ) {
+      fprintf( stderr, "Error: you have not given any sequences for GAZE to work on\n");
+      options_error = TRUE;
+    } 
+  }
 
   return (!options_error);
 }
