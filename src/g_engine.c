@@ -1,4 +1,4 @@
-/*  Last edited: Jul 19 11:45 2002 (klh) */
+/*  Last edited: Jul 24 17:25 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -44,6 +44,10 @@ void free_Gaze_DP_struct( Gaze_DP_struct *g_res, int feat_types ) {
       free_util( g_res->fringes );
     }
 
+
+    if (g_res->seg_res != NULL)
+      free_Seg_Results( g_res->seg_res );
+
     free_util( g_res );
   }  
 }
@@ -56,7 +60,9 @@ void free_Gaze_DP_struct( Gaze_DP_struct *g_res, int feat_types ) {
  ARGS: 
  NOTES:
  *********************************************************************/
-Gaze_DP_struct *new_Gaze_DP_struct( int feat_dict_size, int fringe_init ) {
+Gaze_DP_struct *new_Gaze_DP_struct( int feat_dict_size, 
+				    int seg_dict_size,
+				    int fringe_init ) {
   Gaze_DP_struct *g_res;
   int i, j, k;
 
@@ -83,6 +89,8 @@ Gaze_DP_struct *new_Gaze_DP_struct( int feat_dict_size, int fringe_init ) {
 	g_res->fringes[i][j][k] = fringe_init;
     }
   }
+
+  g_res->seg_res = new_Seg_Results( seg_dict_size );
 
   return g_res;
 }
@@ -163,7 +171,9 @@ void forwards_calc( Gaze_Sequence *g_seq,
   Array *temp;
   Feature *prev_feat;
 
-  Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, 0 );
+  Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, 
+					      gs->seg_dict->len,
+					      0 );
 
 #ifdef TRACE
     fprintf(stderr, "\nForward calculation:\n\n");
@@ -210,7 +220,9 @@ void backwards_calc( Gaze_Sequence *g_seq,
   Feature *prev_feat;
   Array *temp;
 
-  Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, g_seq->features->len - 1 );
+  Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, 
+					      gs->seg_dict->len,
+					      g_seq->features->len - 1 );
 
   g_res->last_selected = g_seq->features->len + 1;
 
@@ -268,7 +280,6 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
   Feature_Info *tgt_info;
   Feature_Relation *reg_info;
   Feature *src, *tgt;
-  Seg_Results *seg_res;
 
   boolean gone_far_enough = FALSE;
   double max_forpluslen = 0.0;
@@ -285,15 +296,19 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
   tgt_info = index_Array( gs->feat_info, Feature_Info *, tgt->feat_idx );
   right_pos = tgt->adj_pos.e;
 
+  /* if the user specified unusual offsets, it may be that this feature is
+     "off the end of the sequence" when viewed as a target. */
+  if (right_pos < g_seq->beg_ft->real_pos.s) {
+    tgt->invalid = TRUE;
+  }
+
 #ifdef TRACE 
   fprintf( stderr, "Target %d %s %d %d %.3f", tgt_idx,
 	   index_Array(gs->feat_dict, char *, tgt->feat_idx ), 
 	   tgt->real_pos.s, tgt->real_pos.e, tgt->score );
-  
   if (TRACE > 1)
     fprintf( stderr, "\n" );
 #endif
-  seg_res = new_Seg_Results( gs->seg_dict->len );
 
   if (sum_mode == STANDARD_SUM || sum_mode == PRUNED_SUM || trace_mode == SAMPLE_TRACEBACK) {
     all_scores = new_Array( sizeof(double), TRUE );
@@ -418,7 +433,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	  index_count[k] = feats[k]->len - 1; 
 	
 	frame = reg_info->phase != NULL ? (right_pos - *(reg_info->phase) + 1) % 3 : 0;
-	
+
 	max_forpluslen = NEG_INFINITY;
 	touched_score_local = FALSE;
 	/* the following aggressively assumes that if this target has no 
@@ -429,7 +444,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	gone_far_enough = FALSE;
 
 	while( ! gone_far_enough ) {
-	  
+
 	  if (reg_info->phase == NULL) {
 	    /* For frameless feature pairs, we need to examine all frames, but 
 	       for the pruning to work effectively, the featured need to be examined 
@@ -500,7 +515,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 		  Length_Function *lf = NULL;
 		  trans_score = len_pen = forward_temp = viterbi_temp = 0.0;
 
-		  seg_score = calculate_segment_score( src, tgt, g_seq->segment_lists, gs, seg_res );
+		  seg_score = calculate_segment_score( src, tgt, g_seq->segment_lists, gs, g_res->seg_res );
 		  trans_score += seg_score;
 		  
 		  if (reg_info->len_fun != NULL) {
@@ -588,7 +603,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 		  
 #ifdef TRACE
 		  if (TRACE > 1) 
-		    fprintf( stderr, "scre: v=%.3f, f=%.8f (seg:%.3f len:%.3f)\n",
+		    fprintf( stderr, "scre: v=%.3f, f=%.8f (seg:%.5f len:%.3f)\n",
 			     viterbi_temp, forward_temp, seg_score, len_pen );
 #endif
 		  if (g_out != NULL) {
@@ -776,7 +791,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
     free_Array( all_indices, TRUE );
     free_Array( all_scores, TRUE );
   }
-  free_Seg_Results( seg_res );
+
 }
 
 
@@ -805,7 +820,6 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
   Feature_Info *tgt_info;
   Feature_Relation *reg_info;
   Feature *src, *tgt;
-  Seg_Results *seg_res;
 
   boolean gone_far_enough = FALSE;
   double max_backward = 0.0;
@@ -818,6 +832,12 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
   src = index_Array( g_seq->features, Feature *, src_idx );
   left_pos = src->adj_pos.s;
 
+  /* if the user specified unusual offsets, it may be that this feature is
+     "off the end of the sequence" when viewed as a target. */
+  if (left_pos > g_seq->end_ft->real_pos.e) {
+    src->invalid = TRUE;
+  }
+
 #ifdef TRACE
     fprintf( stderr, "Source %d %s %d %d %.3f", src_idx,
 	     index_Array(gs->feat_dict, char *, src->feat_idx ), 
@@ -827,7 +847,6 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
       fprintf( stderr, "\n" );
 #endif
   
-  seg_res = new_Seg_Results( gs->seg_dict->len );
   all_scores = new_Array( sizeof(double), TRUE);
 
   if (! src->invalid ) { 
@@ -958,7 +977,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 	  index_count[k] = feats[k]->len - 1; 
 	
 	frame = reg_info->phase != NULL ? (left_pos + *(reg_info->phase) - 1) % 3 : 0;
-	
+
 	max_backpluslen = NEG_INFINITY;
 	touched_score_local = FALSE;
 	/* the following aggressively assumes that if this target has no 
@@ -1039,7 +1058,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 		  Length_Function *lf = NULL;
 		  trans_score = len_pen = 0.0;
 		  
-		  seg_score = calculate_segment_score( src, tgt, g_seq->segment_lists, gs, seg_res );
+		  seg_score = calculate_segment_score( src, tgt, g_seq->segment_lists, gs, g_res->seg_res );
 		  trans_score += seg_score;
 		  
 		  if (reg_info->len_fun != NULL) {
@@ -1221,7 +1240,6 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
   if (src->invalid)
     g_res->score = NEG_INFINITY;
 
-  free_Seg_Results( seg_res );
   free_Array( all_scores, TRUE );
    
 }      
@@ -1253,7 +1271,9 @@ Array *trace_back_general ( Gaze_Sequence *g_seq,
   append_val_Array( stack, temp );
 
   if (tb_mode == SAMPLE_TRACEBACK) {
-    Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, 0 );
+    Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, 
+						gs->seg_dict->len,
+						0 );
 
     while (pos > 0) {
       scan_through_sources_dp( g_seq,

@@ -19,12 +19,14 @@ typedef struct {
   int last_selected;
 
   Array ***feats;   /* indices of features processed so far, organised by type */
-  int ***fringes;    /* indices of last "significant" feature, organised first by
+  int ***fringes;    /* indices of last "significant" feature, organised first by			
 		        target type, then by source type, then by frame */
+  Seg_Results *seg_res;
+  
 } Gaze_DP_struct;    
 
 void free_Gaze_DP_struct( Gaze_DP_struct *, int );
-Gaze_DP_struct *new_Gaze_DP_struct( int, int );
+Gaze_DP_struct *new_Gaze_DP_struct( int, int, int );
 
 
 double calculate_path_score(Array *, Array *, Gaze_Structure *);

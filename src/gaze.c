@@ -1,4 +1,4 @@
-/*  Last edited: Jul 23 12:10 2002 (klh) */
+/*  Last edited: Jul 24 17:09 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -48,7 +48,7 @@ Output format:\n\
                           B  (B)est (highest scoring) gene structure (default)\n\
                           S  (S)ampled gene structure based on forward score\n\
                           F  (F)eature candidates (most sensibly used with -posterior)\n\
-                          R  (R)egion candidates (for regions indicated in structure file\n\
+                          R  (R)egion candidates (for regions indicated in structure file)\n\
 \n\
 Other options:\n\
 \
@@ -488,11 +488,11 @@ int main (int argc, char *argv[]) {
     for( i=0; i < g_seq->segment_lists->len; i++ ) {
       double multiplier = index_Array( gazeStructure->seg_info, Segment_Info *, i )->multiplier;
       Segment_lists *seg_lists = index_Array( g_seq->segment_lists, Segment_lists *, i);
-      
+
       for (j=0; j < seg_lists->orig->len; j++) {
 	Array *o = index_Array( seg_lists->orig, Array *, j);
 	Array *p;
-	
+
 	for (k=0; k < o->len; k++) {
 	  Segment *seg = index_Array( o, Segment *, k );
 	  seg->score *= multiplier;
@@ -503,14 +503,14 @@ int main (int argc, char *argv[]) {
 	
 	qsort( o->data, o->len, sizeof(Segment *), &order_segments); 
 	index_Segments( o );
+
 	p = project_Segments( o );
 	index_Segments( p );
-
 	index_Array( seg_lists->proj, Array *, j) = p;
+
       }      
     }
   }
-
     
   /************************************************************************/
   /* Finally, do the work                                                 */
@@ -521,17 +521,16 @@ int main (int argc, char *argv[]) {
 			       gaze_options.use_threshold,
 			       gaze_options.threshold);
 
-
-  for (i=0; i < allGazeSequences->num_seqs; i++) {
-    Gaze_Sequence *g_seq = allGazeSequences->seq_list[i];
+  for (s=0; s < allGazeSequences->num_seqs; s++) {
+    Gaze_Sequence *g_seq = allGazeSequences->seq_list[s];
 
     if(gaze_options.verbose)
-      fprintf(stderr, "Running GAZE for sequence %s (%s-%s), %d feats\n", 
+      fprintf(stderr, "Running GAZE for sequence %s (%d-%d), %d feats\n", 
 	      g_seq->seq_name, 
 	      g_seq->seq_region.s, 
 	      g_seq->seq_region.e,
 	      g_seq->features->len);
-        
+
     if (gazeOutput->posterior) {
       if (gaze_options.verbose)
 	fprintf(stderr, "Doing backward calculation...\n"); 
