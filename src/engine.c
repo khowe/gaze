@@ -1,4 +1,4 @@
-/*  Last edited: Jul 24 17:37 2002 (klh) */
+/*  Last edited: Aug  3 15:52 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -87,17 +87,18 @@ Array *calculate_post_accuracies( Array *feats, int bins, double sigma ) {
  ARGS: 
  NOTES:
  *********************************************************************/
-double calculate_segment_score( Feature *src, Feature *tgt, 
-				Array *segments, 
-				Gaze_Structure *gs,
-				Seg_Results *s_res) {
+double calculate_segment_score(Gaze_Sequence *g_seq, 
+			       Feature *src, 
+			       Feature *tgt, 
+			       Gaze_Structure *gs,
+			       Seg_Results *s_res) {
   Array *seg_quals;
   int i,j;
   double score;
 
   Feature_Info *tgt_info = index_Array( gs->feat_info, 
-					  Feature_Info *,
-					  tgt->feat_idx );
+					Feature_Info *,
+					tgt->feat_idx );
   Feature_Relation *tgt_rel = index_Array( tgt_info->sources, Feature_Relation *, src->feat_idx);
 
   int src_pos = src->adj_pos.s; 
@@ -113,17 +114,39 @@ double calculate_segment_score( Feature *src, Feature *tgt,
       Segment_Qualifier *qual = index_Array( seg_quals, Segment_Qualifier *, i);
 
       if (qual != NULL) {
-	Segment_list *sl = index_Array( segments, Segment_list *, qual->seg_idx);
+	int index;
+	Array *segs, *list;
 
-	Array *list = (qual->use_projected) ? sl->proj : sl->orig;
-	Array *segs;
+	Segment_list *sl = index_Array( g_seq->segment_lists, Segment_list *, qual->seg_idx);
 
-	if (qual->has_tgt_phase) 
-	  segs = index_Array( list, Array *, (tgt_pos - qual->phase + 1) % 3 );
-	else if (qual->has_src_phase)
-	  segs = index_Array( list, Array *, (src_pos + qual->phase) % 3 );
+	if (qual->has_tgt_phase)
+	  index = (tgt_pos - qual->phase + 1) % 3;
+	else if (qual->has_src_phase) 
+	  index = (src_pos + qual->phase) % 3 ;
 	else 
-	  segs = index_Array( list, Array *, 3 );
+	  index = 3;
+
+	/********************************************************************/
+	/*
+	  the following lines utilise per_segment cumulative scoring. Note 
+	  the + 5; this was because I was using base scores that were pobabilities
+	  given the previous 5 bases; To ise these scores for the first 5 bases of
+	  a candidate exon would be wrong, because the the previous 5 bases run 
+	  into non-coding DNA. The proper way to do this would be to have a 5mer
+	  probability for the start of each exon.
+	*/
+	/*
+	index_Array( s_res->raw_scores, double, qual->seg_idx ) = 
+	  sl->per_base[index][tgt_pos - g_seq->seq_region.s] 
+	  - sl->per_base[index][src_pos - g_seq->seq_region.s - 1 + 5]; 
+
+	index_Array( s_res->has_score, boolean, qual->seg_idx ) = TRUE;
+	continue;
+	*/
+	/***********************************************************************/
+
+	list = (qual->use_projected) ? sl->proj : sl->orig;
+	segs = index_Array( list, Array *, index );
 
 	{
 	  /* find min j s.t. segs[j].pos.s > end_pos */

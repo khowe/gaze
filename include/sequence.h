@@ -1,4 +1,4 @@
-/*  Last edited: Aug  1 14:27 2002 (klh) */
+/*  Last edited: Aug  3 15:54 2002 (klh) */
 /**********************************************************************
  ** File: sequence.h
  ** Author : Kevin Howe
@@ -78,6 +78,26 @@ boolean read_in_paths( Gaze_Sequence_list *,
 		       Array *, 
 		       Dict * );
 
+
+
+/********************************************************************/
+/********************** Segment_list ********************************/
+/********************************************************************/
+
+typedef struct {
+  Array *orig;    /* The orginal segment lists */
+  Array *proj;    /* The projected segment lists */
+
+  int reg_len;
+  double *per_base[3];
+} Segment_list;
+
+void index_Segment_list (Segment_list * );
+void project_Segment_list( Segment_list * );
+void scale_Segment_list( Segment_list *, double );
+void sort_Segmemt_list ( Segment_list *);
+void free_Segment_list( Segment_list * );
+Segment_list *new_Segment_list( int, int );
 
 
 #endif

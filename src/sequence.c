@@ -1,4 +1,4 @@
-/*  Last edited: Aug  1 14:26 2002 (klh) */
+/*  Last edited: Aug  3 15:53 2002 (klh) */
 /**********************************************************************
  ** File: sequence.c
  ** Author : Kevin Howe
@@ -89,7 +89,7 @@ void initialise_Gaze_Sequence( Gaze_Sequence *g_seq,
 
   for(i=0; i < g_seq->segment_lists->len; i++) 
     index_Array( g_seq->segment_lists, Segment_list *, i) = 
-      new_Segment_list( g_seq->seq_region.e - g_seq->seq_region.s + 1); 
+      new_Segment_list( g_seq->seq_region.s, g_seq->seq_region.e ); 
 
   g_seq->min_scores = new_Array( sizeof( double ), TRUE );
   set_size_Array( g_seq->min_scores, gs->feat_dict->len );
@@ -548,17 +548,66 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
 	      sg1 = clone_Segment( index_Array( con->segments, Segment *, j ));
 	      sg1->pos.s = gff_line->start;
 	      sg1->pos.e = gff_line->end;
-	      sg1->score = gff_line->score;
+	      /* make the segment score per-base */
+	      sg1->score = gff_line->score / (gff_line->end - gff_line->start + 1);
 	      sg2 = clone_Segment( sg1 );
-	      
+
 	      correct_list = index_Array( g_seq->segment_lists, Segment_list *, sg1->seg_idx );
 	      append_val_Array( index_Array( correct_list->orig, Array *, sg1->pos.s % 3 ), sg1 );
 	      append_val_Array( index_Array( correct_list->orig, Array *, 3 ), sg2 );
+	      
+	      /********************************************************************************/
+	      /*  the following was some attempt to get per_base scoring working. It 
+		  worked, bit it was not general enough to fit in with the GAZE way 
+		  of doing things. In particular, it makes heavy use of the real meaning
+		  frame and strand fields of the gff file, which is not how GAZE
+		  has done things in the past. Things to point out:
+		  
+		  1. By convention, I assume that for non unity-width per-base scores, 
+		  the last base of the region is the "base" (first base on rev strand), 
+		  and the previous n bases are dependency bases. This allows hexamers, 
+		  pentamers etc to be given. However, the given "frame" arguement is the 
+		  codon position of the *first* base of the region, so we need to convert 
+		  this into a codon position of the base of interest. 
+		  
+		  2. A trick is employed to convert a reverse strand codon-position, which 
+		  run 2->1->0 along the length of the sequence when viewing from the forward 
+		  strand, to a "virtual forward strand codon-postion", which run 0->1->2 along 
+		  the length of the sequence. This is a semantinc convenience that makes the 
+		  lookup of the correct list consistent with that of normal segments
+
+		  3. By using the modulo position of the start (or end for reverse strand) of 
+		  the segments to determine where in the list they go, they can be retrieved 
+		  in a simple fashion in the segment score calculation; this way, the position 
+		  (mod 3) gives the index of the zeroth codon position, and the other two codon 
+		  positions are obtained by subtraction
+	      */
+	      
+	      /*
+	      int cod_pos = atoi( gff_line->frame );
+	      int pos = gff_line->end;
+	      
+	      if ((gff_line->end > g_seq->seq_region.e) || (gff_line->start < g_seq->seq_region.s))
+		continue;
+	      
+	      correct_list = index_Array( g_seq->segment_lists, 
+					  Segment_list *, 
+					  index_Array( con->segments, Segment *, j)->seg_idx );
+	      
+	      cod_pos = (cod_pos + gff_line->end - gff_line->start) % 3;
+	      
+	      if (! strcmp(gff_line->strand, "-")) {
+		cod_pos = 3 - cod_pos - 1;
+		pos = gff_line->start;
+	      }
+	      correct_list->per_base[(pos - cod_pos + 3)%3][pos - g_seq->seq_region.s] = gff_line->score;
+	      */
+	      /*********************************************************************************/
 	    }
 	  }
 	}
       }
-    }
+    } 
   }
 
   free_GFF_line( gff_line );
@@ -704,3 +753,376 @@ boolean read_in_paths( Gaze_Sequence_list *glist,
 
 }
 
+
+/********************************************************************/
+/**************** Segment_list **************************************/
+/********************************************************************/
+
+
+/*********************************************************************
+ FUNCTION: free_Segment_list
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void free_Segment_list( Segment_list *sl ) {
+  int i, j;
+
+  if (sl != NULL) {
+    if (sl->orig != NULL) {
+      for(i=0; i < sl->orig->len; i++) {
+	Array *segs = index_Array( sl->orig, Array *, i);
+	if (segs != NULL) {
+	  for ( j=0; j < segs->len; j++)
+	    free_Segment( index_Array( segs, Segment *, j));
+	  free_Array( segs, TRUE );
+	}
+      }
+      free_Array( sl->orig, TRUE );
+    }
+
+    if (sl->proj != NULL) {
+      for(i=0; i < sl->proj->len; i++) {
+	Array *segs = index_Array( sl->proj, Array *, i);
+	if (segs != NULL) {
+	  for ( j=0; j < segs->len; j++)
+	    free_Segment( index_Array( segs, Segment *, j));
+	  free_Array( segs, TRUE );
+	}
+      }
+      free_Array( sl->proj, TRUE );
+    }
+
+    for (i=0; i < 3; i++)
+      if (sl->per_base[i] != NULL)
+	free_util( sl->per_base[i] );
+
+    free_util( sl );
+  }
+}
+
+/*********************************************************************
+ FUNCTION: new_Segment_list
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+Segment_list *new_Segment_list( int start_reg, int end_reg ) {
+  int i,j; 
+
+  Segment_list *sl = (Segment_list *) malloc_util( sizeof( Segment_list ) );
+
+  sl->orig = new_Array( sizeof( Array * ), TRUE );
+  /* one list for each frame, plus a final list for the complete seg list (all frames) */
+  set_size_Array( sl->orig, 4 );
+  for (i=0; i < 4; i++)
+    index_Array( sl->orig, Array *, i) = new_Array( sizeof( Segment * ), TRUE );
+
+  /* in future, the following will only be performed for segments types that
+     require it. For now though, do it by default */
+
+  sl->reg_len = end_reg - start_reg + 1;
+
+  for(i=0; i < 3; i++) {
+    /*
+    sl->per_base[i] = (double *) malloc_util( sl->reg_len * sizeof( double ) );
+    for (j=0; j < sl->reg_len; j++)
+      sl->per_base[i][j] = 0.0;
+    */
+    sl->per_base[i] = NULL;
+  }
+
+
+  return sl;
+}
+
+/*********************************************************************
+ FUNCTION: index_Segment_list
+ DESCRIPTION:
+   This function pre-processes the semgnet_list structure to make it 
+   more amenable to segment lookup. 
+   Firstly, it makes the per_base element (if it exists) cumulative,
+   allowing calculation by simple subtraction.
+
+   Secondly, it stores, for each segment, the maximum right-hand position
+   of all segments to the left (upstream), along with their indices. 
+   It is the basis for many list indexing strategies, allowing fast
+   look-up of the segments in a given range.  
+ RETURNS:
+ ARGS: 
+ NOTES:
+   This procdure is perfectly defined if the segments in the given 
+   list are not sorted by their start point. However, there would
+   be little point in performing it if that is the case. Hint:
+   Sort the segment list by start-point before calling this function.
+ *********************************************************************/
+void index_Segment_list(Segment_list *sl) {
+  int tp_idx, i, j;
+
+  /* first, cumulativeise the per_base element */
+  
+  /*
+  for (i=0; i < 3; i++) {
+    double score_so_far = 0.0;
+    
+    for(j=0; j < sl->reg_len; j++) {
+      sl->per_base[i][j] += score_so_far;
+      score_so_far = sl->per_base[i][j];
+    }
+  }
+  */
+
+  /* and now index the normal segments */
+
+  for (tp_idx = 0; tp_idx < 2; tp_idx++) {
+    Array *tp = (tp_idx % 2 == 0) ? sl->orig : sl->proj;
+
+    if (tp != NULL) {
+      for (i=0; i < tp->len; i++) {
+	Array *this_list = index_Array( tp, Array *, i );
+
+	if (this_list != NULL) {
+	  int max_end_upstream = -1;
+	  int idx_of_max_end_upstream = -1;
+	  
+	  for (j=0; j < this_list->len; j++) {
+	    Segment *this_seg = index_Array( this_list, Segment *, j);
+	    
+	    if (this_seg->pos.e > max_end_upstream) {
+	      max_end_upstream = this_seg->pos.e;
+	      idx_of_max_end_upstream = i;
+	    }
+	    
+	    this_seg->max_end_up = max_end_upstream;
+	    this_seg->max_end_up_idx = idx_of_max_end_upstream;
+	  }    
+	}
+      }
+    }
+  }
+}
+
+
+/*********************************************************************
+ FUNCTION: project_Segment_list
+ DESCRIPTION:
+   This function takes a list of possible overlapping scored segments,
+   and returns a non-overlapping list of segment that results from
+   the projection of the original list onto the sequence.
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void project_Segment_list( Segment_list *sl) {
+  boolean found_match;
+  Segment *last_seg;
+  int i,j, k;
+
+  if (sl->orig == NULL || sl->proj != NULL)
+    return;
+  
+  /* set up the projected segment list */
+  sl->proj = new_Array( sizeof( Array * ), TRUE );
+  set_size_Array( sl->proj, sl->orig->len );
+  for (i=0; i < sl->proj->len; i++)
+    index_Array( sl->proj, Array *, i) = NULL;
+  
+  /* and now populate it */
+  for (k=0; k < sl->orig->len; k++) {
+    Array *segs = index_Array( sl->orig, Array *, k);
+    Array *proj = new_Array( sizeof( Segment * ), TRUE );
+    
+    for(i=0; i < segs->len; i++) {
+      Segment *current = clone_Segment( index_Array( segs, Segment *, i ) );
+      Segment *this = NULL;
+      
+      /* conjecture: current either needs to be appended to the list, 
+	 or its start must lie strictly within one of the segments 
+	 in the list so far. Method assumes this */
+      
+      /* all scores are per-residue scores */
+      
+      /* 1. locate position in list where the start of current lies */
+      
+      found_match = FALSE;
+      for(j=proj->len-1; j >= 0; j--) {
+	
+	this = index_Array( proj, Segment *, j );
+	
+	if (current->pos.s <= this->pos.e && current->pos.s >= this->pos.s) {
+	  /* we've reached the place of interest;  */
+	  found_match = TRUE;
+	  break;
+	}
+	else if (current->pos.s > this->pos.e)
+	  break; 
+      }
+      
+      /* At this point, j is the index of the segment in proj that overlaps with
+	 current->pos.s. */
+      
+      if (! found_match)
+	/*  list was empty, or current->pos.s was > proj[last]->pos.e, just append seg */
+	append_val_Array( proj, current );
+      else {
+	/* "this" is overlapping seg and j is the index of that seg */
+	if (this->pos.s != current->pos.s) {
+	  Segment *insert = clone_Segment( current );
+	  insert->pos.e = this->pos.e;
+	  this->pos.e = current->pos.s - 1;
+	  insert->score = this->score;
+	  
+	  insert_val_Array( proj, ++j, insert );
+	}
+	/* If the current->pos.s matches this->pos.s, We may need to adjust 
+	   the score of "this", but that will be done when we go back up the 
+	   list looking for current->pos.e */
+	
+	/* we need to walk to the end of the segment and do the same there */
+	
+	found_match = FALSE;
+	for( ; j < proj->len; j++) {
+	  this = index_Array( proj, Segment *, j );
+	  if (current->pos.e > this->pos.e) 
+	    this->score = MAX( this->score, current->score );
+	  else if (current->pos.e >= this->pos.s) {
+	    if (current->pos.e == this->pos.e) {
+	      /* nothing to do except decide on the score */
+	      this->score = MAX( current->score, this->score );
+	      found_match = TRUE;
+	      continue;
+	    }
+	    else {
+	      /* overlap; do the same as last time but the other way around */
+	      
+	      Segment *insert = clone_Segment( current );
+	      insert->pos.s = this->pos.s;
+	      this->pos.s = current->pos.e + 1;
+	      insert->score = MAX( current->score, this->score );
+	      insert_val_Array( proj, j, insert );
+	      found_match = TRUE;
+	      break;
+	    }
+	  }
+	  /* the case current->pos.e < this->pos.s should never happen */
+	}
+
+	/* if we didn't find a match above, then current extends past the
+	   end of the last seg in the list, so we've on more thing to add */
+	
+	if (! found_match) {
+	  current->pos.s = this->pos.e + 1;
+	  append_val_Array( proj, current );
+	}
+      else
+	free_Segment( current );
+      }     
+    }
+     
+    /* last stage: merge adjacent segments with same score (within limits) */
+    
+    index_Array( sl->proj, Array *, k) = new_Array( sizeof( Segment *), TRUE );
+
+    last_seg = NULL;
+    for (i=0; i < proj->len; i++) {
+      Segment *this_seg = index_Array( proj, Segment *, i );
+
+      if (last_seg == NULL || 
+	  this_seg->pos.s - last_seg->pos.e != 1 || 
+	  ABS(this_seg->score - last_seg->score) > 1.0e-10) {
+	
+	/* add the seg */
+	append_val_Array(index_Array( sl->proj, Array *, k), this_seg );
+	last_seg = this_seg;
+      }
+      else {
+	/* adjust the end of last seg and don't push this one */
+	last_seg->pos.e = this_seg->pos.e;
+	free_Segment( this_seg );
+      }
+    }
+
+    free_Array( proj, TRUE );
+  }
+
+}
+
+
+
+/*********************************************************************
+ FUNCTION: scale_Segment_list
+ DESCRIPTION:
+   This function takes a segment list and a sclaling factor, and
+   scales the scores of the various elements of the segment list
+   by the scaling factor
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void scale_Segment_list( Segment_list *sl, double scale ) {
+  int lt, i, j;
+
+  /* first the per-base element, if it exists */
+
+  /*
+  for(i=0; i < 3; i++) 
+    if (sl->per_base[i] != NULL)
+      for (j=0; j < sl->reg_len; j++)
+	sl->per_base[i][j] *= scale;
+  */
+
+   
+  for (lt=0; lt < 2; lt++) {
+    Array *tp = (lt % 2) == 0 ? sl->orig : sl->proj;  
+  
+    if (tp != NULL) {
+      for( i=0; i < tp->len; i++) {      
+	Array *list = index_Array( tp, Array *, i );
+	
+	if (list != NULL) {
+	  for(j=0; j < list->len; j++) {
+	    Segment *seg = index_Array( list, Segment *, j );
+	    seg->score *= scale;
+	  }
+	}
+      }
+    }
+  }
+}
+
+
+
+/*********************************************************************
+ FUNCTION: sort_Segment_list
+ DESCRIPTION:
+   Sorts a segment list by the standard method for sorting segments
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void sort_Segment_list( Segment_list *sl ) {
+  int i;
+
+  /* per_base element does not need sorting; sorted by construction */
+
+  if (sl->orig != NULL) {
+    for (i=0; i < sl->orig->len; i++) {
+      Array *segs = index_Array( sl->orig, Array *, i );
+
+      if (segs != NULL)
+	qsort( segs->data, segs->len, sizeof( Segment *), &order_segments );
+    }
+  }
+
+  if (sl->proj != NULL) {
+    for (i=0; i < sl->proj->len; i++) {
+      Array *segs = index_Array( sl->proj, Array *, i );
+
+      if (segs != NULL)
+	qsort( segs->data, segs->len, sizeof( Segment *), &order_segments );
+    }
+  }
+
+}
