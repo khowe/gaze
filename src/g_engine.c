@@ -189,7 +189,7 @@ void forwards_calc( Gaze_Sequence *g_seq,
     if (g_seq->path == NULL || g_out->probability) {
       prev_idx = ft_idx - 1;
       prev_feat = index_Array( g_seq->features, Feature *, prev_idx );
-      temp = g_res->feats[prev_feat->feat_idx][prev_feat->adj_pos.s % 3];
+      temp = g_res->feats[prev_feat->feat_idx][MOD3(prev_feat->adj_pos.s)];
       append_val_Array( temp, prev_idx );
 
       if (g_out->sample_gene || g_out->regions || g_out->probability)
@@ -247,7 +247,7 @@ void backwards_calc( Gaze_Sequence *g_seq,
        sorted indices */
     prev_idx = ft_idx + 1;
     prev_feat = index_Array( g_seq->features, Feature *, prev_idx );
-    temp = g_res->feats[prev_feat->feat_idx][prev_feat->adj_pos.e % 3];
+    temp = g_res->feats[prev_feat->feat_idx][MOD3(prev_feat->adj_pos.e)];
     append_val_Array( temp, prev_idx );
 
     scan_through_targets_dp( g_seq,
@@ -355,7 +355,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 
 		while (more_frames) {
 		  if (kq->has_tgt_phase) {
-		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(right_pos - kq->phase + 1) % 3];
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][MOD3(right_pos - kq->phase + 1)];
 		    /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
 		       (right_pos - {left_pos % 3} + 1) % 3 == phase -->
 		       (right_pos - {left_pos % 3} + 1) % 3 - phase == 0 -->
@@ -370,7 +370,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 		       BUT the the killers are stored by the frame of their adjusted START, 
 		       rather than their end. So, we rely on the fact that all killers that have
 		       a phase have width that is 3-mutlple, which is sensible */
-		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + kq->phase) % 3];
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][MOD3(frame + kq->phase)];
 		    more_frames = FALSE;
 		  }
 		  else {
@@ -418,8 +418,8 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	  
 	  /* finally, make sure that we do not proceed past the fringe for
 	     this feature pair */
-	  if (g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3] > last_idx_for_frame[frame])
-	    last_idx_for_frame[frame] = g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3];
+	  if (g_res->fringes[(int)tgt->feat_idx][src_type][MOD3(tgt->real_pos.s)] > last_idx_for_frame[frame])
+	    last_idx_for_frame[frame] = g_res->fringes[(int)tgt->feat_idx][src_type][MOD3(tgt->real_pos.s)];
 	}
 	
 	/* Before actually scanning through the features themselves, we need to check
@@ -458,7 +458,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	for(k=0; k < 3; k++) 
 	  index_count[k] = feats[k]->len - 1; 
 	
-	frame = reg_info->phase != NULL ? (right_pos - *(reg_info->phase) + 1) % 3 : 0;
+	frame = reg_info->phase != NULL ? MOD3(right_pos - *(reg_info->phase) + 1) : 0;
 
 
 	max_forpluslen = NEG_INFINITY;
@@ -711,7 +711,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	     killers (which also might have a phase constraint). Otherwise, 
 	     prune in all frames */
 	  if (reg_info->phase != NULL || reg_info->kill_feat_quals != NULL) {
-	    g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3] = local_fringe;
+	    g_res->fringes[(int)tgt->feat_idx][src_type][MOD3(tgt->real_pos.s)] = local_fringe;
 	  }
 	  else {
 	    for(k=0; k < 3; k++)
@@ -910,7 +910,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 		
 		while( more_frames) {
 		  if (kq->has_src_phase) {
-		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(left_pos + kq->phase - 1) % 3];
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][MOD3(left_pos + kq->phase - 1)];
 		    /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
 		       (right_pos - left_pos + 1) % 3 - phase == 0 -->
 		       (right_pos - left_pos + 1 - phase) % 3 == 0 -->
@@ -926,7 +926,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 		       BUT, the the killers are stored by the frame of their adjusted END, 
 		       rather than their start. So, we rely on the fact that all killers that have 
 		       a phase are width 3, which might not be so unreasonable */
-		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + 3 - kq->phase) % 3];
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][MOD3(frame + 3 - kq->phase)];
 		    more_frames = FALSE;
 		  }	
 		  else {
@@ -975,8 +975,8 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 	  
 	  /* finally, make sure that we do not proceed past the fringe for
 	     this feature pair */
-	  if (g_res->fringes[(int)src->feat_idx][tgt_type][src->real_pos.s % 3] < last_idx_for_frame[frame])
-	    last_idx_for_frame[frame] = g_res->fringes[(int)src->feat_idx][tgt_type][src->real_pos.s % 3];
+	  if (g_res->fringes[(int)src->feat_idx][tgt_type][MOD3(src->real_pos.s)] < last_idx_for_frame[frame])
+	    last_idx_for_frame[frame] = g_res->fringes[(int)src->feat_idx][tgt_type][MOD3(src->real_pos.s)];
 	}
 
 
@@ -1016,7 +1016,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 	for(k=0; k < 3; k++) 
 	  index_count[k] = feats[k]->len - 1; 
 	
-	frame = reg_info->phase != NULL ? (left_pos + *(reg_info->phase) - 1) % 3 : 0;
+	frame = reg_info->phase != NULL ? MOD3(left_pos + *(reg_info->phase) - 1) : 0;
 
 	max_backpluslen = NEG_INFINITY;
 	touched_score_local = FALSE;
@@ -1208,7 +1208,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 	     killers (which also might have a phase constraint). Otherwise, 
 	     prune in all frames */
 	  if (reg_info->phase != NULL || reg_info->kill_feat_quals != NULL) {
-	    g_res->fringes[(int)src->feat_idx][tgt_type][src->real_pos.s % 3] = local_fringe;
+	    g_res->fringes[(int)src->feat_idx][tgt_type][MOD3(src->real_pos.s)] = local_fringe;
 	  }
 	  else {
 	    for(k=0; k < 3; k++)
@@ -1276,7 +1276,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
  DESCRIPTION:
  RETURNS:
  ARGS: 
- NOTES: THIS NEEDS WORK!!!
+ NOTES:
  *********************************************************************/
 void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 					Gaze_Structure *gs,
@@ -1335,7 +1335,6 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 	Array **feats = g_res->feats[src_type];
 	
 	for(frame = 0; frame < 3; frame++) {
-	  
 	  last_idx_for_frame[frame] = last_necessary_idx;
 	  
 	  /* first, identify the killers local to this feature pair, and make
@@ -1354,7 +1353,7 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 
 		while (more_frames) {
 		  if (kq->has_tgt_phase) {
-		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(right_pos - kq->phase + 1) % 3];
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][MOD3(right_pos - kq->phase + 1)];
 		    /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
 		       (right_pos - {left_pos % 3} + 1) % 3 == phase -->
 		       (right_pos - {left_pos % 3} + 1) % 3 - phase == 0 -->
@@ -1369,7 +1368,7 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 		       BUT the the killers are stored by the frame of their adjusted START, 
 		       rather than their end. So, we rely on the fact that all killers that have
 		       a phase have width that is 3-mutlple, which is sensible */
-		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + kq->phase) % 3];
+		    apt_list = (Array *) g_res->feats[(int)kq->feat_idx][MOD3(frame + kq->phase)];
 		    more_frames = FALSE;
 		  }
 		  else {
@@ -1417,8 +1416,8 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 
 	  /* finally, make sure that we do not proceed past the fringe for
 	     this feature pair */
-	  if (g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3] > last_idx_for_frame[frame])
-	    last_idx_for_frame[frame] = g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3];
+	  if (g_res->fringes[(int)tgt->feat_idx][src_type][MOD3(tgt->real_pos.s)] > last_idx_for_frame[frame])
+	    last_idx_for_frame[frame] = g_res->fringes[(int)tgt->feat_idx][src_type][MOD3(tgt->real_pos.s)];
 	}
 	
 	/* Before actually scanning through the features themselves, we need to check
@@ -1457,7 +1456,7 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 	for(k=0; k < 3; k++) 
 	  index_count[k] = feats[k]->len - 1; 
 	
-	frame = reg_info->phase != NULL ? (right_pos - *(reg_info->phase) + 1) % 3 : 0;
+	frame = reg_info->phase != NULL ? MOD3(right_pos - *(reg_info->phase) + 1) : 0;
 
 	max_vit_plus_len = NEG_INFINITY;
 	touched_score_local = FALSE;
@@ -1643,7 +1642,7 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 	   prune in all frames */
 	if (use_pruning) {
 	  if (reg_info->phase != NULL || reg_info->kill_feat_quals != NULL) {
-	    g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3] = local_fringe;
+	    g_res->fringes[(int)tgt->feat_idx][src_type][MOD3(tgt->real_pos.s)] = local_fringe;
 	  }
 	  else {
 	    for(k=0; k < 3; k++)

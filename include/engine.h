@@ -18,7 +18,7 @@
 #include "structure.h"
 
 #define NEG_INFINITY -9999999.0
-
+#define MOD3(x) ((x >= 0)?((x) % 3):((3 - (-(x) % 3))%3)) 
 
 enum DP_Traceback_Mode {
   NO_TRACEBACK,
