@@ -93,7 +93,7 @@ typedef struct {
 void index_Segment_list (Segment_list * );
 void project_Segment_list( Segment_list * );
 void scale_Segment_list( Segment_list *, double );
-void sort_Segmemt_list ( Segment_list *);
+void sort_Segment_list ( Segment_list *);
 void free_Segment_list( Segment_list * );
 Segment_list *new_Segment_list( int, int );
 

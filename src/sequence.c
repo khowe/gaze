@@ -364,8 +364,9 @@ void read_dna_seqs( Gaze_Sequence_list *glist,
   char *name, c;
   Line *ln = new_Line(); 
   boolean interested = FALSE;
-  Gaze_Sequence *g_seq;
-  int line_len, g_seq_idx, i, f, num_bases;
+  Gaze_Sequence *g_seq = NULL;
+  int num_bases = NULL;
+  int line_len, g_seq_idx, i, f;
 
   for (f=0; f < file_list->len; f++) {
     FILE *dna_file = fopen( index_Array( file_list, char *, f ), "r");
@@ -477,7 +478,7 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
 			    Array *file_list,
 			    Array *gff2fts ) {
 
-  int i, j, k, f, g_seq_idx;
+  int i, j, f, g_seq_idx;
   Gaze_Sequence *g_seq;
 
   GFF_line *gff_line = new_GFF_line();
@@ -853,7 +854,7 @@ void free_Segment_list( Segment_list *sl ) {
  NOTES:
  *********************************************************************/
 Segment_list *new_Segment_list( int start_reg, int end_reg ) {
-  int i,j; 
+  int i; 
 
   Segment_list *sl = (Segment_list *) malloc_util( sizeof( Segment_list ) );
 

@@ -1223,6 +1223,23 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 
 
 
+/*********************************************************************
+ FUNCTION: scan_through_source_for_traceback
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES: THIS NEEDS WORK!!!
+ *********************************************************************/
+void scan_through_sources_for_traceback( Gaze_Sequence *g_seq,
+					 Gaze_Structure *gs,
+					 int tgt_idx,
+					 Gaze_DP_struct *g_res,
+					 enum DP_Traceback_Mode trace_mode) {
+
+}
+
+
+
 
 /*********************************************************************
  FUNCTION: trace_back_general

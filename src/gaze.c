@@ -184,7 +184,7 @@ static boolean process_Gaze_Options(char *optname,
 	   strcmp(optname, "-dna_file") == 0 ||
 	   strcmp(optname, "-selected_file") == 0 ||
 	   strcmp(optname, "-gene_file") == 0 ) {
-    Array *file_names, *files;
+    Array *file_names = NULL;
 
     if (strcmp(optname, "-gff_file") == 0)
       file_names = gaze_options.gff_file_names;

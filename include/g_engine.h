@@ -55,6 +55,12 @@ void scan_through_targets_dp(Gaze_Sequence *,
 			     Gaze_DP_struct *,
 			     enum DP_Calc_Mode);
 
+void scan_through_sources_for_traceback( Gaze_Sequence *,
+					 Gaze_Structure *,
+					 int,
+					 Gaze_DP_struct *,
+					 enum DP_Traceback_Mode);
+
 void trace_back_general(Gaze_Sequence *,
 			Gaze_Structure * );
 

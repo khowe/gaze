@@ -61,7 +61,8 @@ int read_GFF_line(FILE *file,
 		  GFF_line *line) {
 
   char *fields[10];
-  int line_len, i, j;
+  int i, j;
+  int line_len = 0;
   boolean got_line = FALSE;
 
   while( ! got_line && (line_len = read_Line( file, line->ln )) != 0)  {
