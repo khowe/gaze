@@ -1,4 +1,4 @@
-/*  Last edited: Jul 23 10:43 2002 (klh) */
+/*  Last edited: Jul 24 16:28 2002 (klh) */
 /**********************************************************************
  ** File: sequence.c
  ** Author : Kevin Howe
@@ -516,8 +516,9 @@ void get_features_from_gff( Gaze_Sequence_list *glist,
 	  
 	  if (((con->gff_source == NULL) || strcmp(con->gff_source, gff_line->source) == 0) &&
 	      ((con->gff_feature == NULL) || strcmp(con->gff_feature, gff_line->type) == 0) &&
-	      ((con->gff_strand == NULL) || strcmp(con->gff_strand, gff_line->strand) == 0)) {
-	    
+	      ((con->gff_strand == NULL) || strcmp(con->gff_strand, gff_line->strand) == 0) &&
+	      ((con->gff_frame == NULL) || strcmp(con->gff_frame, gff_line->frame) == 0)) {
+
 	    if ((gff_line->start >= g_seq->seq_region.s) && (gff_line->end <= g_seq->seq_region.e)) {
 	      /* only features completly within the given region are considered */
 	      for(j=0; j < con->features->len; j++) {

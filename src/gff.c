@@ -1,4 +1,4 @@
-/*  Last edited: Jul 22 11:56 2002 (klh) */
+/*  Last edited: Jul 24 14:52 2002 (klh) */
 /**********************************************************************
  ** File: gff.c
  ** Author : Kevin Howe
@@ -40,9 +40,10 @@ GFF_line *new_GFF_line( void ) {
   line->seqname = NULL;
   line->source = NULL;
   line->type = NULL;
-  line->strand = NULL;
-  line->score = 0.0;
   line->start = line->end = 0;
+  line->score = 0.0;
+  line->strand = NULL;
+  line->frame = NULL;
   line->group = NULL;
 
   return line;
@@ -84,6 +85,7 @@ int read_GFF_line(FILE *file,
       line->end = atoi(fields[4]);
       line->score = atof(fields[5]);
       line->strand = fields[6];
+      line->frame = fields[7];
       line->group = fields[8];
 
       got_line = TRUE;

@@ -1,4 +1,4 @@
-/*  Last edited: Jul 22 11:43 2002 (klh) */
+/*  Last edited: Jul 24 14:52 2002 (klh) */
 /**********************************************************************
  ** File: gff.h
  ** Author : Kevin Howe
@@ -16,10 +16,11 @@ typedef struct {
   char *seqname;
   char *source;
   char *type;
-  char *strand;
-  double score;
   int start;
   int end;
+  double score;
+  char *strand;
+  char *frame;
   char *group;
 } GFF_line;
 
