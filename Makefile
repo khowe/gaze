@@ -34,11 +34,8 @@ OBJS =	$(OBJ)/util.o \
 
 #TRACE_LEV = -DTRACE=1
 
-#CC = gcc 
-#CFLAGS =  -c -O2 -Wall 
-
-CC = cc
-CFLAGS = -c -O2 -fullwarn
+CC = gcc 
+CFLAGS =  -c -O2 -Wall 
 
 
 gaze : $(BIN)/gaze
