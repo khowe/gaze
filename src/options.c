@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 15:49 2002 (klh) */
+/*  Last edited: Jul 23 10:00 2002 (klh) */
 /**********************************************************************
  ** FILE: options.c
  ** DESCRIPTION:
@@ -149,12 +149,13 @@ int process_default_Options( FILE *defs,
 
   buffer  = (char *) malloc_util(MAX_DEF_LINE_SIZE * sizeof(char));
 
-  while ( ! options_error && (fgets( buffer, MAX_DEF_LINE_SIZE, defs )) != NULL) {
+  while ( (fgets( buffer, MAX_DEF_LINE_SIZE, defs )) != NULL) {
     start_tag = start_val = 0;
 
     for(i=0; isspace((int)buffer[i]); i++);
-    if (buffer[i] == '\0' || buffer[i] == '#')
+    if (buffer[i] == '\0' || buffer[i] == '#') {
       continue;
+    }
 
     start_tag = i;
     for(; ! isspace((int)buffer[i]) && ! (buffer[i] == '='); i++);
@@ -167,7 +168,7 @@ int process_default_Options( FILE *defs,
     }
 
     options_error = (*func)((char *) &buffer[start_tag],
-			    (char *) &buffer[start_val] );				  
+			    (char *) &buffer[start_val] ) || options_error;
   }
 
   free_util(buffer);
