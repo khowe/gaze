@@ -73,7 +73,7 @@ static Option options[] = {
   { "-verbose", NO_ARGS },
   { "-probability", NO_ARGS },
   { "-full_calc", NO_ARGS },
-  { "-threshold", FLOAT_ARG },
+  { "-cutoff", FLOAT_ARG },
   { "-sigma", FLOAT_ARG }
 };
 
@@ -124,7 +124,7 @@ static boolean process_Gaze_Options(char *optname,
   else if (strcmp(optname, "-sample_gene") == 0) gaze_options.sample_gene = TRUE;
   else if (strcmp(optname, "-regions") == 0) gaze_options.output_regions = TRUE;
   else if (strcmp(optname, "-features") == 0) gaze_options.output_features = TRUE;
-  else if (strcmp(optname, "-threshold") == 0) {
+  else if (strcmp(optname, "-cutoff") == 0) {
     gaze_options.use_threshold = TRUE;
     gaze_options.threshold = atof( optarg );
   }
