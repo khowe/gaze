@@ -384,12 +384,12 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 		    /* first search back for the first occurrence that does not overlap with target */
 		    int this_kill_idx = apt_list->len - 1;
 		    int boundary_index = index_Array( apt_list, int, this_kill_idx );
-		    int local_idx;
 		    Feature *killer_feat = index_Array(g_seq->features, Feature *, boundary_index );
+
 		    while ( killer_feat != NULL && killer_feat->real_pos.e > tgt->adj_pos.e) {
 		      if (--this_kill_idx >= 0) {
 			boundary_index = index_Array( apt_list, int, this_kill_idx );
-			killer_feat = index_Array(g_seq->features, Feature *, boundary_index );
+			killer_feat = index_Array( g_seq->features, Feature *, boundary_index );
 		      }
 		      else
 			killer_feat = NULL;
@@ -397,14 +397,23 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 		    /* now search back for sources beyond the killer of this type that overlap the killer */
 
 		    if (killer_feat != NULL) {
-		      local_idx = boundary_index - 1;
-		      while (  local_idx >= 0 ) {
-			Feature *candidate = index_Array(g_seq->features, Feature *, local_idx );
+		      int local_idx = feats[frame]->len - 1;
+		      
+		      for(local_idx = feats[frame]->len - 1; local_idx >=0; local_idx-- ) {
+			Feature *candidate;
+			int loc_f_idx = index_Array( feats[frame], int, local_idx );
+
+			if (loc_f_idx > boundary_index) 
+			  continue;
+
+			candidate = index_Array( g_seq->features, 
+						 Feature *,
+						 loc_f_idx );
+				
 			if (candidate->adj_pos.s <= killer_feat->real_pos.s)
-			break;
-			else if (candidate->feat_idx == src_type)
+			  break;
+			else 
 			  boundary_index = local_idx;
-			local_idx--;
 		      }
 
 		      if (boundary_index > last_idx_for_frame[frame]) 
@@ -459,7 +468,6 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	  index_count[k] = feats[k]->len - 1; 
 	
 	frame = reg_info->phase != NULL ? MOD3(right_pos - *(reg_info->phase) + 1) : 0;
-
 
 	max_forpluslen = NEG_INFINITY;
 	touched_score_local = FALSE;
@@ -901,6 +909,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 	  if (reg_info->kill_feat_quals != NULL) {
 
 	    for(kill_idx=0; kill_idx < reg_info->kill_feat_quals->len; kill_idx++) {
+
 	      if ( (kq = index_Array( reg_info->kill_feat_quals,
 				      Killer_Feature_Qualifier *,
 				      kill_idx )) != NULL) {
@@ -937,10 +946,10 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 		  }
 		  
 		  if (apt_list->len > 0) {
+
 		    /* first search forward for the first occurrence that does not overlap with the src */
 		    int this_kill_idx = apt_list->len - 1;
 		    int boundary_index = index_Array( apt_list, int, this_kill_idx );
-		    int local_idx;
 		    Feature *killer_feat = index_Array(g_seq->features, Feature *, boundary_index );
 
 		    while ( killer_feat != NULL && killer_feat->real_pos.s < src->adj_pos.s ) {
@@ -954,18 +963,28 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 		    /* now search forward for targets beyond the killer of this type that overlap the killer */
 		    
 		    if (killer_feat != NULL) {
-		      local_idx = boundary_index + 1;
-		      while (  local_idx < g_seq->features->len ) {
-			Feature *candidate = index_Array(g_seq->features, Feature *, local_idx );
+		      int local_idx = feats[frame]->len - 1;
+
+		      for(local_idx = feats[frame]->len - 1; local_idx >=0; local_idx-- ) {
+			Feature *candidate;
+			int loc_f_idx = index_Array( feats[frame], int, local_idx );
+
+			if (loc_f_idx < boundary_index) 
+			  continue;
+
+			candidate = index_Array( g_seq->features, 
+						 Feature *,
+						 loc_f_idx );
+
 			if (candidate->adj_pos.e >= killer_feat->real_pos.e)
 			  break;
-			else if (candidate->feat_idx == tgt_type)
+			else 
 			  boundary_index = local_idx;
-			local_idx++;
 		      }
 		      
 		      if (boundary_index < last_idx_for_frame[frame]) 
-		      last_idx_for_frame[frame] = boundary_index;
+			last_idx_for_frame[frame] = boundary_index;
+
 		    }
 		  }
 		}
@@ -1382,7 +1401,7 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 		    /* first search back for the first occurrence that does not overlap with target */
 		    int this_kill_idx = apt_list->len - 1;
 		    int boundary_index = index_Array( apt_list, int, this_kill_idx );
-		    int local_idx;
+
 		    Feature *killer_feat = index_Array(g_seq->features, Feature *, boundary_index );
 		    while ( killer_feat != NULL && killer_feat->real_pos.e > tgt->adj_pos.e) {
 		      if (--this_kill_idx >= 0) {
@@ -1395,16 +1414,25 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 		    /* now search back for sources beyond the killer of this type that overlap the killer */
 
 		    if (killer_feat != NULL) {
-		      local_idx = boundary_index - 1;
-		      while (  local_idx >= 0 ) {
-			Feature *candidate = index_Array(g_seq->features, Feature *, local_idx );
+		      int local_idx = feats[frame]->len - 1;
+		      
+		      for(local_idx = feats[frame]->len - 1; local_idx >=0; local_idx-- ) {
+			Feature *candidate;
+			int loc_f_idx = index_Array( feats[frame], int, local_idx );
+			
+			if (loc_f_idx > boundary_index) 
+			  continue;
+			
+			candidate = index_Array( g_seq->features, 
+						 Feature *,
+						 loc_f_idx );
+			
 			if (candidate->adj_pos.s <= killer_feat->real_pos.s)
-			break;
-			else if (candidate->feat_idx == src_type)
+			  break;
+			else 
 			  boundary_index = local_idx;
-			local_idx--;
 		      }
-
+		      
 		      if (boundary_index > last_idx_for_frame[frame]) 
 			last_idx_for_frame[frame] = boundary_index;
 		    }
