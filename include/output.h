@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 13:00 2002 (klh) */
+/*  Last edited: Jul 22 14:58 2002 (klh) */
 /**********************************************************************
  ** File: output.h
  ** Author : Kevin Howe
@@ -11,7 +11,8 @@
 
 #include <math.h>
 #include "util.h"
-#include "features.h"
+#include "gff.h"
+#include "sequence.h"
 #include "structure.h"
 #include "engine.h"
 
@@ -23,19 +24,21 @@
 
 typedef struct {
   FILE *fh;
-  char *seq_name;
   boolean posterior;
   boolean use_threshold;
   double threshold;
 } Gaze_Output;
 
-Gaze_Output *new_Gaze_Output( void );
+Gaze_Output *new_Gaze_Output( FILE *,
+			      boolean,
+			      boolean,
+			      double );
 void free_Gaze_Output( Gaze_Output * );
 
-void print_GFF_Gaze_Features( Gaze_Output *, Array *, Gaze_Structure * );
-void print_GFF_path( Gaze_Output *, Array *, Gaze_Structure * );
+void write_Gaze_Features( Gaze_Output *, Gaze_Sequence *, Gaze_Structure * );
+void write_Gaze_path( Gaze_Output *, Gaze_Sequence *, Gaze_Structure * );
 
-void write_GFF_header( Gaze_Output *, int, int );
+void write_Gaze_header( Gaze_Output *, Gaze_Sequence * );
 
 
 #endif
