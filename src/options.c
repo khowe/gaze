@@ -1,4 +1,4 @@
-/*  Last edited: Apr 25 15:25 2002 (klh) */
+/*  Last edited: Jul 13 12:59 2002 (klh) */
 /**********************************************************************
  ** FILE: options.c
  ** DESCRIPTION:
@@ -27,7 +27,7 @@ int get_option(int argc,
 	       int *ret_optindex, 
 	       char **ret_optname, 
 	       char **ret_optarg,
-	       gboolean *error) {
+	       int *error) {
 
   static int optindex = 1;        /* init to 1 on first call  */
   static char *optptr = NULL;     /* ptr to next valid switch */
@@ -138,16 +138,16 @@ int get_option(int argc,
  ARGS: 
  NOTES:
  *********************************************************************/
-gboolean process_default_Options( FILE *defs, 
-				  gboolean (*func)(char *, char *) ) {
+int process_default_Options( FILE *defs, 
+				  int (*func)(char *, char *) ) {
   char *buffer;
-  gboolean options_error = FALSE;
+  int options_error = FALSE;
   int start_tag, start_val, i;
 
   if (defs == NULL)
     return options_error;
 
-  buffer  = (char *) g_malloc(MAX_DEF_LINE_SIZE * sizeof(char));
+  buffer  = (char *) malloc_util(MAX_DEF_LINE_SIZE * sizeof(char));
 
   while ( ! options_error && (fgets( buffer, MAX_DEF_LINE_SIZE, defs )) != NULL) {
     start_tag = start_val = 0;
@@ -170,7 +170,7 @@ gboolean process_default_Options( FILE *defs,
 			    (char *) &buffer[start_val] );				  
   }
 
-  g_free(buffer);
+  free_util(buffer);
 
   return options_error;
 }

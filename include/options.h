@@ -1,4 +1,4 @@
-/*  Last edited: Jan 14 16:39 2002 (klh) */
+/*  Last edited: Jul 13 12:59 2002 (klh) */
 /**********************************************************************
  ** FILE: options.h
  ** DESCRIPTION:
@@ -8,10 +8,10 @@
 #ifndef _GETOPTIONS
 #define _GETOPTIONS 
 
-#include <glib.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+#include "util.h"
 
 /************************** constants *********************************/
 
@@ -33,9 +33,9 @@ typedef struct {
 
 /******************* function prototypes ****************************/
 
-int get_option(int, char **, Option *, int, int *, char **, char **, gboolean *);
-gboolean process_default_Options( FILE *defs, 
-				  gboolean (*)( char *, char *) );
+int get_option(int, char **, Option *, int, int *, char **, char **, int *);
+int process_default_Options( FILE *defs, 
+				  int (*)( char *, char *) );
 
 
 
