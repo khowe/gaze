@@ -81,7 +81,9 @@ typedef struct {
 void free_Gaze_Sequence_list ( Gaze_Sequence_list * );
 Gaze_Sequence_list *new_Gaze_Sequence_list ( Array * );
 
+/******************** deprecated **************************/
 void read_dna_Gaze_Sequence_list( Gaze_Sequence_list *, Array * );
+/**********************************************************/
 
 void convert_gff_Gaze_Sequence_list( Gaze_Sequence_list *,
 				     Array *,

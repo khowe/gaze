@@ -47,7 +47,7 @@ Output options:\n\
  -sample_gene           use posterior sampling to obtain gene structure (default: max)\n\
  -regions               show region candidates (for regions indicated in structure file)\n\
  -feature               show feature candidates (most sensibly used with -probability)\n\
-    (If non of the above is suuplied, the highest scoring gene structure is obtained)\n\
+    (If none of the above is supplied, the highest scoring gene structure is obtained)\n\
 \n\
 Other options:\n\
 \

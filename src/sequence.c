@@ -1010,9 +1010,7 @@ Gaze_Sequence_list *new_Gaze_Sequence_list ( Array *names ) {
  RETURNS:
  ARGS: 
  NOTES:
-   This routine changes the value of offset_dna for each Gaze_Sequence,
-   but since thisis the only routine that makes use of it, this is
-   not harmful
+   DEPRECATED: does not handle several regions from the same sequence
  *********************************************************************/
 void read_dna_Gaze_Sequence_list( Gaze_Sequence_list *glist,
 				  Array *file_list ) {
@@ -1134,7 +1132,7 @@ void convert_gff_Gaze_Sequence_list( Gaze_Sequence_list *glist,
 				     Array *file_list,
 				     Array *gff2fts ) {
   
-  int f, g_seq_idx;
+  int f, s;
   Gaze_Sequence *g_seq;
 
   GFF_line *gff_line = new_GFF_line();
@@ -1146,15 +1144,15 @@ void convert_gff_Gaze_Sequence_list( Gaze_Sequence_list *glist,
       /* First check that we reading annotation for the same sequence that we've
 	 doing so all along */
 
-      if ( (g_seq_idx = dict_lookup( glist->seq_id_dict, gff_line->seqname )) >= 0 )
-	g_seq = glist->seq_list[g_seq_idx];
-      else
-	continue;
+      for (s=0; s < glist->num_seqs; s++) {
+	g_seq = glist->seq_list[s];
 
-      convert_gff_line_to_Gaze_entities( g_seq,
-					 gff_line,
-					 gff2fts );
-      
+	if ( ! strcmp (g_seq->seq_name,  gff_line->seqname ))
+	  convert_gff_line_to_Gaze_entities( g_seq,
+					     gff_line,
+					     gff2fts );
+	
+      }
     }
     fclose( file );
   }
@@ -1195,14 +1193,14 @@ boolean get_correct_feats_Gaze_Sequence_list( Gaze_Sequence_list *glist,
     FILE *file = fopen( index_Array( file_list, char *, i), "r" );
 
     while( read_GFF_line( file, gff_line ) != 0 ){
-      if ( (seq_idx = dict_lookup( glist->seq_id_dict, gff_line->seqname )) >= 0)
-	no_problem &= get_correct_feature_from_gff_line( glist->seq_list[seq_idx], 
-							gff_line,
-							index_Array( all_lists, Array *, seq_idx ),
-							feat_dict,
-							define_paths );
-      
-
+      for(seq_idx=0; seq_idx < glist->num_seqs; seq_idx++) {
+	if (! strcmp( glist->seq_list[seq_idx]->seq_name, gff_line->seqname))
+	  no_problem &= get_correct_feature_from_gff_line( glist->seq_list[seq_idx], 
+							   gff_line,
+							   index_Array( all_lists, Array *, seq_idx ),
+							   feat_dict,
+							   define_paths );
+      }	
     }
 
     fclose( file );
