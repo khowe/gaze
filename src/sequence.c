@@ -296,19 +296,27 @@ static boolean transfer_correct_features_Gaze_Sequence( Gaze_Sequence *g_seq,
     }
   }
   
-  if (define_paths && no_problem) {
-    /* begin and end features to the path */
-    Feature *ft;
-
-    if (g_seq->path == NULL)
-      g_seq->path = new_Array( sizeof( Feature *), TRUE );
-    
-    ft = g_seq->end_ft;
-    ft->is_correct = TRUE;
-    append_val_Array( g_seq->path, ft );
-    ft = g_seq->beg_ft;
-    ft->is_correct = TRUE;
-    prepend_val_Array( g_seq->path, ft );
+  if (define_paths) {
+    if (no_problem) {
+      /* begin and end features to the path */
+      Feature *ft;
+      
+      if (g_seq->path == NULL)
+	g_seq->path = new_Array( sizeof( Feature *), TRUE );
+      
+      ft = g_seq->end_ft;
+      ft->is_correct = TRUE;
+      append_val_Array( g_seq->path, ft );
+      ft = g_seq->beg_ft;
+      ft->is_correct = TRUE;
+      prepend_val_Array( g_seq->path, ft );
+    }
+    else {
+      if (g_seq->path != NULL) {
+	free_Array( g_seq->path, TRUE );
+	g_seq->path = NULL;
+      }
+    }
   }
   
   return no_problem;
@@ -673,11 +681,11 @@ boolean get_correct_feats_Gaze_Sequence( Gaze_Sequence *g_seq,
 	continue;
       else {
 	useful_data = TRUE;
-	no_problem = get_correct_feature_from_gff_line( g_seq,
-							gff_line,
-							feat_list,
-							feat_dict,
-							define_paths );
+	no_problem &= get_correct_feature_from_gff_line( g_seq,
+							 gff_line,
+							 feat_list,
+							 feat_dict,
+							 define_paths );
       }      
     }
 
@@ -706,9 +714,9 @@ boolean get_correct_feats_Gaze_Sequence( Gaze_Sequence *g_seq,
 
   if (no_problem )
     no_problem = transfer_correct_features_Gaze_Sequence( g_seq,
-							  feat_list,
-							  feat_dict,
-							  define_paths );
+							   feat_list,
+							   feat_dict,
+							   define_paths );
 
   if (! define_paths && g_seq->selected_file_names == NULL) 
     g_seq->selected_file_names = useful_files;
@@ -1153,7 +1161,7 @@ boolean get_correct_feats_Gaze_Sequence_list( Gaze_Sequence_list *glist,
 
     while( read_GFF_line( file, gff_line ) != 0 ){
       if ( (seq_idx = dict_lookup( glist->seq_id_dict, gff_line->seqname )) >= 0)
-	no_problem = get_correct_feature_from_gff_line( glist->seq_list[seq_idx], 
+	no_problem &= get_correct_feature_from_gff_line( glist->seq_list[seq_idx], 
 							gff_line,
 							index_Array( all_lists, Array *, seq_idx ),
 							feat_dict,
@@ -1170,12 +1178,12 @@ boolean get_correct_feats_Gaze_Sequence_list( Gaze_Sequence_list *glist,
   if (no_problem ) {
 
     for(seq_idx=0; seq_idx < glist->num_seqs; seq_idx++) 
-      no_problem = transfer_correct_features_Gaze_Sequence( glist->seq_list[seq_idx],
-							    index_Array( all_lists, 
-									 Array *, 
-									 seq_idx ),
-							    feat_dict,
-							    define_paths );
+      no_problem &= transfer_correct_features_Gaze_Sequence( glist->seq_list[seq_idx],
+							     index_Array( all_lists, 
+									  Array *, 
+									  seq_idx ),
+							     feat_dict,
+							     define_paths );
   }
 
   for(i=0; i < all_lists->len; i++)
