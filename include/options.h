@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 12:59 2002 (klh) */
+/*  Last edited: Jul 13 15:49 2002 (klh) */
 /**********************************************************************
  ** FILE: options.h
  ** DESCRIPTION:
@@ -33,9 +33,9 @@ typedef struct {
 
 /******************* function prototypes ****************************/
 
-int get_option(int, char **, Option *, int, int *, char **, char **, int *);
+int get_option(int, char **, Option *, int, int *, char **, char **, boolean *);
 int process_default_Options( FILE *defs, 
-				  int (*)( char *, char *) );
+			     boolean (*)( char *, char *) );
 
 
 

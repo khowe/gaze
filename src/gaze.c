@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 14:54 2002 (klh) */
+/*  Last edited: Jul 15 11:48 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -6,7 +6,6 @@
  ** Description : 
  **********************************************************************/
 
-#include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -81,8 +80,8 @@ static struct {
   double sigma;
   char *structure_file_name;
   FILE *structure_file;
-  GArray *gff_file_names; /* of string */
-  GArray *gff_files;      /* of FILE */
+  Array *gff_file_names; /* of string */
+  Array *gff_files;      /* of FILE */
   char *dna_file_name;
   FILE *dna_file;
   char *out_file_name;
@@ -95,12 +94,12 @@ static struct {
     ALL_FEATURES,
     ALL_REGIONS 
   } output;    
-  gboolean full_calc;
-  gboolean use_selected;
-  gboolean verbose;
+  boolean full_calc;
+  boolean use_selected;
+  boolean verbose;
 
-  gboolean posterior;
-  gboolean use_threshold;
+  boolean posterior;
+  boolean use_threshold;
   double threshold;
 
 } gaze_options;
@@ -114,10 +113,10 @@ static struct {
  ARGS: 
  NOTES:
  *********************************************************************/
-static gboolean process_Gaze_Options(char *optname,
+static boolean process_Gaze_Options(char *optname,
 				     char *optarg ) {
   int i;
-  gboolean options_error = FALSE;
+  boolean options_error = FALSE;
 
   if (strcmp(optname, "-begin_dna") == 0) gaze_options.begin_dna = atoi( optarg );
   else if (strcmp(optname, "-end_dna") == 0) gaze_options.end_dna = atoi( optarg );	     
@@ -154,7 +153,7 @@ static gboolean process_Gaze_Options(char *optname,
     else {
       if (gaze_options.out_file_name != NULL)
 	free_util( gaze_options.out_file_name );
-      gaze_options.out_file_name = g_strdup( optarg );
+      gaze_options.out_file_name = strdup_util( optarg );
     }
   }
   else if (strcmp(optname, "-dna_file") == 0) {
@@ -165,7 +164,7 @@ static gboolean process_Gaze_Options(char *optname,
     else {
       if (gaze_options.dna_file_name != NULL)
 	free_util( gaze_options.dna_file_name );
-      gaze_options.dna_file_name = g_strdup( optarg );
+      gaze_options.dna_file_name = strdup_util( optarg );
     }
   }
   else if (strcmp(optname, "-structure_file") == 0) {
@@ -176,7 +175,7 @@ static gboolean process_Gaze_Options(char *optname,
     else {
       if (gaze_options.structure_file_name != NULL)
 	free_util( gaze_options.structure_file_name );
-      gaze_options.structure_file_name = g_strdup( optarg );
+      gaze_options.structure_file_name = strdup_util( optarg );
     }
   }
   else if (strcmp(optname, "-gene_file") == 0) {
@@ -187,16 +186,16 @@ static gboolean process_Gaze_Options(char *optname,
     else {
       if (gaze_options.gene_file_name != NULL)
 	free_util( gaze_options.gene_file_name );
-      gaze_options.gene_file_name = g_strdup( optarg );
+      gaze_options.gene_file_name = strdup_util( optarg );
     }
   }
   else if (strcmp(optname, "-gff_file") == 0) {
     /* I allow multiple gff files to be specified. So, fo each one, 
        we have to check that it hasn't already been opened, and
        if it hasn't, open it and store it in the file name list */
-    gboolean match = FALSE;
+    boolean match = FALSE;
     for (i=0; i < gaze_options.gff_file_names->len; i++) {
-      if (! strcmp( optarg, g_array_index( gaze_options.gff_file_names, char *, i)))
+      if (! strcmp( optarg, index_Array( gaze_options.gff_file_names, char *, i)))
 	match = TRUE;
     }
     
@@ -212,9 +211,9 @@ static gboolean process_Gaze_Options(char *optname,
 	options_error = TRUE;
       }
       else {
-	char *tmp_f_name = g_strdup( optarg );
-	g_array_append_val( gaze_options.gff_file_names, tmp_f_name );
-	g_array_append_val( gaze_options.gff_files, tmp_f );
+	char *tmp_f_name = strdup_util( optarg );
+	append_val_Array( gaze_options.gff_file_names, tmp_f_name );
+	append_val_Array( gaze_options.gff_files, tmp_f );
       }
     } 
   }
@@ -234,8 +233,8 @@ static gboolean process_Gaze_Options(char *optname,
  NOTES:
  *********************************************************************/
 static int parse_command_line( int argc, char *argv[] ) {
-  gboolean options_error = FALSE;
-  gboolean help_wanted = FALSE;
+  boolean options_error = FALSE;
+  boolean help_wanted = FALSE;
   int optindex;
   char *optname, *optarg;
   FILE *defaults_fh = NULL;
@@ -286,11 +285,11 @@ static int parse_command_line( int argc, char *argv[] ) {
   gaze_options.sigma = 1.0;
   gaze_options.dna_file_name = NULL;
   gaze_options.dna_file = NULL;
-  gaze_options.gff_file_names = g_array_new( FALSE, TRUE, sizeof( char *) );
-  gaze_options.gff_files = g_array_new( FALSE, TRUE, sizeof( FILE *) );
+  gaze_options.gff_file_names = new_Array( sizeof( char *), TRUE );
+  gaze_options.gff_files = new_Array( sizeof( FILE *), TRUE );
   gaze_options.structure_file_name = NULL;
   gaze_options.structure_file = NULL;
-  gaze_options.out_file_name = g_strdup( "stdout ");
+  gaze_options.out_file_name = strdup_util( "stdout ");
   gaze_options.out_file = stdout;
   gaze_options.gene_file_name = NULL;
   gaze_options.gene_file = NULL;;
@@ -349,7 +348,7 @@ int main (int argc, char *argv[]) {
 
   Gaze_Structure *gs;
   Gaze_Output *g_out;
-  GArray *features, *segments, *min_scores, *feature_path = NULL;
+  Array *features, *segments, *min_scores, *feature_path = NULL;
   Feature *beg_ft, *end_ft;
   char *dna_seq;
   int i,j,k, num_segs = 0;
@@ -372,21 +371,21 @@ int main (int argc, char *argv[]) {
   g_out->threshold = gaze_options.threshold;
   /***/
 
-  features = g_array_new( FALSE, TRUE, sizeof(Feature *));
+  features = new_Array( sizeof(Feature *), TRUE);
 
-  segments = g_array_new( FALSE, TRUE, sizeof(Segment_lists *));
-  g_array_set_size( segments, gs->seg_dict->len );
+  segments = new_Array( sizeof(Segment_lists *), TRUE);
+  set_size_Array( segments, gs->seg_dict->len );
 
   for(i=0; i < segments->len; i++) 
-    g_array_index( segments, Segment_lists *, i) = new_Segment_lists(); 
+    index_Array( segments, Segment_lists *, i) = new_Segment_lists(); 
 
   /* need to record the minimum score seen for each feature type, so 
      that we can obtain a score for features extracted from the DNA */
 
-  min_scores = g_array_new( FALSE, TRUE, sizeof(double) );
-  g_array_set_size( min_scores, gs->feat_dict->len );
+  min_scores = new_Array( sizeof(double), TRUE );
+  set_size_Array( min_scores, gs->feat_dict->len );
   for(i=0; i < min_scores->len; i++)
-    g_array_index( min_scores, double, i ) = 0.0;
+    index_Array( min_scores, double, i ) = 0.0;
 
   /******************************************************************/
   /* get all the features *******************************************/
@@ -398,13 +397,13 @@ int main (int argc, char *argv[]) {
   beg_ft->feat_idx = dict_lookup( gs->feat_dict, "BEGIN" );
   beg_ft->real_pos.s = gaze_options.begin_dna;
   beg_ft->real_pos.e = gaze_options.begin_dna;
-  g_array_append_val( features, beg_ft );
+  append_val_Array( features, beg_ft );
   
   end_ft = new_Feature();
   end_ft->feat_idx = dict_lookup( gs->feat_dict, "END" );
   end_ft->real_pos.s = gaze_options.end_dna;
   end_ft->real_pos.e = gaze_options.end_dna;
-  g_array_append_val( features, end_ft );
+  append_val_Array( features, end_ft );
 
   /* Get the features from the GFF files... */
   
@@ -437,7 +436,7 @@ int main (int argc, char *argv[]) {
     free_util( dna_seq );
   }
   
-  g_array_free( min_scores, TRUE );
+  free_Array( min_scores, TRUE );
 
 
   /***********************************************/
@@ -448,26 +447,28 @@ int main (int argc, char *argv[]) {
     fprintf(stderr, "Features: sorting, scaling %d feats and removing duplicates...", features->len );
 
   for( i=0; i < features->len; i++ ) {
-    Feature *ft = g_array_index( features, Feature *, i );
-    ft->score *= g_array_index( gs->feat_info, Feature_Info *, ft->feat_idx )->multiplier;
+    Feature *ft = index_Array( features, Feature *, i );
+    ft->score *= index_Array( gs->feat_info, Feature_Info *, ft->feat_idx )->multiplier;
     ft->score *= gaze_options.sigma;
 
     /* for sorting, we need to calculate the effective "position" of each feature, 
        using the start_offset and end_offset */
     ft->adj_pos.s = ft->real_pos.s 
-      + g_array_index( gs->feat_info, Feature_Info *, ft->feat_idx )->start_offset;
+      + index_Array( gs->feat_info, Feature_Info *, ft->feat_idx )->start_offset;
 
     ft->adj_pos.e = ft->real_pos.e 
-      - g_array_index( gs->feat_info, Feature_Info *, ft->feat_idx )->end_offset;
+      - index_Array( gs->feat_info, Feature_Info *, ft->feat_idx )->end_offset;
   }
 
   qsort( features->data, features->len, sizeof(Feature *), &order_features_forwards); 
 
-  /* fprintf(stderr, "Removed duplicates\n"); */
   features = remove_duplicate_features( features );
+
 
   if (gaze_options.verbose)
     fprintf(stderr, "%d features left\n", features->len);
+
+fprintf(stderr, "Features: %d, alloced %d\n", features->len, ((GRealArray*)features)->alloc);
 
   /***************************************/
   /* scale, sort and index segments ******/
@@ -477,18 +478,18 @@ int main (int argc, char *argv[]) {
     fprintf(stderr, "Segments: sorting, scaling, indexing and projecting...");
 
   for( i=0; i < segments->len; i++ ) {
-    double multiplier = g_array_index( gs->seg_info, Segment_Info *, i )->multiplier;
-    Segment_lists *seg_lists = g_array_index( segments, Segment_lists *, i);
+    double multiplier = index_Array( gs->seg_info, Segment_Info *, i )->multiplier;
+    Segment_lists *seg_lists = index_Array( segments, Segment_lists *, i);
 
     /* fourth element holds segments of this type in all frames */
-    num_segs += g_array_index( seg_lists->orig, GArray *, 3 )->len;
+    num_segs += index_Array( seg_lists->orig, Array *, 3 )->len;
     
     for (j=0; j < seg_lists->orig->len; j++) {
-      GArray *o = g_array_index( seg_lists->orig, GArray *, j);
-      GArray *p;
+      Array *o = index_Array( seg_lists->orig, Array *, j);
+      Array *p;
       
       for (k=0; k < o->len; k++) {
-	Segment *seg = g_array_index( o, Segment *, k );
+	Segment *seg = index_Array( o, Segment *, k );
 	seg->score *= multiplier;
 	seg->score *= gaze_options.sigma;
 	/* the following makes it a per-residue score */
@@ -499,8 +500,8 @@ int main (int argc, char *argv[]) {
       index_Segments( o );
       p = project_Segments( o );
       index_Segments( p );
-      
-      g_array_index( seg_lists->proj, GArray *, j) = p;
+
+      index_Array( seg_lists->proj, Array *, j) = p;
     }      
   }
 
@@ -511,14 +512,15 @@ int main (int argc, char *argv[]) {
   /* Scale the length penalties */
   /******************************/
   for(i=0; i < gs->length_funcs->len; i++) {
-    Length_Function *lf = g_array_index( gs->length_funcs, Length_Function *, i );
+    Length_Function *lf = index_Array( gs->length_funcs, Length_Function *, i );
     for( j=0; j < lf->value_map->len; j++) {
-      g_array_index( lf->value_map, double, j ) = 
-	g_array_index( lf->value_map, double, j ) * lf->multiplier;
-      g_array_index( lf->value_map, double, j ) = 
-	g_array_index( lf->value_map, double, j ) * gaze_options.sigma;
+      index_Array( lf->value_map, double, j ) = 
+	index_Array( lf->value_map, double, j ) * lf->multiplier;
+      index_Array( lf->value_map, double, j ) = 
+	index_Array( lf->value_map, double, j ) * gaze_options.sigma;
     }
   }
+
   
   /************************************************************************
          Dynamic programming
@@ -593,13 +595,13 @@ int main (int argc, char *argv[]) {
 
   free_Gaze_Output( g_out );
   for(i=0; i < features->len; i++)
-    free_Feature( g_array_index( features, Feature *, i));
-  g_array_free( features, TRUE);
+    free_Feature( index_Array( features, Feature *, i));
+  free_Array( features, TRUE);
   for(i=0; i < segments->len; i++)
-    free_Segment_lists( g_array_index( segments, Segment_lists *, i ));
-  g_array_free( segments, TRUE);
+    free_Segment_lists( index_Array( segments, Segment_lists *, i ));
+  free_Array( segments, TRUE);
   if (feature_path != NULL)
-    g_array_free (feature_path, TRUE );
+    free_Array (feature_path, TRUE );
   free_Gaze_Structure( gs );
   
   return 0;

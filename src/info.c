@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 12:42 2002 (klh) */
+/*  Last edited: Jul 15 11:47 2002 (klh) */
 /**********************************************************************
  ** File: info.c
  ** Author : Kevin Howe
@@ -49,30 +49,30 @@ void free_Feature_Info(Feature_Info *ft_info) {
   if (ft_info != NULL) {
     if (ft_info->sources != NULL) {
       for(i=0; i < ft_info->sources->len; i++) {
-	free_Feature_Relation( g_array_index(ft_info->sources, Feature_Relation *, i) );
+	free_Feature_Relation( index_Array(ft_info->sources, Feature_Relation *, i) );
       }
-      g_array_free( ft_info->sources, TRUE);
+      free_Array( ft_info->sources, TRUE);
     }
     if (ft_info->targets != NULL) {
       for(i=0; i < ft_info->targets->len; i++) {
-	free_Feature_Relation( g_array_index(ft_info->targets, Feature_Relation *, i) );
+	free_Feature_Relation( index_Array(ft_info->targets, Feature_Relation *, i) );
       }
-      g_array_free( ft_info->targets, TRUE);
+      free_Array( ft_info->targets, TRUE);
     }
     if (ft_info->kill_feat_quals != NULL) {
       for(i=0; i < ft_info->kill_feat_quals->len; i++) {
-	if (g_array_index(ft_info->kill_feat_quals, Killer_Feature_Qualifier *, i) != NULL) {
-	 free_Killer_Feature_Qualifier( g_array_index( ft_info->kill_feat_quals, Killer_Feature_Qualifier *, i));
+	if (index_Array(ft_info->kill_feat_quals, Killer_Feature_Qualifier *, i) != NULL) {
+	 free_Killer_Feature_Qualifier( index_Array( ft_info->kill_feat_quals, Killer_Feature_Qualifier *, i));
 	}
       }
-      g_array_free( ft_info->kill_feat_quals, TRUE);
+      free_Array( ft_info->kill_feat_quals, TRUE);
     }
     if (ft_info->seg_quals != NULL) {
       for(i=0; i < ft_info->seg_quals->len; i++) {
-	if (g_array_index(ft_info->seg_quals, Segment_Qualifier *, i) != NULL) 
-	  free_Segment_Qualifier( g_array_index( ft_info->seg_quals, Segment_Qualifier *, i));
+	if (index_Array(ft_info->seg_quals, Segment_Qualifier *, i) != NULL) 
+	  free_Segment_Qualifier( index_Array( ft_info->seg_quals, Segment_Qualifier *, i));
       }
-      g_array_free( ft_info->seg_quals, TRUE);
+      free_Array( ft_info->seg_quals, TRUE);
     }
   
     free_util( ft_info );
@@ -150,31 +150,31 @@ Feature_Relation *clone_Feature_Relation(Feature_Relation *src) {
       dest->out_qual = clone_Output_Qualifier( src->out_qual );
 
     if (src->seg_quals != NULL) {
-      dest->seg_quals = g_array_new( FALSE, TRUE, sizeof(Segment_Qualifier *));
-      g_array_set_size( dest->seg_quals, src->seg_quals->len );
+      dest->seg_quals = new_Array( sizeof(Segment_Qualifier *), TRUE);
+      set_size_Array( dest->seg_quals, src->seg_quals->len );
       for (i=0; i < src->seg_quals->len; i++)
-	g_array_index( dest->seg_quals, Segment_Qualifier *, i) =
-	  clone_Segment_Qualifier( g_array_index(src->seg_quals,  Segment_Qualifier *, i) );
+	index_Array( dest->seg_quals, Segment_Qualifier *, i) =
+	  clone_Segment_Qualifier( index_Array(src->seg_quals,  Segment_Qualifier *, i) );
     }
     else
      dest->seg_quals = NULL;
 
     if (src->kill_feat_quals != NULL) {
-      dest->kill_feat_quals = g_array_new( FALSE, TRUE, sizeof(Killer_Feature_Qualifier *));
-      g_array_set_size( dest->kill_feat_quals, src->kill_feat_quals->len );
+      dest->kill_feat_quals = new_Array( sizeof(Killer_Feature_Qualifier *), TRUE);
+      set_size_Array( dest->kill_feat_quals, src->kill_feat_quals->len );
       for (i=0; i < src->kill_feat_quals->len; i++)
-	g_array_index( dest->kill_feat_quals, Killer_Feature_Qualifier *, i) =
-	  clone_Killer_Feature_Qualifier( g_array_index(src->kill_feat_quals, Killer_Feature_Qualifier *, i) );
+	index_Array( dest->kill_feat_quals, Killer_Feature_Qualifier *, i) =
+	  clone_Killer_Feature_Qualifier( index_Array(src->kill_feat_quals, Killer_Feature_Qualifier *, i) );
     }
     else
      dest->kill_feat_quals = NULL;
 
     if (src->kill_dna_quals != NULL) {
-      dest->kill_dna_quals = g_array_new( FALSE, TRUE, sizeof(Killer_DNA_Qualifier *));
-      g_array_set_size( dest->kill_dna_quals, src->kill_dna_quals->len );
+      dest->kill_dna_quals = new_Array( sizeof(Killer_DNA_Qualifier *), TRUE);
+      set_size_Array( dest->kill_dna_quals, src->kill_dna_quals->len );
       for (i=0; i < src->kill_dna_quals->len; i++) 
-	g_array_index( dest->kill_dna_quals, Killer_DNA_Qualifier *, i) = 
-	  clone_Killer_DNA_Qualifier( g_array_index( src->kill_dna_quals, Killer_DNA_Qualifier *, i ) ); 
+	index_Array( dest->kill_dna_quals, Killer_DNA_Qualifier *, i) = 
+	  clone_Killer_DNA_Qualifier( index_Array( src->kill_dna_quals, Killer_DNA_Qualifier *, i ) ); 
     }
     else
       dest->kill_dna_quals = NULL;
@@ -209,20 +209,20 @@ void free_Feature_Relation(Feature_Relation *ft_src) {
 
     if (ft_src->seg_quals != NULL) {
       for (i=0; i < ft_src->seg_quals->len; i++)
-	  free_Segment_Qualifier( g_array_index( ft_src->seg_quals, Segment_Qualifier  *, i));
-      g_array_free( ft_src->seg_quals, TRUE );
+	  free_Segment_Qualifier( index_Array( ft_src->seg_quals, Segment_Qualifier  *, i));
+      free_Array( ft_src->seg_quals, TRUE );
     }
 
     if (ft_src->kill_feat_quals != NULL) {
       for (i=0; i < ft_src->kill_feat_quals->len; i++)
-	  free_Killer_Feature_Qualifier( g_array_index( ft_src->kill_feat_quals, Killer_Feature_Qualifier  *, i));
-      g_array_free( ft_src->kill_feat_quals, TRUE );
+	  free_Killer_Feature_Qualifier( index_Array( ft_src->kill_feat_quals, Killer_Feature_Qualifier  *, i));
+      free_Array( ft_src->kill_feat_quals, TRUE );
     }
 
     if (ft_src->kill_dna_quals != NULL) {
       for (i=0; i < ft_src->kill_dna_quals->len; i++) 
-	free_Killer_DNA_Qualifier( g_array_index( ft_src->kill_dna_quals, Killer_DNA_Qualifier *, i ) );
-      g_array_free( ft_src->kill_dna_quals, TRUE );
+	free_Killer_DNA_Qualifier( index_Array( ft_src->kill_dna_quals, Killer_DNA_Qualifier *, i ) );
+      free_Array( ft_src->kill_dna_quals, TRUE );
     }
 
     if (ft_src->out_qual != NULL)
@@ -279,30 +279,30 @@ void calc_Length_Function(Length_Function *len_fun) {
   if (len_fun->raw_x_vals->len &&
       (len_fun->raw_x_vals->len == len_fun->raw_y_vals->len)) {
 
-    last_x = g_array_index( len_fun->raw_x_vals,
+    last_x = index_Array( len_fun->raw_x_vals,
 			    int,
 			    len_fun->raw_x_vals->len - 1);
-    len_fun->value_map = g_array_new( FALSE, TRUE, sizeof( double ) );
-    g_array_set_size( len_fun->value_map, last_x + 1 );
+    len_fun->value_map = new_Array( sizeof( double ), TRUE );
+    set_size_Array( len_fun->value_map, last_x + 1 );
     
 
     point_ctr = 1;
-    x1 = g_array_index( len_fun->raw_x_vals, int, point_ctr - 1);
-    y1 = g_array_index( len_fun->raw_y_vals, double, point_ctr - 1);
+    x1 = index_Array( len_fun->raw_x_vals, int, point_ctr - 1);
+    y1 = index_Array( len_fun->raw_y_vals, double, point_ctr - 1);
 	
     /* first, initialize all points up to x1 */
 
     for (fctr=0; fctr < x1; fctr++) {
-      g_array_index( len_fun->value_map, double, fctr ) = 0.0;
+      index_Array( len_fun->value_map, double, fctr ) = 0.0;
     }
 	
     while (fctr < last_x) {
-      x2 = g_array_index( len_fun->raw_x_vals, int, point_ctr );
-      y2 = g_array_index( len_fun->raw_y_vals, double, point_ctr );
+      x2 = index_Array( len_fun->raw_x_vals, int, point_ctr );
+      y2 = index_Array( len_fun->raw_y_vals, double, point_ctr );
 
       dy_by_dx = (y2 - y1) / ((double) x2 - (double) x1);
       while (fctr < x2) {
-	g_array_index( len_fun->value_map, double, fctr ) = 
+	index_Array( len_fun->value_map, double, fctr ) = 
 	  y1 + ((fctr - x1) * dy_by_dx);
 	fctr++;
       }
@@ -323,7 +323,7 @@ void calc_Length_Function(Length_Function *len_fun) {
 
     /* finally, initialise the remaining point */
 
-    g_array_index( len_fun->value_map, double, fctr ) = y1; 
+    index_Array( len_fun->value_map, double, fctr ) = y1; 
       
   }
 }
@@ -340,13 +340,13 @@ void calc_Length_Function(Length_Function *len_fun) {
 void free_Length_Function(Length_Function *len_fun) {
   if (len_fun != NULL) {
     if (len_fun->value_map != NULL) {
-      g_array_free( len_fun->value_map, TRUE );
+      free_Array( len_fun->value_map, TRUE );
     }
     if (len_fun->raw_x_vals != NULL) {
-      g_array_free( len_fun->raw_x_vals, TRUE );
+      free_Array( len_fun->raw_x_vals, TRUE );
     }
     if (len_fun->raw_y_vals != NULL) {
-      g_array_free( len_fun->raw_y_vals, TRUE );
+      free_Array( len_fun->raw_y_vals, TRUE );
     }
     
     free_util( len_fun );
@@ -367,8 +367,8 @@ Length_Function *new_Length_Function( double multiplier) {
 
   temp = (Length_Function *) malloc_util( sizeof(Length_Function));
   temp->value_map = NULL;
-  temp->raw_x_vals = g_array_new( FALSE, TRUE, sizeof(int) );
-  temp->raw_y_vals = g_array_new( FALSE, TRUE, sizeof(double) );
+  temp->raw_x_vals = new_Array( sizeof(int), TRUE );
+  temp->raw_y_vals = new_Array( sizeof(double), TRUE );
   temp->multiplier = multiplier;
   temp->becomes_monotonic = TRUE;
   temp->monotonic_point = 0;
@@ -507,11 +507,11 @@ Output_Qualifier *clone_Output_Qualifier( Output_Qualifier *src ) {
 
   if (src != NULL) {
     if (src->feature != NULL)
-      tgt->feature = g_strdup( src->feature );
+      tgt->feature = strdup_util( src->feature );
     if (src->strand != NULL)
-      tgt->strand = g_strdup( src->strand );
+      tgt->strand = strdup_util( src->strand );
     if (src->frame != NULL) 
-      tgt->frame = g_strdup( src->frame );
+      tgt->frame = strdup_util( src->frame );
       
     tgt->need_to_print = src->need_to_print;
   }

@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 14:32 2002 (klh) */
+/*  Last edited: Jul 15 11:44 2002 (klh) */
 /**********************************************************************
  ** File: str_parse.c
  ** Author : Kevin Howe
@@ -11,8 +11,8 @@
 
 
 struct Parse_context {
-  GArray *tag_stack;
-  gboolean finished_parsing;
+  Array *tag_stack;
+  boolean finished_parsing;
   int error;
   XML_Parser the_parser;
   int current_idx;
@@ -137,7 +137,7 @@ static struct {
 static void start_tag_structure(void *data, const char *el, const char **attr) {
   int i;
   char *t;
-  gboolean match = FALSE;
+  boolean match = FALSE;
 
   struct Parse_context *state = (struct Parse_context *) data;
 
@@ -160,8 +160,8 @@ static void start_tag_structure(void *data, const char *el, const char **attr) {
       }
       else {
 	(*tag_map[i].func)(state, attr);
-	t =  g_strdup( el );
-	g_array_append_val(state->tag_stack, t);
+	t =  strdup_util( el );
+	append_val_Array(state->tag_stack, t);
       }
     }
   } 
@@ -187,8 +187,8 @@ static void end_tag_structure(void *data, const char *el) {
     else {
       if (state->tag_stack->len) {
 	int index =  state->tag_stack->len - 1;
-	char *temp = g_array_index( state->tag_stack, char *, index );
-	g_array_remove_index( state->tag_stack, index );
+	char *temp = index_Array( state->tag_stack, char *, index );
+	remove_index_Array( state->tag_stack, index );
 	free_util( temp );
 	
 	if (! state->tag_stack->len) 
@@ -218,7 +218,7 @@ static void parse_Gaze_Structure_declarations( struct Parse_context *state,
 
 
   if (! state->tag_stack->len ||
-      strcmp(g_array_index(state->tag_stack, 
+      strcmp(index_Array(state->tag_stack, 
 			   char *, 
 			   state->tag_stack->len - 1), 
 	     tag_map[GAZE].tag)) {
@@ -241,7 +241,7 @@ static void parse_Gaze_Structure_dna2gaze( struct Parse_context *state,
 					   const char **attr ) {
 
   if (! state->tag_stack->len ||
-      strcmp(g_array_index(state->tag_stack, 
+      strcmp(index_Array(state->tag_stack, 
 			   char *, 
 			   state->tag_stack->len - 1), 
 	     tag_map[GAZE].tag)) {
@@ -265,20 +265,20 @@ static void parse_Gaze_Structure_dnafeat( struct Parse_context *state,
 					  const char **attr ) {
 
   char *pattern = NULL;
-  gboolean has_score = FALSE;
+  boolean has_score = FALSE;
   double score = 0.0;
   int i;
   DNA_to_features *new_dna2ft;
   
   if (state->tag_stack->len && 
-      ! strcmp(g_array_index(state->tag_stack, 
+      ! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[DNA2GAZE].tag)) {
     
     for( i=0; attr[i]; i += 2 ) {
       if (! strcmp( attr[i], "pattern" )) {
-	pattern = g_strdup( attr[i+1] );
+	pattern = strdup_util( attr[i+1] );
       }
       else if (! strcmp( attr[i], "score" )) {
 	has_score = TRUE;
@@ -296,7 +296,7 @@ static void parse_Gaze_Structure_dnafeat( struct Parse_context *state,
 	new_dna2ft->dna_motif = pattern;
 	new_dna2ft->has_score = has_score;
 	new_dna2ft->score = score;
-	g_array_append_val( state->gs->dna_to_feats, new_dna2ft );
+	append_val_Array( state->gs->dna_to_feats, new_dna2ft );
       }
       else {
 	/* no pattern attribute - bad news */
@@ -347,32 +347,32 @@ static void parse_Gaze_Structure_feat( struct Parse_context *state,
   
   if (! state->error) {
     if (state->tag_stack->len) {
-      if (! strcmp(g_array_index(state->tag_stack, 
+      if (! strcmp(index_Array(state->tag_stack, 
 				 char *, 
 				 state->tag_stack->len - 1), 
 		   tag_map[GFFLINE].tag)) {
 	
 	GFF_to_features *gff2fts;
-	gff2fts = g_array_index( state->gs->gff_to_feats, 
+	gff2fts = index_Array( state->gs->gff_to_feats, 
 				 GFF_to_features *,
 				 state->gs->gff_to_feats->len - 1);
 	feat = new_Feature();
 	feat->feat_idx = index;
-	g_array_append_val( gff2fts->features, feat );
+	append_val_Array( gff2fts->features, feat );
       }
-      else if (! strcmp(g_array_index(state->tag_stack, 
+      else if (! strcmp(index_Array(state->tag_stack, 
 				      char *, 
 				      state->tag_stack->len - 1), 
 			tag_map[DNAFEAT].tag)) {
 	
 	DNA_to_features *dna2fts;
-	dna2fts = g_array_index( state->gs->dna_to_feats, 
+	dna2fts = index_Array( state->gs->dna_to_feats, 
 				 DNA_to_features *,
 				 state->gs->dna_to_feats->len - 1);
 	feat = new_Feature();
 	feat->feat_idx = index;
 	feat->score = score;
-	g_array_append_val( dna2fts->features, feat );	
+	append_val_Array( dna2fts->features, feat );	
       }
       else {
 	/* Tag out of context */
@@ -407,7 +407,7 @@ static void parse_Gaze_Structure_feature( struct Parse_context *state,
   Feature_Info *new_feat;
   
   if (state->tag_stack->len && 
-      ! strcmp(g_array_index(state->tag_stack, 
+      ! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[DECLARATIONS].tag)) {
@@ -421,7 +421,7 @@ static void parse_Gaze_Structure_feature( struct Parse_context *state,
 	  state->error =  XML_GetCurrentLineNumber( state->the_parser );
 	}
 	else {
-	  id = g_strdup( attr[i+1] );
+	  id = strdup_util( attr[i+1] );
 	}
       }
       else if (! strcmp( attr[i], "st_off" )) {
@@ -446,8 +446,8 @@ static void parse_Gaze_Structure_feature( struct Parse_context *state,
 	   position, just before the END feature. This is so that the
 	   features can be sorted correctly */
 
-	g_array_insert_val( state->gs->feat_dict, state->gs->feat_dict->len - 1, id );
-	g_array_insert_val( state->gs->feat_info, state->gs->feat_info->len - 1, new_feat );
+	insert_val_Array( state->gs->feat_dict, state->gs->feat_dict->len - 1, id );
+	insert_val_Array( state->gs->feat_info, state->gs->feat_info->len - 1, new_feat );
       }
       else {
 	/* no id attribute - bad news */
@@ -478,7 +478,7 @@ static void parse_Gaze_Structure_model( struct Parse_context *state,
 					const char **attr ) {
 
   if (! state->tag_stack->len ||
-      strcmp(g_array_index(state->tag_stack, 
+      strcmp(index_Array(state->tag_stack, 
 			   char *, 
 			   state->tag_stack->len - 1), 
 	     tag_map[GAZE].tag)) {
@@ -520,7 +520,7 @@ static void parse_Gaze_Structure_gff2gaze( struct Parse_context *state,
 					   const char **attr ) {
 
   if (! state->tag_stack->len ||
-      strcmp(g_array_index(state->tag_stack, 
+      strcmp(index_Array(state->tag_stack, 
 			   char *, 
 			   state->tag_stack->len - 1), 
 	     tag_map[GAZE].tag)) {
@@ -548,20 +548,20 @@ static void parse_Gaze_Structure_gffline( struct Parse_context *state,
 
 
   if (state->tag_stack->len && 
-      ((! strcmp(g_array_index(state->tag_stack, 
+      ((! strcmp(index_Array(state->tag_stack, 
 			       char *, 
 			       state->tag_stack->len - 1), 
 		 tag_map[GFF2GAZE].tag)))) {
     
     for( i=0; attr[i]; i += 2 ) {
       if (! strcmp( attr[i], "feature" )) {
-	feature = g_strdup( attr[i+1] );
+	feature = strdup_util( attr[i+1] );
       }
       else if (! strcmp( attr[i], "source" )) {
-	source = g_strdup( attr[i+1] );
+	source = strdup_util( attr[i+1] );
       }
       else if (! strcmp( attr[i], "strand" )) {
-	strand = g_strdup( attr[i+1] );
+	strand = strdup_util( attr[i+1] );
       }
       else {
 	/* unrecognised attribute */
@@ -575,7 +575,7 @@ static void parse_Gaze_Structure_gffline( struct Parse_context *state,
 	new_gff2ft->gff_feature = feature;
 	new_gff2ft->gff_source = source;
 	new_gff2ft->gff_strand = strand;
-	g_array_append_val( state->gs->gff_to_feats, new_gff2ft );
+	append_val_Array( state->gs->gff_to_feats, new_gff2ft );
       }
       else {
 	  fprintf(stderr, "In tag 'gffline' you must define some attributes!\n");
@@ -608,7 +608,7 @@ static void parse_Gaze_Structure_killdna( struct Parse_context *state,
   char *new_motif = NULL;
 
   if (state->tag_stack->len && 
-      ! strcmp(g_array_index(state->tag_stack, 
+      ! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[SOURCE].tag)) {
@@ -621,11 +621,11 @@ static void parse_Gaze_Structure_killdna( struct Parse_context *state,
 	  state->error = XML_GetCurrentLineNumber( state->the_parser );
 	}
 	else {
-	  new_motif = g_strdup( attr[i+1] );
+	  new_motif = strdup_util( attr[i+1] );
 	  for(j=0; new_motif[j] != '\0'; j++)
 	    new_motif[j] = tolower( (int) new_motif[j]);
 	  if ((src_dna_idx = dict_lookup(state->gs->motif_dict, attr[i+1])) < 0) {
-	    g_array_append_val( state->gs->motif_dict, new_motif );
+	    append_val_Array( state->gs->motif_dict, new_motif );
 	    src_dna_idx = state->gs->motif_dict->len - 1;
 	  }
 	  else 
@@ -639,11 +639,11 @@ static void parse_Gaze_Structure_killdna( struct Parse_context *state,
 	  state->error = XML_GetCurrentLineNumber( state->the_parser );
 	}
 	else {
-	  new_motif = g_strdup( attr[i+1] );
+	  new_motif = strdup_util( attr[i+1] );
 	  for(j=0; new_motif[j] != '\0'; j++)
 	    new_motif[j] = tolower( (int) new_motif[j]);
 	  if ((tgt_dna_idx = dict_lookup(state->gs->motif_dict, attr[i+1])) < 0) {
-	    g_array_append_val( state->gs->motif_dict, new_motif );
+	    append_val_Array( state->gs->motif_dict, new_motif );
 	    tgt_dna_idx = state->gs->motif_dict->len - 1;
 	  }
 	  else 
@@ -659,17 +659,17 @@ static void parse_Gaze_Structure_killdna( struct Parse_context *state,
 
 
     if (! state->error) {
-      Feature_Info *tgt_info = g_array_index( state->gs->feat_info, Feature_Info *, state->current_idx);
-      Feature_Relation *ft_rel = g_array_index( tgt_info->sources, Feature_Relation *, state->current_idx_2);
+      Feature_Info *tgt_info = index_Array( state->gs->feat_info, Feature_Info *, state->current_idx);
+      Feature_Relation *ft_rel = index_Array( tgt_info->sources, Feature_Relation *, state->current_idx_2);
       Killer_DNA_Qualifier *kdq = new_Killer_DNA_Qualifier();
 
       kdq->src_dna = src_dna_idx;
       kdq->tgt_dna = tgt_dna_idx;
 
       if (ft_rel->kill_dna_quals == NULL) 
-	ft_rel->kill_dna_quals = g_array_new(FALSE, TRUE, sizeof( Killer_DNA_Qualifier *));
+	ft_rel->kill_dna_quals = new_Array( sizeof( Killer_DNA_Qualifier *), TRUE );
       
-      g_array_append_val( ft_rel->kill_dna_quals, kdq );
+      append_val_Array( ft_rel->kill_dna_quals, kdq );
     }
   }
   else {
@@ -692,14 +692,14 @@ static void parse_Gaze_Structure_killfeat( struct Parse_context *state,
 					 const char **attr ) {
 
   int i;
-  gboolean in_source_tag = FALSE;
+  boolean in_source_tag = FALSE;
   
   if (state->tag_stack->len && 
-      ((! strcmp(g_array_index(state->tag_stack, 
+      ((! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[TARGET].tag)) ||
-      (! strcmp(g_array_index(state->tag_stack, 
+      (! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[SOURCE].tag)))) {
@@ -707,7 +707,7 @@ static void parse_Gaze_Structure_killfeat( struct Parse_context *state,
 
     Killer_Feature_Qualifier *kq = new_Killer_Feature_Qualifier();
 
-    in_source_tag =  strcmp(g_array_index(state->tag_stack, 
+    in_source_tag =  strcmp(index_Array(state->tag_stack, 
 					  char *, 
 					  state->tag_stack->len - 1), 
 			    tag_map[TARGET].tag);
@@ -755,7 +755,7 @@ static void parse_Gaze_Structure_killfeat( struct Parse_context *state,
     }
 
     if (! state->error) {
-      Feature_Info *target = g_array_index( state->gs->feat_info, Feature_Info *, state->current_idx);
+      Feature_Info *target = index_Array( state->gs->feat_info, Feature_Info *, state->current_idx);
 
       /* if we are in the 'target' tag, we need to update the general kill_off_up
 	 array (the one that applies to all sources for the given target)
@@ -764,35 +764,35 @@ static void parse_Gaze_Structure_killfeat( struct Parse_context *state,
       if (!in_source_tag) {
 	/* must be in target tag - the killer is global to all sources for this target */
 	if (target->kill_feat_quals == NULL) {
-	  target->kill_feat_quals = g_array_new( FALSE, TRUE, sizeof( Killer_Feature_Qualifier * ));
-	  /* g_array_set_size(target->kill_feat_quals, state->gs->feat_dict->len); */
+	  target->kill_feat_quals = new_Array( sizeof( Killer_Feature_Qualifier * ), TRUE);
+	  /* set_size_Array(target->kill_feat_quals, state->gs->feat_dict->len); */
 	}
-	/* g_array_index( target->kill_feat_quals, Killer_Feature_Qualifier *, feat_idx ) = kq; */
-	g_array_append_val( target->kill_feat_quals, kq );
+	/* index_Array( target->kill_feat_quals, Killer_Feature_Qualifier *, feat_idx ) = kq; */
+	append_val_Array( target->kill_feat_quals, kq );
       }
       else {
 	/* must be in source tag - the killer is local to this particular source and target */
 	
-	Feature_Relation *ft_rel = g_array_index(target->sources, 
+	Feature_Relation *ft_rel = index_Array(target->sources, 
 						 Feature_Relation *, 
 						 state->current_idx_2);
 	if (ft_rel->kill_feat_quals == NULL) {
-	  ft_rel->kill_feat_quals = g_array_new(FALSE, TRUE, sizeof( Killer_Feature_Qualifier *));
-	  /* g_array_set_size( ft_rel->kill_feat_quals, state->gs->feat_dict->len ); */
+	  ft_rel->kill_feat_quals = new_Array(sizeof( Killer_Feature_Qualifier *), TRUE);
+	  /* set_size_Array( ft_rel->kill_feat_quals, state->gs->feat_dict->len ); */
 	}
 	/*
-	if ( g_array_index( ft_rel->kill_feat_quals, Killer_Feature_Qualifier *, feat_idx ) == NULL )
-	  g_array_index( ft_rel->kill_feat_quals, Killer_Feature_Qualifier *, feat_idx ) = kq;
+	if ( index_Array( ft_rel->kill_feat_quals, Killer_Feature_Qualifier *, feat_idx ) == NULL )
+	  index_Array( ft_rel->kill_feat_quals, Killer_Feature_Qualifier *, feat_idx ) = kq;
 	else {
 	  fprintf(stderr, "In tag 'killfeat', redefintion of killer qualifier\n"); 
 	  state->error = XML_GetCurrentLineNumber( state->the_parser );
 	}
 	*/
-	g_array_append_val( ft_rel->kill_feat_quals, kq );
+	append_val_Array( ft_rel->kill_feat_quals, kq );
       }
 
       /* need to mark the feat_idx feature as a killer feature */
-      g_array_index( state->gs->feat_info, Feature_Info *, kq->feat_idx)->is_killer_feat = TRUE;
+      index_Array( state->gs->feat_info, Feature_Info *, kq->feat_idx)->is_killer_feat = TRUE;
     }
   }
   else {
@@ -819,7 +819,7 @@ static void parse_Gaze_Structure_lengthfunc( struct Parse_context *state,
   char *file = NULL;
   
   if (state->tag_stack->len && 
-      ! strcmp(g_array_index(state->tag_stack, 
+      ! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[LENGTHFUNCTIONS].tag)) {
@@ -835,7 +835,7 @@ static void parse_Gaze_Structure_lengthfunc( struct Parse_context *state,
 	}
       }
       else if (! strcmp( attr[i], "file" ))
-	file = g_strdup(attr[i+1]);
+	file = strdup_util(attr[i+1]);
       else {
 	/* unrecognised attribute */
 	fprintf(stderr, "In tag 'lengthfunc', attr '%s' not recognised\n", attr[i]); 
@@ -858,13 +858,13 @@ static void parse_Gaze_Structure_lengthfunc( struct Parse_context *state,
       else {
 	int  x;
 	double y;
-	Length_Function *lf = g_array_index( state->gs->length_funcs, 
+	Length_Function *lf = index_Array( state->gs->length_funcs, 
 					     Length_Function *, 
 					     state->current_idx );
 	
 	while( fscanf( fp, "%d %lf", &x, &y ) != EOF ) {
-	  g_array_append_val( lf->raw_x_vals, x );
-	  g_array_append_val( lf->raw_y_vals, y );
+	  append_val_Array( lf->raw_x_vals, x );
+	  append_val_Array( lf->raw_y_vals, y );
 	}
 	calc_Length_Function( lf );
       }
@@ -895,7 +895,7 @@ static void parse_Gaze_Structure_lengthfunction( struct Parse_context *state,
   int i;
   
   if (state->tag_stack->len && 
-      ! strcmp(g_array_index(state->tag_stack, 
+      ! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[DECLARATIONS].tag)) {
@@ -908,7 +908,7 @@ static void parse_Gaze_Structure_lengthfunction( struct Parse_context *state,
 	  state->error = XML_GetCurrentLineNumber( state->the_parser );
 	}
 	else {
-	  id = g_strdup( attr[i+1] );
+	  id = strdup_util( attr[i+1] );
 	}
       }
       else if (! strcmp( attr[i], "mul" )) {
@@ -923,8 +923,8 @@ static void parse_Gaze_Structure_lengthfunction( struct Parse_context *state,
     if (! state->error) {
       if (id != NULL) { 
 	Length_Function *lf = new_Length_Function( mul );
-	g_array_append_val( state->gs->len_fun_dict, id);
-	g_array_append_val( state->gs->length_funcs, lf);
+	append_val_Array( state->gs->len_fun_dict, id);
+	append_val_Array( state->gs->length_funcs, lf);
       }
       else {
 	/* no id attribute - bad news */
@@ -952,7 +952,7 @@ static void parse_Gaze_Structure_lengthfunctions( struct Parse_context *state,
 						  const char **attr ) {
 
   if (! state->tag_stack->len ||
-      strcmp(g_array_index(state->tag_stack, 
+      strcmp(index_Array(state->tag_stack, 
 			   char *, 
 			   state->tag_stack->len - 1), 
 	     tag_map[GAZE].tag)) {
@@ -975,33 +975,33 @@ static void parse_Gaze_Structure_output( struct Parse_context *state,
   int i;
 
   Output_Qualifier *oq = new_Output_Qualifier();
-  gboolean in_source_tag;
+  boolean in_source_tag;
   
 
   if (state->tag_stack->len && 
-      ((! strcmp(g_array_index(state->tag_stack, 
+      ((! strcmp(index_Array(state->tag_stack, 
 			       char *, 
 			       state->tag_stack->len - 1), 
 		 tag_map[SOURCE].tag)) ||
-       (! strcmp(g_array_index(state->tag_stack, 
+       (! strcmp(index_Array(state->tag_stack, 
 			       char *, 
 			       state->tag_stack->len - 1), 
 		 tag_map[TARGET].tag)))) {
     
-    in_source_tag =  ! strcmp(g_array_index(state->tag_stack, 
+    in_source_tag =  ! strcmp(index_Array(state->tag_stack, 
 					  char *, 
 					  state->tag_stack->len - 1), 
 			    tag_map[SOURCE].tag);
 
     for( i=0; attr[i]; i += 2 ) {
       if (! strcmp( attr[i], "feature" )) {
-	oq->feature = g_strdup( attr[i+1] );
+	oq->feature = strdup_util( attr[i+1] );
       }
       else if (! strcmp( attr[i], "strand" )) {
-	oq->strand = g_strdup( attr[i+1] );
+	oq->strand = strdup_util( attr[i+1] );
       }
       else if (! strcmp( attr[i], "frame" )) {
-	oq->frame = g_strdup( attr[i+1] );
+	oq->frame = strdup_util( attr[i+1] );
       }
       else if ( ! strcmp( attr[i], "all_regions" )) {
 	if (! strcmp( attr[i+1], "TRUE" ))
@@ -1015,9 +1015,9 @@ static void parse_Gaze_Structure_output( struct Parse_context *state,
     }
     if (! state->error) {
       if (oq->feature != NULL || oq->strand != NULL || oq->frame != NULL) { 	
-	Feature_Info *target = g_array_index( state->gs->feat_info, Feature_Info *, state->current_idx);
+	Feature_Info *target = index_Array( state->gs->feat_info, Feature_Info *, state->current_idx);
 	if ( in_source_tag )
-	  g_array_index(target->sources, Feature_Relation *, state->current_idx_2)->out_qual = oq;
+	  index_Array(target->sources, Feature_Relation *, state->current_idx_2)->out_qual = oq;
 	else 
 	  target->out_qual = oq;
       }
@@ -1049,18 +1049,18 @@ static void parse_Gaze_Structure_point( struct Parse_context *state,
 					const char **attr ) {
   int i, x;
   double y;
-  gboolean parsed_x = FALSE;
-  gboolean parsed_y = FALSE;
+  boolean parsed_x = FALSE;
+  boolean parsed_y = FALSE;
   
   if (state->tag_stack->len && 
-      ! strcmp(g_array_index(state->tag_stack, 
+      ! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[LENGTHFUNC].tag)) {
     /* top of tag stack should be 'lengthfunctions' */
 
     Length_Function *len_fun = 
-      g_array_index( state->gs->length_funcs, Length_Function *, state->current_idx );
+      index_Array( state->gs->length_funcs, Length_Function *, state->current_idx );
 
     /* check if this length function has already been determined (by reading a file) */
     
@@ -1095,8 +1095,8 @@ static void parse_Gaze_Structure_point( struct Parse_context *state,
       }
       
       if (parsed_x && parsed_y) {
-	g_array_append_val( len_fun->raw_x_vals, x );
-	g_array_append_val( len_fun->raw_y_vals, y );
+	append_val_Array( len_fun->raw_x_vals, x );
+	append_val_Array( len_fun->raw_y_vals, y );
       }
       else {
 	fprintf(stderr, "In tag 'point' attrs 'x' and 'y' must be defined\n");
@@ -1146,31 +1146,31 @@ static void parse_Gaze_Structure_seg( struct Parse_context *state,
   
   if (! state->error) {
     if (state->tag_stack->len) {
-      if (! strcmp(g_array_index(state->tag_stack, 
+      if (! strcmp(index_Array(state->tag_stack, 
 				 char *, 
 				 state->tag_stack->len - 1), 
 		   tag_map[GFFLINE].tag)) {
 	
 	GFF_to_features *gff2fts;
-	gff2fts = g_array_index( state->gs->gff_to_feats, 
+	gff2fts = index_Array( state->gs->gff_to_feats, 
 				 GFF_to_features *,
 				 state->gs->gff_to_feats->len - 1);
 	seg = new_Segment();
 	seg->seg_idx = index;
-	g_array_append_val( gff2fts->segments, seg );
+	append_val_Array( gff2fts->segments, seg );
       }
-      else if (! strcmp(g_array_index(state->tag_stack, 
+      else if (! strcmp(index_Array(state->tag_stack, 
 				      char *, 
 				      state->tag_stack->len - 1), 
 			tag_map[DNAFEAT].tag)) {
 	
 	DNA_to_features *dna2fts;
-	dna2fts = g_array_index( state->gs->dna_to_feats, 
+	dna2fts = index_Array( state->gs->dna_to_feats, 
 				 DNA_to_features *,
 				 state->gs->dna_to_feats->len - 1);
 	seg = new_Segment();
 	seg->seg_idx = index;
-	g_array_append_val( dna2fts->segments, seg );	
+	append_val_Array( dna2fts->segments, seg );	
       }
       else {
 	fprintf(stderr, "Tag 'seg' not expected in this context\n");
@@ -1201,11 +1201,11 @@ static void parse_Gaze_Structure_segment( struct Parse_context *state,
   double mul = 1.0;
   int i;
   Segment_Info *new_seg;
-  gboolean use_projected = TRUE;  /* default */
-  gboolean score_sum = TRUE;      /* default */
+  boolean use_projected = TRUE;  /* default */
+  boolean score_sum = TRUE;      /* default */
 
   if (state->tag_stack->len && 
-      ! strcmp(g_array_index(state->tag_stack, 
+      ! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[DECLARATIONS].tag)) {
@@ -1218,7 +1218,7 @@ static void parse_Gaze_Structure_segment( struct Parse_context *state,
 	  state->error = XML_GetCurrentLineNumber( state->the_parser );
 	}
 	else {
-	  id = g_strdup( attr[i+1] );
+	  id = strdup_util( attr[i+1] );
 	}
       }
       else if (! strcmp( attr[i], "mul" )) {
@@ -1260,8 +1260,8 @@ static void parse_Gaze_Structure_segment( struct Parse_context *state,
 	new_seg->use_projected = use_projected;
 	new_seg->score_sum = score_sum;
 
-	g_array_append_val( state->gs->seg_dict, id );
-	g_array_append_val( state->gs->seg_info, new_seg );
+	append_val_Array( state->gs->seg_dict, id );
+	append_val_Array( state->gs->seg_info, new_seg );
       }
       else {
 	/* no id attribute - bad news */
@@ -1297,7 +1297,7 @@ static void parse_Gaze_Structure_source( struct Parse_context *state,
   int *len_fun = NULL;
 
   if (state->tag_stack->len && 
-      ! strcmp(g_array_index(state->tag_stack, 
+      ! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[TARGET].tag)) {
@@ -1349,7 +1349,7 @@ static void parse_Gaze_Structure_source( struct Parse_context *state,
       Feature_Relation *ft_src;
 
       this_one =
-	g_array_index( state->gs->feat_info, Feature_Info *, state->current_idx);
+	index_Array( state->gs->feat_info, Feature_Info *, state->current_idx);
       if (source_idx >= 0) {
 	ft_src = new_Feature_Relation();
 	ft_src->target = state->current_idx;
@@ -1359,7 +1359,7 @@ static void parse_Gaze_Structure_source( struct Parse_context *state,
 	ft_src->phase = phase;
 	ft_src->len_fun = len_fun;
 
-	g_array_index( this_one->sources, Feature_Relation *, source_idx ) = ft_src;
+	index_Array( this_one->sources, Feature_Relation *, source_idx ) = ft_src;
 	state->current_idx_2 = source_idx;
       }
       else {
@@ -1391,11 +1391,11 @@ static void parse_Gaze_Structure_takedna( struct Parse_context *state,
   int i, feat_idx = 0;
   int st_off = 0;
   int en_off = 0;
-  gboolean has_st_off = FALSE;
-  gboolean has_en_off= FALSE;
+  boolean has_st_off = FALSE;
+  boolean has_en_off= FALSE;
 
   if (state->tag_stack->len && 
-      ! strcmp(g_array_index(state->tag_stack, 
+      ! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[DNA2GAZE].tag)) {
@@ -1436,11 +1436,11 @@ static void parse_Gaze_Structure_takedna( struct Parse_context *state,
 
     if (! state->error) {
       if (state->gs->take_dna == NULL) {
-	state->gs->take_dna = g_array_new( FALSE, TRUE, sizeof( StartEnd * ));
-	g_array_set_size(state->gs->take_dna, state->gs->feat_dict->len);
+	state->gs->take_dna = new_Array( sizeof( StartEnd * ), TRUE);
+	set_size_Array(state->gs->take_dna, state->gs->feat_dict->len);
       } 
-      if (g_array_index( state->gs->take_dna, StartEnd *, feat_idx ) == NULL) 
-	g_array_index( state->gs->take_dna, StartEnd *, feat_idx ) = new_StartEnd( st_off, en_off );
+      if (index_Array( state->gs->take_dna, StartEnd *, feat_idx ) == NULL)
+	index_Array( state->gs->take_dna, StartEnd *, feat_idx ) = new_StartEnd( st_off, en_off );
       else {
 	/* unrecognised attribute */
 	fprintf(stderr, "Redef of feat In tag 'takedna'; canonly take one piece of dna for each feature\n");
@@ -1469,7 +1469,7 @@ static void parse_Gaze_Structure_target( struct Parse_context *state,
   int i;
   
   if (state->tag_stack->len && 
-      ! strcmp(g_array_index(state->tag_stack, 
+      ! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[MODEL].tag)) {
@@ -1487,16 +1487,16 @@ static void parse_Gaze_Structure_target( struct Parse_context *state,
 	  /* set up the memory for the source information for
 	     this feature. Target information will be filled in 
 	     when the structure is symmetricalzed. */
-	  Feature_Info *fi = g_array_index( state->gs->feat_info, 
+	  Feature_Info *fi = index_Array( state->gs->feat_info, 
 					    Feature_Info *, 
 					    state->current_idx);
 	  if (fi->sources == NULL) {
-	    fi->sources = g_array_new( FALSE, TRUE, sizeof( Feature_Relation *));
-	    g_array_set_size(fi->sources, state->gs->feat_dict->len); 
+	    fi->sources = new_Array( sizeof( Feature_Relation *), TRUE);
+	    set_size_Array(fi->sources, state->gs->feat_dict->len); 
 	  }
 	  else {
 	    fprintf(stderr, "Error: Redefinition of target '%s'\n", 
-		    g_array_index(state->gs->feat_dict, char *, state->current_idx) ); 
+		    index_Array(state->gs->feat_dict, char *, state->current_idx) ); 
 	    state->error = XML_GetCurrentLineNumber( state->the_parser );
 	  }
 	}
@@ -1531,22 +1531,22 @@ static void parse_Gaze_Structure_target( struct Parse_context *state,
 static void parse_Gaze_Structure_useseg( struct Parse_context *state, 
 					 const char **attr ) {
   int  i;
-  gboolean in_source_tag = FALSE;
-  gboolean user_specified_scoring = FALSE;
+  boolean in_source_tag = FALSE;
+  boolean user_specified_scoring = FALSE;
 
   if (state->tag_stack->len && 
-      ((! strcmp(g_array_index(state->tag_stack, 
+      ((! strcmp(index_Array(state->tag_stack, 
 			     char *, 
 			     state->tag_stack->len - 1), 
 	       tag_map[TARGET].tag)) ||
-      (! strcmp(g_array_index(state->tag_stack, 
+      (! strcmp(index_Array(state->tag_stack, 
 			      char *, 
 			      state->tag_stack->len - 1), 
 		tag_map[SOURCE].tag)))) {
     /* top of tag stack should be 'target' or 'source' */
     Segment_Qualifier *seg_qual = new_Segment_Qualifier();
 
-    in_source_tag =  strcmp(g_array_index(state->tag_stack, 
+    in_source_tag =  strcmp(index_Array(state->tag_stack, 
 					  char *, 
 					  state->tag_stack->len - 1), 
 			    tag_map[TARGET].tag);
@@ -1637,13 +1637,13 @@ static void parse_Gaze_Structure_useseg( struct Parse_context *state,
       }
     }
     if (! state->error) {
-      Feature_Info *target = g_array_index( state->gs->feat_info, Feature_Info *, state->current_idx);
+      Feature_Info *target = index_Array( state->gs->feat_info, Feature_Info *, state->current_idx);
 
       /* firstly, if user did not specify a scoring scheme, then we go back
 	 to the segment info to look for the scoring scheme */
 
       if (! user_specified_scoring) {
-	Segment_Info *si = g_array_index( state->gs->seg_info, Segment_Info *, seg_qual->seg_idx );
+	Segment_Info *si = index_Array( state->gs->seg_info, Segment_Info *, seg_qual->seg_idx );
 	seg_qual->use_projected = si->use_projected;
 	seg_qual->score_sum = si->score_sum;
       }
@@ -1670,27 +1670,18 @@ static void parse_Gaze_Structure_useseg( struct Parse_context *state,
 	
 	if (! in_source_tag) { 
 	  if (target->seg_quals == NULL) {
-	    target->seg_quals = g_array_new(FALSE, TRUE, sizeof( Segment_Qualifier *));
-	    /* g_array_set_size( target->seg_quals, state->gs->seg_dict->len ); */
+	    target->seg_quals = new_Array( sizeof( Segment_Qualifier *), TRUE);
+	    /* set_size_Array( target->seg_quals, state->gs->seg_dict->len ); */
 	  }
-	  /* g_array_index( target->seg_quals, Segment_Qualifier *, seg_idx ) = seg_qual; */
-	  g_array_append_val( target->seg_quals, seg_qual );
+	  /* index_Array( target->seg_quals, Segment_Qualifier *, seg_idx ) = seg_qual; */
+	  append_val_Array( target->seg_quals, seg_qual );
 	}
 	else {
-	  Feature_Relation *ft_rel = g_array_index(target->sources, Feature_Relation *, state->current_idx_2);
+	  Feature_Relation *ft_rel = index_Array(target->sources, Feature_Relation *, state->current_idx_2);
 	  if (ft_rel->seg_quals == NULL) {
-	    ft_rel->seg_quals = g_array_new(FALSE, TRUE, sizeof( Segment_Qualifier *));
-	    /* g_array_set_size( ft_rel->seg_quals, state->gs->seg_dict->len ); */
+	    ft_rel->seg_quals = new_Array(sizeof( Segment_Qualifier *), TRUE);
 	  }
-	  /*
-	  if ( g_array_index( ft_rel->seg_quals, Segment_Qualifier *, seg_idx ) == NULL )
-	    g_array_index( ft_rel->seg_quals, Segment_Qualifier *, seg_idx ) = seg_qual;
-	  else {
-	    fprintf(stderr, "In tag 'useseg', redefintion of segment qualifier\n"); 
-	    state->error = XML_GetCurrentLineNumber( state->the_parser );
-	  }
-	  */
-	  g_array_append_val( ft_rel->seg_quals, seg_qual );
+	  append_val_Array( ft_rel->seg_quals, seg_qual );
 	}
       }
     }
@@ -1720,7 +1711,7 @@ static void parse_Gaze_Structure_useseg( struct Parse_context *state,
 
 Gaze_Structure *parse_Gaze_Structure( FILE *structure_file ) {
   int i;
-  gboolean end_of_file = FALSE;
+  boolean end_of_file = FALSE;
   struct Parse_context *state;
   Gaze_Structure *gs;
 
@@ -1736,7 +1727,7 @@ Gaze_Structure *parse_Gaze_Structure( FILE *structure_file ) {
   state->error = 0;
   state->the_parser = p;
   state->current_idx = -1;
-  state->tag_stack = g_array_new( FALSE, TRUE, sizeof( char *));
+  state->tag_stack = new_Array( sizeof( char *), TRUE);
   state->gs = gs;
 
   XML_SetElementHandler(p, &start_tag_structure, &end_tag_structure);
@@ -1775,7 +1766,7 @@ Gaze_Structure *parse_Gaze_Structure( FILE *structure_file ) {
        in general */
     
     for(i=0; i < gs->length_funcs->len; i++) {
-      Length_Function *lf = g_array_index( gs->length_funcs, Length_Function *, i );
+      Length_Function *lf = index_Array( gs->length_funcs, Length_Function *, i );
       /* Some length functions will have already been read in from files, so no need
 	 to calculate them */
       if (lf->value_map == NULL) 
@@ -1786,9 +1777,9 @@ Gaze_Structure *parse_Gaze_Structure( FILE *structure_file ) {
 
   for(i=0; i < state->tag_stack->len; i++) {
     /* stack should be empty, but just in case ... */
-    free_util( g_array_index( state->tag_stack, char *, i));
+    free_util( index_Array( state->tag_stack, char *, i));
   }
-  g_array_free( state->tag_stack, TRUE);
+  free_Array( state->tag_stack, TRUE);
   free_util( state );
 
   /* free the parse state object */

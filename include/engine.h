@@ -12,7 +12,6 @@
 #ifndef _ENGINE
 #define _ENGINE
 
-#include <glib.h>
 #include <math.h>
 #include "util.h"
 #include "features.h"
@@ -36,8 +35,8 @@ enum DP_Traceback_Mode {
 /****************** Seg_Results *************************/
 
 typedef struct {
-  GArray *raw_scores;
-  GArray *has_score;
+  Array *raw_scores;
+  Array *has_score;
 } Seg_Results;
 
 void free_Seg_Results( Seg_Results * );
@@ -47,12 +46,12 @@ Seg_Results *new_Seg_Results( int );
 
 
 double calculate_segment_score( Feature *, Feature *,
-				GArray *, 
+				Array *, 
 				Gaze_Structure *,
 				Seg_Results * );
 	
-GArray *calculate_post_accuracies( GArray *, int, double);			
+Array *calculate_post_accuracies( Array *, int, double);			
 
-gboolean is_legal_path( GArray *, Gaze_Structure *, FILE *);
+boolean is_legal_path( Array *, Gaze_Structure *, FILE *);
 
 #endif

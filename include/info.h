@@ -9,7 +9,6 @@
 #ifndef _GAZE_INFO
 #define _GAZE_INFO
 
-#include <glib.h>
 #include <stdio.h>
 #include "util.h"
 
@@ -27,8 +26,8 @@
 
 typedef struct {
   int feat_idx;
-  gboolean has_src_phase;
-  gboolean has_tgt_phase;
+  boolean has_src_phase;
+  boolean has_tgt_phase;
   int phase;
 } Killer_Feature_Qualifier;
 
@@ -64,7 +63,7 @@ typedef struct {
   char *feature;
   char *strand;
   char *frame;
-  gboolean need_to_print;
+  boolean need_to_print;
 } Output_Qualifier;
 
 Output_Qualifier *clone_Output_Qualifier( Output_Qualifier * );
@@ -82,11 +81,11 @@ typedef struct {
   double multiplier;
   int start_offset;
   int end_offset;
-  gboolean is_killer_feat;
-  GArray *targets;         /* of Feature_Relation*, idx by feat id */
-  GArray *sources;         /* of Feature_Relation*, idx by feat id */
-  GArray *kill_feat_quals; /* of Killer_Feature_Qualifier*         */
-  GArray *seg_quals;       /* of Segment_Qualifier*                */
+  boolean is_killer_feat;
+  Array *targets;         /* of Feature_Relation*, idx by feat id */
+  Array *sources;         /* of Feature_Relation*, idx by feat id */
+  Array *kill_feat_quals; /* of Killer_Feature_Qualifier*         */
+  Array *seg_quals;       /* of Segment_Qualifier*                */
   Output_Qualifier *out_qual;
 } Feature_Info;                       
 
@@ -103,8 +102,8 @@ Feature_Info *new_Feature_Info( int, int, double );
 
 typedef struct {
   double multiplier;
-  gboolean use_projected;   /* default: use standard segs */
-  gboolean score_sum;       /* default: score max */
+  boolean use_projected;   /* default: use standard segs */
+  boolean score_sum;       /* default: score max */
 } Segment_Info;                       
 
 Segment_Info *empty_Segment_Info(void);
@@ -115,13 +114,13 @@ Segment_Info *new_Segment_Info(double);
 
 typedef struct {
   int seg_idx;
-  gboolean use_projected;   /* default: use standard segs */
-  gboolean score_sum;       /* default: score max */
-  gboolean is_exact_src;
-  gboolean is_exact_tgt;
+  boolean use_projected;   /* default: use standard segs */
+  boolean score_sum;       /* default: score max */
+  boolean is_exact_src;
+  boolean is_exact_tgt;
   /* the following two attributes are mutually exclusive */
-  gboolean has_tgt_phase;
-  gboolean has_src_phase;
+  boolean has_tgt_phase;
+  boolean has_src_phase;
   int phase;
 } Segment_Qualifier;
 
@@ -137,18 +136,18 @@ Segment_Qualifier *new_Segment_Qualifier( void );
 
 typedef struct {
   double multiplier;
-  GArray *value_map;
-  GArray *raw_x_vals;
-  GArray *raw_y_vals;
-  gboolean becomes_monotonic;
+  Array *value_map;
+  Array *raw_x_vals;
+  Array *raw_y_vals;
+  boolean becomes_monotonic;
   int monotonic_point;
 } Length_Function;                       
 
 
 #define apply_Length_Function(l,n) ((n>=l->value_map->len) ? \
-    (g_array_index(l->value_map,double,l->value_map->len-1)*(2+n-(l->value_map->len))) \
-      - (g_array_index(l->value_map,double,l->value_map->len-2)*(n-(l->value_map->len-1))) : \
-    g_array_index(l->value_map,double,n)) 
+    (index_Array(l->value_map,double,l->value_map->len-1)*(2+n-(l->value_map->len))) \
+      - (index_Array(l->value_map,double,l->value_map->len-2)*(n-(l->value_map->len-1))) : \
+    index_Array(l->value_map,double,n)) 
 
 void calc_Length_Function(Length_Function *);
 void free_Length_Function(Length_Function *);
@@ -169,9 +168,9 @@ typedef struct {
   int *max_dist;
   int *phase;
   int *len_fun;
-  GArray *seg_quals;         /* of Segment_Qualifier        */
-  GArray *kill_feat_quals;   /* of Killer_Feature_Qualifier */
-  GArray *kill_dna_quals;    /* of Killer_DNA_Qualifier     */
+  Array *seg_quals;         /* of Segment_Qualifier        */
+  Array *kill_feat_quals;   /* of Killer_Feature_Qualifier */
+  Array *kill_dna_quals;    /* of Killer_DNA_Qualifier     */
   Output_Qualifier *out_qual;
 } Feature_Relation;                     
 

@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 12:59 2002 (klh) */
+/*  Last edited: Jul 13 15:49 2002 (klh) */
 /**********************************************************************
  ** FILE: options.c
  ** DESCRIPTION:
@@ -27,7 +27,7 @@ int get_option(int argc,
 	       int *ret_optindex, 
 	       char **ret_optname, 
 	       char **ret_optarg,
-	       int *error) {
+	       boolean *error) {
 
   static int optindex = 1;        /* init to 1 on first call  */
   static char *optptr = NULL;     /* ptr to next valid switch */
@@ -139,7 +139,7 @@ int get_option(int argc,
  NOTES:
  *********************************************************************/
 int process_default_Options( FILE *defs, 
-				  int (*func)(char *, char *) ) {
+			     boolean (*func)(char *, char *) ) {
   char *buffer;
   int options_error = FALSE;
   int start_tag, start_val, i;

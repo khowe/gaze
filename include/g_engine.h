@@ -1,4 +1,4 @@
-/*  Last edited: Apr 23 13:02 2002 (klh) */
+/*  Last edited: Jul 15 11:59 2002 (klh) */
 /**********************************************************************
  ** File: engine.h
  ** Author : Kevin Howe
@@ -18,7 +18,7 @@ typedef struct {
   double score;
   int last_selected;
 
-  GArray ***feats;   /* indices of features processed so far, organised by type */
+  Array ***feats;   /* indices of features processed so far, organised by type */
   int ***fringes;    /* indices of last "significant" feature, organised first by
 		        target type, then by source type, then by frame */
 } Gaze_DP_struct;    
@@ -27,23 +27,23 @@ void free_Gaze_DP_struct( Gaze_DP_struct *, int );
 Gaze_DP_struct *new_Gaze_DP_struct( int, int );
 
 
-double calculate_path_score(GArray *, GArray *, Gaze_Structure *);
+double calculate_path_score(Array *, Array *, Gaze_Structure *);
 
-void forwards_calc(GArray *, 
-		   GArray *,
+void forwards_calc(Array *, 
+		   Array *,
 		   Gaze_Structure *,
 		   enum DP_Calc_Mode,
 		   Gaze_Output *);
 
-void backwards_calc(GArray *, 
-		    GArray *,
+void backwards_calc(Array *, 
+		    Array *,
 		    Gaze_Structure *,
 		    enum DP_Calc_Mode);
 
 
 
-void scan_through_sources_dp(GArray *,
-			     GArray *,
+void scan_through_sources_dp(Array *,
+			     Array *,
 			     Gaze_Structure *,
 			     int,
 			     Gaze_DP_struct *,
@@ -51,17 +51,17 @@ void scan_through_sources_dp(GArray *,
 			     enum DP_Traceback_Mode,
 			     Gaze_Output *);
 
-void scan_through_targets_dp(GArray *,
-			     GArray *,
+void scan_through_targets_dp(Array *,
+			     Array *,
 			     Gaze_Structure *,
 			     int,
 			     Gaze_DP_struct *,
 			     enum DP_Calc_Mode);
 
-GArray *trace_back_general(GArray *,
-			   GArray *,
-			   Gaze_Structure *,
-			   enum DP_Traceback_Mode);
+Array *trace_back_general(Array *,
+			  Array *,
+			  Gaze_Structure *,
+			  enum DP_Traceback_Mode);
 
 #endif
 

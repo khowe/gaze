@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 14:31 2002 (klh) */
+/*  Last edited: Jul 15 11:51 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -23,23 +23,23 @@
  ARGS: 
  NOTES:
  *********************************************************************/
-GArray *calculate_post_accuracies( GArray *feats, int bins, double sigma ) {
+Array *calculate_post_accuracies( Array *feats, int bins, double sigma ) {
   int i;
-  GArray *res = g_array_new( FALSE, TRUE, sizeof( double ) );
-  GArray *trues = g_array_new( FALSE, TRUE, sizeof( int ) );
-  GArray *totals = g_array_new( FALSE, TRUE, sizeof( int  ) );
+  Array *res = new_Array( sizeof( double ), TRUE );
+  Array *trues = new_Array( sizeof( int ), TRUE );
+  Array *totals = new_Array( sizeof( int  ), TRUE );
 
 
-  g_array_set_size( res, bins );
-  g_array_set_size( trues, bins );
-  g_array_set_size( totals, bins );
+  set_size_Array( res, bins );
+  set_size_Array( trues, bins );
+  set_size_Array( totals, bins );
 
   for(i=0; i < feats->len; i++) {
-    Feature *ft = g_array_index( feats, Feature *, i);
+    Feature *ft = index_Array( feats, Feature *, i);
 
     double post_prob = exp( ft->forward_score +
 			    ft->backward_score - 
-			    g_array_index( feats, Feature *, 0)->backward_score );
+			    index_Array( feats, Feature *, 0)->backward_score );
 						   
     int index = (int) (post_prob * (double) bins);
 
@@ -48,21 +48,21 @@ GArray *calculate_post_accuracies( GArray *feats, int bins, double sigma ) {
     if (index == bins)
       index = bins - 1;
 
-    g_array_index( totals, int, index ) = g_array_index( totals, int, index ) + 1;			    
+    index_Array( totals, int, index ) = index_Array( totals, int, index ) + 1;			    
     if (ft->is_correct) 
-      g_array_index( trues, int, index ) = g_array_index( trues, int, index ) + 1;
+      index_Array( trues, int, index ) = index_Array( trues, int, index ) + 1;
 
   }
     
   for(i=0; i < res->len; i++) {
-    if (g_array_index( totals, int, i ) > 0)
-      g_array_index( res, double, i ) = 
-	(double) g_array_index( trues, int, i ) /
-	(double) g_array_index( totals, int, i );
+    if (index_Array( totals, int, i ) > 0)
+      index_Array( res, double, i ) = 
+	(double) index_Array( trues, int, i ) /
+	(double) index_Array( totals, int, i );
   }
 
-  g_array_free( trues, TRUE );
-  g_array_free( totals, TRUE );
+  free_Array( trues, TRUE );
+  free_Array( totals, TRUE );
 
   /* put output in here for now. */
 
@@ -72,7 +72,7 @@ GArray *calculate_post_accuracies( GArray *feats, int bins, double sigma ) {
     printf( "## %4.3f:%4.3f\t%.3f\n", 
 	    1.0 / (double) bins * i, 
 	    1.0 / (double) bins * (i+1),
-	    g_array_index( res, double, i ));
+	    index_Array( res, double, i ));
   }
 
   return res;
@@ -88,42 +88,42 @@ GArray *calculate_post_accuracies( GArray *feats, int bins, double sigma ) {
  NOTES:
  *********************************************************************/
 double calculate_segment_score( Feature *src, Feature *tgt, 
-				GArray *segments, 
+				Array *segments, 
 				Gaze_Structure *gs,
 				Seg_Results *s_res) {
-  GArray *seg_quals;
+  Array *seg_quals;
   int i,j;
   double score;
 
-  Feature_Info *tgt_info = g_array_index( gs->feat_info, 
+  Feature_Info *tgt_info = index_Array( gs->feat_info, 
 					  Feature_Info *,
 					  tgt->feat_idx );
-  Feature_Relation *tgt_rel = g_array_index( tgt_info->sources, Feature_Relation *, src->feat_idx);
+  Feature_Relation *tgt_rel = index_Array( tgt_info->sources, Feature_Relation *, src->feat_idx);
 
   int src_pos = src->adj_pos.s; 
   int tgt_pos = tgt->adj_pos.e; 
 
   for(i=0; i < s_res->has_score->len; i++) {
-    g_array_index( s_res->has_score, gboolean, i ) = FALSE;
-    g_array_index( s_res->raw_scores, double, i ) = 0.0;
+    index_Array( s_res->has_score, boolean, i ) = FALSE;
+    index_Array( s_res->raw_scores, double, i ) = 0.0;
   }
 
   if ( (seg_quals = tgt_rel->seg_quals) != NULL) {
     for (i=0; i < seg_quals->len; i++) {
-      Segment_Qualifier *qual = g_array_index( seg_quals, Segment_Qualifier *, i);
+      Segment_Qualifier *qual = index_Array( seg_quals, Segment_Qualifier *, i);
 
       if (qual != NULL) {
-	Segment_lists *sl = g_array_index( segments, Segment_lists *, qual->seg_idx);
+	Segment_lists *sl = index_Array( segments, Segment_lists *, qual->seg_idx);
 
-	GArray *list = (qual->use_projected) ? sl->proj : sl->orig;
-	GArray *segs;
+	Array *list = (qual->use_projected) ? sl->proj : sl->orig;
+	Array *segs;
 
 	if (qual->has_tgt_phase) 
-	  segs = g_array_index( list, GArray *, (tgt_pos - qual->phase + 1) % 3 );
+	  segs = index_Array( list, Array *, (tgt_pos - qual->phase + 1) % 3 );
 	else if (qual->has_src_phase)
-	  segs = g_array_index( list, GArray *, (src_pos + qual->phase) % 3 );
+	  segs = index_Array( list, Array *, (src_pos + qual->phase) % 3 );
 	else 
-	  segs = g_array_index( list, GArray *, 3 );
+	  segs = index_Array( list, Array *, 3 );
 
 	{
 	  /* find min j s.t. segs[j].pos.s > end_pos */
@@ -135,7 +135,7 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 	  while (left < right) {
 	    int mid = (left + right) / 2;
 
-	    if (g_array_index( segs, Segment *, mid)->pos.s <= tgt_pos)
+	    if (index_Array( segs, Segment *, mid)->pos.s <= tgt_pos)
 	      left = mid + 1;
 	    else 
 	      right = mid;
@@ -144,7 +144,7 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 	}
 
 	for (; j >= 0; j--) {
-	  Segment *seg = g_array_index( segs, Segment *, j ); 
+	  Segment *seg = index_Array( segs, Segment *, j ); 
 
 	  if ( seg->max_end_up < src_pos )
 	    break;
@@ -162,18 +162,18 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 
 	      score = seg->score * (high - low + 1);
 
-	      if (! g_array_index( s_res->has_score, gboolean, qual->seg_idx)) {
-		g_array_index( s_res->raw_scores, double, qual->seg_idx) = score;
-		g_array_index( s_res->has_score, gboolean, qual->seg_idx) = TRUE;
+	      if (! index_Array( s_res->has_score, boolean, qual->seg_idx)) {
+		index_Array( s_res->raw_scores, double, qual->seg_idx) = score;
+		index_Array( s_res->has_score, boolean, qual->seg_idx) = TRUE;
 
 	      }
 	      else {
 		if (qual->score_sum)
 		  /* now sum projected segment scores in a region rather than take max */
-		  g_array_index( s_res->raw_scores, double, qual->seg_idx) += score;		  
+		  index_Array( s_res->raw_scores, double, qual->seg_idx) += score;		  
 		else {
-		  if (score > g_array_index( s_res->raw_scores, double, qual->seg_idx )) {
-		    g_array_index( s_res->raw_scores, double, qual->seg_idx) = score;
+		  if (score > index_Array( s_res->raw_scores, double, qual->seg_idx )) {
+		    index_Array( s_res->raw_scores, double, qual->seg_idx) = score;
 		  }
 		}	
 	      }
@@ -186,8 +186,8 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 
   score = 0.0;
   for(i=0; i < s_res->has_score->len; i++)
-    if (g_array_index( s_res->has_score, gboolean, i))
-	score += g_array_index( s_res->raw_scores, double, i );
+    if (index_Array( s_res->has_score, boolean, i))
+	score += index_Array( s_res->raw_scores, double, i );
      
   return score;
 }
@@ -202,7 +202,7 @@ double calculate_segment_score( Feature *src, Feature *tgt,
  ARGS: 
  NOTES:
  *********************************************************************/
-gboolean is_legal_path( GArray *path,
+boolean is_legal_path( Array *path,
 			Gaze_Structure *gs,
 			FILE *err ) {
 
@@ -210,7 +210,7 @@ gboolean is_legal_path( GArray *path,
   Feature_Info *tgt_info;
   Feature_Relation *reg_info;
   Feature *src, *tgt;
-  gboolean legal_path = TRUE;
+  boolean legal_path = TRUE;
 
 
   for( idx=0; legal_path && idx < path->len - 1; idx++) { 
@@ -219,17 +219,17 @@ gboolean is_legal_path( GArray *path,
        feature (done here) has no effect, since the score of "BEGIN" is 0
        (and has to be for the DP to work */
 
-    src = g_array_index( path, Feature *, idx );
+    src = index_Array( path, Feature *, idx );
     
-    tgt = g_array_index( path, Feature *, idx + 1 );
-    tgt_info = g_array_index( gs->feat_info, Feature_Info *, tgt->feat_idx );
+    tgt = index_Array( path, Feature *, idx + 1 );
+    tgt_info = index_Array( gs->feat_info, Feature_Info *, tgt->feat_idx );
     
     left_pos = src->adj_pos.s;
     right_pos = tgt->adj_pos.e;
     
     distance = right_pos - left_pos + 1;
 
-    if ((reg_info = g_array_index(tgt_info->sources, Feature_Relation *, src->feat_idx)) != NULL) {
+    if ((reg_info = index_Array(tgt_info->sources, Feature_Relation *, src->feat_idx)) != NULL) {
       
       if ((reg_info->phase == NULL) || (*(reg_info->phase) == distance % 3)) {
 	
@@ -237,11 +237,11 @@ gboolean is_legal_path( GArray *path,
 	  
 	  if ((reg_info->max_dist == NULL) || (*(reg_info->max_dist)) >= distance) {
 	    /* check for DNA killers */
-	    gboolean killed_by_dna = FALSE;
+	    boolean killed_by_dna = FALSE;
 
 	    if (reg_info->kill_dna_quals != NULL) {
 	      for(k=0; k < reg_info->kill_dna_quals->len; k++) {
-		Killer_DNA_Qualifier *kdq = g_array_index( reg_info->kill_dna_quals, 
+		Killer_DNA_Qualifier *kdq = index_Array( reg_info->kill_dna_quals, 
 							   Killer_DNA_Qualifier *,
 							   k );
 
@@ -303,8 +303,8 @@ gboolean is_legal_path( GArray *path,
  *********************************************************************/
 void free_Seg_Results( Seg_Results *s_res ) {
   if (s_res != NULL) { 
-    g_array_free( s_res->raw_scores, TRUE );
-    g_array_free( s_res->has_score, TRUE );
+    free_Array( s_res->raw_scores, TRUE );
+    free_Array( s_res->has_score, TRUE );
     free_util( s_res );
   }
 }
@@ -321,10 +321,10 @@ Seg_Results *new_Seg_Results( int seg_dict_size ) {
   Seg_Results *s_res;
 
   s_res = (Seg_Results *) malloc_util(sizeof(Seg_Results));
-  s_res->raw_scores = g_array_new( FALSE, TRUE, sizeof( double ) ); 
-  s_res->has_score = g_array_new( FALSE, TRUE, sizeof( gboolean ) ); 
-  g_array_set_size( s_res->raw_scores, seg_dict_size );
-  g_array_set_size( s_res->has_score, seg_dict_size );
+  s_res->raw_scores = new_Array( sizeof( double ), TRUE ); 
+  s_res->has_score = new_Array( sizeof( boolean ), TRUE ); 
+  set_size_Array( s_res->raw_scores, seg_dict_size );
+  set_size_Array( s_res->has_score, seg_dict_size );
 
   return s_res;
 }

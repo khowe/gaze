@@ -59,30 +59,29 @@ void free_Gaze_Output( Gaze_Output *out ) {
  NOTES:
  *********************************************************************/
 void print_GFF_path( Gaze_Output *out,
-		     GArray *fts,
+		     Array *fts,
 		     Gaze_Structure *gs) {
 
   Feature *f1, *f2 = NULL;
-  Feature_Info *f1_info, *f2_info;
+  Feature_Info *f2_info;
   Feature_Relation *src;
   double feature_score, region_score;
   int i;
 
 
-  fprintf( out->fh, "##  Score of path : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->path_score);
-  fprintf( out->fh, "##  Forward score : %.6f\n", g_array_index(fts,Feature *,fts->len-1)->forward_score);
+  fprintf( out->fh, "##  Score of path : %.6f\n", index_Array(fts,Feature *,fts->len-1)->path_score);
+  fprintf( out->fh, "##  Forward score : %.6f\n", index_Array(fts,Feature *,fts->len-1)->forward_score);
   fprintf( out->fh, "##  Probability of path : %.6f\n", 
-	   exp ( g_array_index(fts, Feature *,fts->len-1)->path_score -
-		 g_array_index(fts, Feature *, fts->len-1)->forward_score) );
+	   exp ( index_Array(fts, Feature *,fts->len-1)->path_score -
+		 index_Array(fts, Feature *, fts->len-1)->forward_score) );
 
   for( i=0; i < fts->len - 1; i++) {
-    f1 = g_array_index( fts, Feature *, i);
-    f2 = g_array_index( fts, Feature *, i+1);
+    f1 = index_Array( fts, Feature *, i);
+    f2 = index_Array( fts, Feature *, i+1);
 
-    f1_info = g_array_index( gs->feat_info, Feature_Info *, f1->feat_idx);
-    f2_info = g_array_index( gs->feat_info, Feature_Info *, f2->feat_idx);
+    f2_info = index_Array( gs->feat_info, Feature_Info *, f2->feat_idx);
 
-    src = g_array_index( f2_info->sources, Feature_Relation *, f1->feat_idx );
+    src = index_Array( f2_info->sources, Feature_Relation *, f1->feat_idx );
 
     if (src == NULL) {
       fprintf( stderr, "Error: Illegal feature list\n");
@@ -94,12 +93,12 @@ void print_GFF_path( Gaze_Output *out,
     if (out->posterior)
       feature_score = exp( f1->forward_score + 
 			   f1->backward_score - 
-			   g_array_index( fts, Feature *, 0)->backward_score);
+			   index_Array( fts, Feature *, 0)->backward_score);
     
 
     fprintf(out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t.\t.\n", 
 	    out->seq_name, 
-	    g_array_index( gs->feat_dict, char *, f1->feat_idx ),
+	    index_Array( gs->feat_dict, char *, f1->feat_idx ),
 	    f1->real_pos.s, 
 	    f1->real_pos.e,
 	    feature_score);
@@ -111,7 +110,7 @@ void print_GFF_path( Gaze_Output *out,
 			  f2->backward_score +
 			  region_score + 
 			  f2->score -
-			  g_array_index( fts, Feature *, 0)->backward_score );
+			  index_Array( fts, Feature *, 0)->backward_score );
 
     fprintf(out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t%s\t%s\n", 
 	    out->seq_name, 
@@ -129,11 +128,11 @@ void print_GFF_path( Gaze_Output *out,
   if (out->posterior)
     feature_score = exp( f2->forward_score + 
 			 f2->backward_score - 
-			 g_array_index( fts, Feature *, 0)->backward_score);
+			 index_Array( fts, Feature *, 0)->backward_score);
   if (f2 != NULL) {
     fprintf(out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.3f\t.\t.\n", 
 	    out->seq_name, 
-	    g_array_index( gs->feat_dict, char *, f2->feat_idx ),
+	    index_Array( gs->feat_dict, char *, f2->feat_idx ),
 	    f2->real_pos.s, 
 	    f2->real_pos.e, 
 	    feature_score);
@@ -150,7 +149,7 @@ void print_GFF_path( Gaze_Output *out,
  NOTES:
  *********************************************************************/
 void print_GFF_Gaze_Features( Gaze_Output *out,
-			      GArray *fts,
+			      Array *fts,
 			      Gaze_Structure *gs) {
 
 
@@ -159,27 +158,27 @@ void print_GFF_Gaze_Features( Gaze_Output *out,
   if (out->posterior) {
     fprintf( out->fh, "## GAZE feature scored by posterior probability\n");
     fprintf( out->fh, "##     Fend = %.10f,     Bbegin = %.10f\n", 
-	     g_array_index( fts, Feature *, fts->len - 1)->forward_score,
-	     g_array_index( fts, Feature *, 0)->backward_score );
+	     index_Array( fts, Feature *, fts->len - 1)->forward_score,
+	     index_Array( fts, Feature *, 0)->backward_score );
   }
 
   if (out->use_threshold)
     fprintf( out->fh, "##   (only features scoring above %.2f are shown)\n", out->threshold );
 
   for(i=0; i < fts->len; i++) {
-    Feature *f = g_array_index( fts, Feature *, i);
+    Feature *f = index_Array( fts, Feature *, i);
     double score = f->score;
 
     if (out->posterior) {
       score = exp( f->forward_score + 
 		   f->backward_score - 
-		   g_array_index( fts, Feature *, 0)->backward_score );
+		   index_Array( fts, Feature *, 0)->backward_score );
     }
 
     if (! out->use_threshold || score > out->threshold) 
       fprintf(out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.8f\t.\t.\t%s\n", 
 	      out->seq_name, 
-	      g_array_index( gs->feat_dict,
+	      index_Array( gs->feat_dict,
 			     char *,
 			     f->feat_idx ),
 	      f->real_pos.s, f->real_pos.e, score, f->is_correct?"TRUE":"");

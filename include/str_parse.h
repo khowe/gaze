@@ -11,8 +11,6 @@
 #ifndef _GAZE_STR_PARSE
 #define _GAZE_STR_PARSE
 
-
-#include <glib.h>
 #include <stdlib.h>
 
 #include "util.h"

@@ -21,7 +21,6 @@
 #define _GAZE_STRUCTURE
 
 #include <stdlib.h>
-#include <glib.h>
 
 #include "util.h"
 #include "info.h"
@@ -35,16 +34,16 @@
    appropriate Feature_Info object */
 
 typedef struct {
-  GArray *feat_dict;
-  GArray *seg_dict;
-  GArray *len_fun_dict;
-  GArray *motif_dict;
-  GArray *feat_info;       /* of Feature_Info */
-  GArray *seg_info;        /* of Segment_Info */
-  GArray *length_funcs;    /* of Length_Function */
-  GArray *take_dna;        /* of StartEnd */
-  GArray *dna_to_feats;    /* of DNA_to_Features */
-  GArray *gff_to_feats;    /* of GFF_to_Features */
+  Array *feat_dict;
+  Array *seg_dict;
+  Array *len_fun_dict;
+  Array *motif_dict;
+  Array *feat_info;       /* of Feature_Info */
+  Array *seg_info;        /* of Segment_Info */
+  Array *length_funcs;    /* of Length_Function */
+  Array *take_dna;        /* of StartEnd */
+  Array *dna_to_feats;    /* of DNA_to_Features */
+  Array *gff_to_feats;    /* of GFF_to_Features */
 
 } Gaze_Structure;
 
