@@ -1,4 +1,4 @@
-/*  Last edited: Jul 15 11:47 2002 (klh) */
+/*  Last edited: Jul 22 16:35 2002 (klh) */
 /**********************************************************************
  ** File: info.c
  ** Author : Kevin Howe
@@ -375,6 +375,26 @@ Length_Function *new_Length_Function( double multiplier) {
 
   return temp;
 }
+
+
+
+/*********************************************************************
+ FUNCTION: scale_Length_Function
+ DESCRIPTION:
+ RETURNS:
+ ARGS: 
+ NOTES:
+ *********************************************************************/
+void scale_Length_Function(Length_Function *lf, double scaling) {
+  int i;
+
+  for( i=0; i < lf->value_map->len; i++) {
+    index_Array( lf->value_map, double, i ) = 
+      index_Array( lf->value_map, double, i ) * scaling;
+  }
+
+}
+
 
 
 /*********** Killer_DNA_Qualifier ********************/

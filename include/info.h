@@ -1,4 +1,4 @@
-/*  Last edited: Jul 13 12:57 2002 (klh) */
+/*  Last edited: Jul 22 16:32 2002 (klh) */
 /**********************************************************************
  ** File: info.h
  ** Author : Kevin Howe
@@ -152,7 +152,7 @@ typedef struct {
 void calc_Length_Function(Length_Function *);
 void free_Length_Function(Length_Function *);
 Length_Function *new_Length_Function( double );
-
+void scale_Length_Function(Length_Function *, double );
 
 /**********************************************************
                 Feature_Relation							   
