@@ -1,4 +1,4 @@
-/*  Last edited: Aug  3 15:25 2002 (klh) */
+/*  Last edited: Aug  3 15:55 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -374,7 +374,7 @@ static int parse_command_line( int argc, char *argv[] ) {
  *********************************************************************/
 int main (int argc, char *argv[]) {
 
-  int i,j,k,s = 0;
+  int i,s = 0;
 
   if (! parse_command_line(argc, argv) )
     fatal_util( "use \"gaze -h\" to find out about usage");
