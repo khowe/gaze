@@ -393,13 +393,16 @@ static int parse_command_line( int argc, char *argv[] ) {
       }
       
       dup_found = FALSE;
+      /* removed the following code because a user may want to process two regions of 
+	 the same sequence */
+      /*
       for (i=0; i < gaze_options.sequence_names->len; i++)
 	if (! strcmp( seq_id, index_Array( gaze_options.sequence_names, char *, i))) {
-	  fprintf( stderr, "Warning: sequence %s given more than one - ignoring\n", seq_id );
+	  fprintf( stderr, "Warning: sequence %s given more than once - ignoring\n", seq_id );
 	  dup_found = TRUE;
 	  break;
 	}
-      
+      */
       if (! dup_found) {	    
 	append_val_Array( gaze_options.sequence_names, seq_id );
 	append_val_Array( gaze_options.sequence_starts, start );
