@@ -78,7 +78,7 @@ void initialise_Gaze_Sequence( Gaze_Sequence *g_seq,
   g_seq->beg_ft->real_pos.e = g_seq->seq_region.s;  
   g_seq->beg_ft->is_selected = TRUE;
   append_val_Array( g_seq->features, g_seq->beg_ft );
-  
+
   g_seq->end_ft = new_Feature();
   g_seq->end_ft->feat_idx = dict_lookup( gs->feat_dict, "END" );
   g_seq->end_ft->real_pos.s = g_seq->seq_region.e;  
@@ -776,8 +776,10 @@ boolean get_correct_features( Gaze_Sequence_list *glist,
 	  g_seq->path = new_Array( sizeof( Feature *), TRUE );
 	
 	ft = g_seq->end_ft;
+	ft->is_correct = TRUE;
 	append_val_Array( g_seq->path, ft );
 	ft = g_seq->beg_ft;
+	ft->is_correct = TRUE;
 	prepend_val_Array( g_seq->path, ft );
       }
     }
