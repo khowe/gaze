@@ -1,4 +1,4 @@
-/*  Last edited: Nov  3 16:45 2001 (klh) */
+/*  Last edited: Jan 14 16:08 2002 (klh) */
 /**********************************************************************
  ** File: engine.c
  ** Author : Kevin Howe
@@ -329,7 +329,7 @@ void scan_through_sources_dp(GArray *features,
   Killer_Feature_Qualifier *kq;
 
   gboolean touched_score, touched_score_local;
-  GArray *all_scores, *all_indices, *valid_list, *temp;
+  GArray *all_scores, *all_indices;
   Feature_Info *tgt_info;
   Feature_Relation *reg_info;
   Feature *src, *tgt;
@@ -824,13 +824,12 @@ void scan_through_targets_dp(GArray *features,
   Killer_Feature_Qualifier *kq;
 
   gboolean touched_score, touched_score_local;
-  GArray *all_scores, *valid_list, *temp;
+  GArray *all_scores;
   Feature_Info *src_info, *tgt_info;
   Feature_Relation *reg_info;
   Feature *src, *tgt;
   Seg_Results *seg_res;
 
-  gboolean passed_killer_feat = FALSE;
   double max_backward = 0.0;
   double max_backpluslen = 0.0;
   int *killer_target_dna = NULL;
