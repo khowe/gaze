@@ -43,7 +43,7 @@ Input files:\n\
 Output files:\n\
  -out_file <s>          print gene structure to given file (def: stdout)\n\
 \n\
-Output options:\n\
+Control options:\n\
  -regions               show region candidates (for regions indicated in structure file)\n\
  -feature               show feature candidates (most sensibly used with -probability)\n\
  -cutoff <f>            only report features/regions with score/probability exceeding this number\n\
@@ -52,7 +52,6 @@ Output options:\n\
  -probability           show output scores as posterior probabilities\n\
 \n\
 Other options:\n\
-\n\
  -full_calc             perform full dynamic programming (as opposed to faster heurstic method)\n\
  -verbose               write basic progess information to stderr\n\
  -help                  show this message\n";
