@@ -1,4 +1,4 @@
-/*  Last edited: Jul 23 10:29 2002 (klh) */
+/*  Last edited: Jul 23 10:43 2002 (klh) */
 /**********************************************************************
  ** File: sequence.c
  ** Author : Kevin Howe
@@ -634,8 +634,8 @@ boolean read_in_paths( Gaze_Sequence_list *glist,
 
   if (no_problem ) {
 
-    for(i=0; i < glist->num_seqs; i++) { 
-      Gaze_Sequence *g_seq = glist->seq_list[i];
+    for(seq_idx=0; seq_idx < glist->num_seqs; seq_idx++) { 
+      Gaze_Sequence *g_seq = glist->seq_list[seq_idx];
 
       if (g_seq->path != NULL) {
 
