@@ -197,6 +197,12 @@ void forwards_calc( Gaze_Sequence *g_seq,
 			     sum_mode,
 			     trace_mode,
 			     g_out);
+    /*
+    scan_through_sources_for_max_only( g_seq,
+				       gs, 
+				       ft_idx,  
+				       g_res );
+    */
 
     index_Array( g_seq->features, Feature *, ft_idx )->forward_score = g_res->score;
     index_Array( g_seq->features, Feature *, ft_idx )->path_score = g_res->pth_score;
@@ -1224,17 +1230,432 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
 
 
 /*********************************************************************
- FUNCTION: scan_through_source_for_traceback
+ FUNCTION: scan_through_source_for_max_only
  DESCRIPTION:
  RETURNS:
  ARGS: 
  NOTES: THIS NEEDS WORK!!!
  *********************************************************************/
-void scan_through_sources_for_traceback( Gaze_Sequence *g_seq,
-					 Gaze_Structure *gs,
-					 int tgt_idx,
-					 Gaze_DP_struct *g_res,
-					 enum DP_Traceback_Mode trace_mode) {
+void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
+					Gaze_Structure *gs,
+					int tgt_idx,
+					Gaze_DP_struct *g_res ) {
+  
+  int src_type, src_idx, kill_idx, max_index = 0; /* Initialsied to get arounc gcc warnings */
+  int frame, k, index_count[3];
+  int last_necessary_idx, local_fringe, last_idx_for_frame[3];
+  int left_pos, right_pos, distance;
+  Killer_Feature_Qualifier *kq;
+
+  boolean touched_score, touched_score_local;
+  Feature_Info *tgt_info;
+  Feature_Relation *reg_info;
+  Feature *src, *tgt;
+
+  boolean gone_far_enough = FALSE;
+  double max_vit_plus_len = 0.0;
+  double max_score = NEG_INFINITY;
+  int *killer_source_dna = NULL;
+  int *danger_source_dna = NULL;
+
+  g_res->pth_score = 0.0;
+  g_res->pth_trace = 0,0;
+  g_res->score = 0.0;
+
+  tgt = index_Array( g_seq->features, Feature *, tgt_idx );
+  tgt_info = index_Array( gs->feat_info, Feature_Info *, tgt->feat_idx );
+  right_pos = tgt->adj_pos.e;
+
+  /* if the user specified unusual offsets, it may be that this feature is
+     "off the end of the sequence" when viewed as a target. */
+  if (right_pos < g_seq->beg_ft->real_pos.s ||
+      tgt->is_antiselected ) {
+    tgt->invalid = TRUE;
+  }
+
+#ifdef TRACE 
+  fprintf( stderr, "Target %d %s %d %d %.3f", tgt_idx,
+	   index_Array(gs->feat_dict, char *, tgt->feat_idx ), 
+	   tgt->real_pos.s, tgt->real_pos.e, tgt->score );
+  if (TRACE > 1)
+    fprintf( stderr, "\n" );
+#endif
+
+  if (! tgt->invalid) {
+    touched_score = FALSE;
+
+    /* set up the boundaries for the scan. We do not want to go past:
+       1. The last forced feature */
+
+    last_necessary_idx = 0; 
+
+    if (g_res->last_selected > last_necessary_idx)
+      last_necessary_idx = g_res->last_selected;
+    
+    /* Look through the sources themselves */
+    
+    for ( src_type = 0; src_type < tgt_info->sources->len; src_type++) {
+      if ((reg_info = index_Array(tgt_info->sources, Feature_Relation *, src_type)) != NULL) {
+	Array **feats = g_res->feats[src_type];
+	
+	for(frame = 0; frame < 3; frame++) {
+	  
+	  last_idx_for_frame[frame] = last_necessary_idx;
+	  
+	  /* first, identify the killers local to this feature pair, and make
+	     sure that our search back through the sources does not go past a killer */
+	  
+	  if (reg_info->kill_feat_quals != NULL) {
+	    
+	    for(kill_idx=0; kill_idx < reg_info->kill_feat_quals->len; kill_idx++) {
+	      if ( (kq = index_Array( reg_info->kill_feat_quals,
+					Killer_Feature_Qualifier *,
+					kill_idx )) != NULL) {
+		/* The following checks to see if last killer in the correct
+		   frame has an index greater than the source; if not, none
+		   of them can have. However, this does not allow for weird 
+		   edge effects that occur when killers overlap with other
+		   features. This may or may not make a difference with the
+		   new feature ordering */
+		
+		if (kq->has_tgt_phase) {
+		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(right_pos - kq->phase + 1) % 3];
+		  /* rationale: (right_pos - left_pos + 1) % 3 == phase -->
+		     (right_pos - {left_pos % 3} + 1) % 3 == phase -->
+		     (right_pos - {left_pos % 3} + 1) % 3 - phase == 0 -->
+		     (right_pos - {left_pos % 3} + 1 - phase) % 3 == 0 -->
+		     (right_pos - phase + 1) % 3 - {left_pos % 3} == 0 -->
+		     (right_pos - phase + 1) % 3 == {left_pos % 3} */
+		  if (apt_list->len > 0 
+		      && index_Array( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame] )
+		    last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
+		}		  
+		else if (kq->has_src_phase) {
+		    /* the frame calculation here is slightly hacky; we have to allow for the
+		       fact that we need the distance from the source forward to the apt. killer.
+		       BUT the the killers are stored by the frame of their adjusted START, 
+		       rather than their end. So, we rely on the fact that all killers that have
+		       a phase are width 3, which might not be so unreasonable */
+		  Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][(frame + kq->phase) % 3];
+		  if (apt_list->len > 0 
+		      && index_Array( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame] )
+		    last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
+		}
+		else {
+		  /* phaseless killer - need to check all frames */
+		  for (k=0; k < 3; k++) {
+		    Array *apt_list = (Array *) g_res->feats[(int)kq->feat_idx][k];
+		    if (apt_list->len > 0 
+			&& index_Array( apt_list, int, apt_list->len - 1) > last_idx_for_frame[frame]) {
+		      last_idx_for_frame[frame] = index_Array( apt_list, int, apt_list->len - 1);
+		    }			
+		  }
+		}
+	      }
+	    }
+	  }
+	  
+	  /* finally, make sure that we do not proceed past the fringe for
+	     this feature pair */
+	  if (g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3] > last_idx_for_frame[frame])
+	    last_idx_for_frame[frame] = g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3];
+	}
+	
+	/* Before actually scanning through the features themselves, we need to check
+	   if there are potential dna killers. If so, set flags for the source
+	   dna entries that will cause problems */
+	
+	if (reg_info->kill_dna_quals != NULL) {
+	  danger_source_dna = (int *) malloc0_util( gs->motif_dict->len * sizeof(int) );
+	  
+	  for(k=0; k < reg_info->kill_dna_quals->len; k++) {
+	    Killer_DNA_Qualifier *kdq = index_Array( reg_info->kill_dna_quals, 
+						       Killer_DNA_Qualifier *,
+						       k );
+	    
+	    danger_source_dna[(int)kdq->src_dna] = 1; 
+	    
+	    if (tgt->dna >= 0 && tgt->dna == kdq->tgt_dna) {
+	      if (killer_source_dna == NULL) 
+		killer_source_dna = (int *) malloc0_util( gs->motif_dict->len * sizeof(int) );
+	      killer_source_dna[(int)kdq->src_dna] = 1;
+	    }
+	  }
+	}
+	
+	/* at this point, we have the list of features that need to be processed (feats),
+	   and the index that we must not proceed past in each frame. We can now process
+	   the features themselves, in a frame-dependent or frame-independent way */
+	
+#ifdef TRACE
+	if (TRACE > 1)
+	  fprintf( stderr, "  %s (fringes: %d %d %d)\n",
+		   index_Array(gs->feat_dict, char *, src_type ), 
+		   last_idx_for_frame[0], last_idx_for_frame[1], last_idx_for_frame[2] );
+#endif
+
+	for(k=0; k < 3; k++) 
+	  index_count[k] = feats[k]->len - 1; 
+	
+	frame = reg_info->phase != NULL ? (right_pos - *(reg_info->phase) + 1) % 3 : 0;
+
+	max_vit_plus_len = NEG_INFINITY;
+	touched_score_local = FALSE;
+	/* the following aggressively assumes that if this target has no 
+	   potential sources for this source type, then we need go no 
+	   further back than the index of the target itself when consdering
+	   furture instances of the target */
+	local_fringe = tgt_idx;
+	gone_far_enough = FALSE;
+
+	while( ! gone_far_enough ) {
+
+	  if (reg_info->phase == NULL) {
+	    /* For frameless feature pairs, we need to examine all frames, but 
+	       for the pruning to work effectively, the featured need to be examined 
+	       in order. Therefore, we have to re-create the original list
+	       by effectively a merge sort. */
+	    boolean gotone = FALSE;
+	    
+	    for (k=0; k < 3; k++) {
+	      if (index_count[k] >= 0) {
+		if (gotone) {
+		  if (index_Array( feats[k], int, index_count[k] ) > 
+		      index_Array( feats[frame], int, index_count[frame] ) ) {
+		    frame = k;
+		  }
+		}
+		else {
+		  frame = k;
+		  gotone = TRUE;
+		}
+	      }
+	    }
+	  }
+	  
+	  /* The following tests if there was anything in the list at all */
+	  if (index_count[frame] < 0) {
+	    gone_far_enough = TRUE;
+	    continue;
+	  }
+	  
+	  src_idx = index_Array( feats[frame], int, index_count[frame]-- );
+	  
+	  if (src_idx < last_idx_for_frame[frame]) {
+	    /* we must be careful not to simply break out of the loop at this 
+	       point, because for phaseless sources we are flipping between frames,
+	       so there may be others sources in different frames still to consider.
+	       However, we do know that we need consider no more features
+	       if this type in THIS frame, which can be achieved by the 
+	       following trick: */
+	    index_count[frame] = -1;
+	    continue;
+	  }
+	  
+	  src = index_Array( g_seq->features, Feature *, src_idx );
+	  
+#ifdef TRACE
+	  if (TRACE > 1)
+	    fprintf( stderr, "     Source %d %s %d %d ", src_idx,
+		     index_Array(gs->feat_dict, char *, src_type ),
+		     src->real_pos.s, src->real_pos.e );
+#endif
+	  
+	  if (! src->invalid) {
+	    
+	    left_pos = src->adj_pos.s;
+	    distance = right_pos - left_pos + 1;
+	    
+#ifdef TRACE
+	    if (TRACE > 1)
+	      fprintf( stderr, "dist=%d  ", distance );
+#endif	    
+
+	    if ((reg_info->max_dist == NULL) || (*(reg_info->max_dist)) >= distance) {
+	      
+	      if ((reg_info->min_dist == NULL) || (*(reg_info->min_dist)) <= distance) {
+		/* Finally, if this source does not result in a DNA kill, we can calc the score */
+		if (killer_source_dna == NULL || src->dna < 0 || ! killer_source_dna[(int)src->dna]) {
+		  double trans_score, len_pen, seg_score, viterbi_temp;
+		  Length_Function *lf = NULL;
+		  trans_score = len_pen = viterbi_temp = 0.0;
+
+		  seg_score = calculate_segment_score( g_seq, src, tgt, gs, g_res->seg_res );
+		  trans_score += seg_score;
+		  
+		  if (reg_info->len_fun != NULL) {
+		    lf = index_Array(gs->length_funcs, Length_Function *, *(reg_info->len_fun));
+		    len_pen = apply_Length_Function( lf, distance );
+		  }
+		  trans_score -= len_pen;
+		  
+		  viterbi_temp = src->path_score +
+		    + trans_score
+		    + tgt->score;
+		  
+		  if (! touched_score || (viterbi_temp > max_score) ) {
+		    max_score = viterbi_temp;
+		    max_index = src_idx;
+		  }
+		  		  
+		  if (! touched_score_local ) {
+			
+		    if (danger_source_dna == NULL 
+			|| src->dna < 0  
+			|| ! danger_source_dna[(int)src->dna]) {
+
+		      /* strictly speaking, it is only sound to register this source
+			 as "dominant" if we are into the monotonic part of the length
+			 function (i.e. the point past which the penalty never decreases 
+			 with increasing distance). Therefore, we update the fringe, but
+			 don't flag touched_local_score. The efect of this is that the
+			 fringe will be updated for all scoring sources until we get past
+			 the point of monotonicity, at which point the pruning kicks in */
+		      
+		      if (lf == NULL || (lf->becomes_monotonic && lf->monotonic_point <= distance)) { 
+			/* add back in the length penalty, because when judging for dominance, 
+			   the length penalty will be different for future features */
+			
+			max_vit_plus_len = viterbi_temp + len_pen;
+			touched_score_local = TRUE;
+		      } 
+		    }
+		    
+		    local_fringe = src_idx;
+		  }
+		  else {
+		    /* compare this one to max_forward, to see if it is dominated */
+		    if (viterbi_temp + len_pen > max_vit_plus_len 
+			    && (danger_source_dna == NULL 
+				|| src->dna < 0  
+				|| ! danger_source_dna[(int)src->dna])) {
+
+		      max_vit_plus_len = viterbi_temp + len_pen;
+		      local_fringe = src_idx;
+		    }
+		  }						   	      
+		  
+		  touched_score = TRUE;
+		  
+#ifdef TRACE
+		  if (TRACE > 1) 
+		    fprintf( stderr, "scre: v=%.3f, (seg:%.5f len:%.3f)\n",
+			     viterbi_temp, seg_score, len_pen );
+#endif
+		  /*
+		  if (g_out != NULL) {
+		    if (reg_info->out_qual != NULL && reg_info->out_qual->need_to_print) {
+
+		      if (! g_out->use_threshold || reg_score >= g_out->threshold)
+			fprintf(g_out->fh, "%s\tGAZE\t%s\t%d\t%d\t%.5f\t%s\t%s\t\n",
+				g_seq->seq_name, 
+				reg_info->out_qual->feature != NULL ? reg_info->out_qual->feature : "Anonymous",
+				left_pos, 
+				right_pos, 
+				trans_score,
+				reg_info->out_qual->strand != NULL ? reg_info->out_qual->strand : ".", 
+				reg_info->out_qual->frame != NULL ?  reg_info->out_qual->frame : ".");
+		      
+		    }
+		    } */
+		} /* if killed by DNA */
+		else {
+		  /* source might not be killed for future incidences, so update fringe index */
+		  local_fringe = src_idx;
+		  
+#ifdef TRACE
+		  if (TRACE > 1)
+		    fprintf( stderr, "KILLED_BY_DNA\n" );
+#endif
+		}
+	      } /* if min dist */
+	      else {
+		/* source might not be too close for future incidences, so update fringe index */
+		local_fringe = src_idx;
+		
+#ifdef TRACE
+		if (TRACE > 1)
+		  fprintf( stderr, "TOO CLOSE\n" );
+#endif
+	      }
+	    } /* if max dist */
+	    else {
+#ifdef TRACE
+	      if (TRACE > 1)
+		fprintf( stderr, "TOO DISTANT\n" );
+#endif
+	      /* we can break out of the loop here; all other sources will be too distant */
+	      gone_far_enough = TRUE;
+	    }
+	  }
+#ifdef TRACE
+	  else 
+	    if (TRACE > 1)
+	      fprintf( stderr, "INVALID\n" );
+#endif
+	} /* while !gone_far_enough */
+      
+	  /* We conservatively only prune in the frame of the target if this
+	     feature pair has a phase constraint, or if there are potential
+	     killers (which also might have a phase constraint). Otherwise, 
+	     prune in all frames */
+	if (reg_info->phase != NULL || reg_info->kill_feat_quals != NULL) {
+	  g_res->fringes[(int)tgt->feat_idx][src_type][tgt->real_pos.s % 3] = local_fringe;
+	}
+	else {
+	  for(k=0; k < 3; k++)
+	    g_res->fringes[(int)tgt->feat_idx][src_type][k] = local_fringe;
+	}
+      
+	if (danger_source_dna != NULL) {
+	  free_util( danger_source_dna );
+	  danger_source_dna = NULL;
+	}
+	if (killer_source_dna != NULL) {
+	  free_util( killer_source_dna );
+	  killer_source_dna = NULL;
+	}
+      }  
+    }
+
+    /* update the position of the last forced feature. */
+    
+    if (tgt->is_selected)
+      g_res->last_selected = tgt_idx;
+    
+    if (touched_score) {
+
+      g_res->pth_trace = max_index;
+      g_res->pth_score = max_score;	
+      
+      
+#ifdef TRACE
+      fprintf(stderr, "  RESULT: v=%.3f, max=%d, f=%.8f\n", 
+	      g_res->pth_score,
+	      max_index,
+	      g_res->score );
+#endif
+    }
+    else {
+      tgt->invalid = TRUE;
+
+#ifdef TRACE
+      fprintf( stderr, "  *** Invalidating\n");
+#endif      
+
+    }
+  }
+#ifdef TRACE
+  else
+    fprintf( stderr, "  *** Invalid\n" );
+#endif  
+
+  /* We don't need to set the score to negative infinity for the 
+     calculation of Fend - however we need to do it for the sake
+     of individual feature posterior probabilities */
+  
+  if (tgt->invalid)
+    g_res->score = NEG_INFINITY;
 
 }
 
