@@ -1,4 +1,4 @@
-/*  Last edited: Jul 15 13:12 2002 (klh) */
+/*  Last edited: Jul 16 10:30 2002 (klh) */
 /**********************************************************************
  ** FILE: util.h
  ** NOTES:
@@ -38,36 +38,34 @@ typedef unsigned char boolean;
 #define ABS(a)	   (((a) < 0) ? -(a) : (a))
 #endif
 
-/*
-#define malloc_util(x) malloc(x)
-#define free_util(x) free(x)
-#define realloc_util(x,y) realloc(x,y)
-*/
+/*********************************************************************/
+/********************** Error reporting ******************************/
+/*********************************************************************/
 
+void fatal_util( char *, ... );
+void warning_util( char *, ...);
+
+
+/*********************************************************************/
+/********************** String functions *****************************/
+/*********************************************************************/
+char *strdup_util (const char *str);
+
+
+/**********************************************************************/
+/*************** Core memory allocation wrappers **********************/
+/**********************************************************************/
+
+void free_util( void * );
 void *malloc_util( size_t );
 void *realloc_util( void *, size_t );
-void *free_util( void * );
-
-
 void *calloc_util( size_t, size_t );
 void *malloc0_util(size_t );
-void fatal_util( char *, ... );
-void warning_util( char *, ... );
 
-/* stuff for growable arrays */
 
-/******* arrays **********************************************/
-
-typedef struct _GRealArray  GRealArray;
-
-struct _GRealArray
-{
-  char *data;
-  int   len;
-  int   alloc;
-  int   elt_size;
-  int   clear;
-};
+/**********************************************************************/
+/*************** dynamically growable arrays **************************/
+/**********************************************************************/
 
 typedef struct _Array	Array;
 
@@ -82,37 +80,20 @@ struct _Array
 #define insert_val_Array(a,i,v) insert_vals_Array (a, i, &v, 1)
 #define index_Array(a,t,i)      (((t*) (a)->data) [(int)(i)])
 
-Array* new_Array(int,
-		 boolean );
-
-void	free_Array (Array *,
-		    boolean );
-
-Array* append_vals_Array (Array *,
-			  const void *,
-			  int len);
-
-Array* prepend_vals_Array (Array *,
-			   const void *,
-			   int len);
-
-Array* insert_vals_Array (Array *array,
-			  int,
-			  const void *,
-			  int);
-
-Array* set_size_Array (Array *array,
-		       int length);
+void  free_Array (Array *, boolean );
+Array *new_Array( int, boolean );
+Array *append_vals_Array (Array *, const void *, int len);
+Array *prepend_vals_Array (Array *,  const void *,  int len);
+Array *insert_vals_Array (Array *array, int, const void *, int);
+Array *set_size_Array (Array *array, int length);
+Array *remove_index_Array (Array *, int);
 
 
-Array *remove_index_Array (Array *,
-			   int);
+/*********************************************************************/
+/********************** Debug functions ******************************/
+/*********************************************************************/
+long int how_many_bytes (void);
 
-/******* strings ****************************/
-
-char *strdup_util (const char *str);
-
-long int how_many_bytes( void );
 
 
 #endif

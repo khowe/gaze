@@ -1,4 +1,4 @@
-/*  Last edited: Jul 15 11:56 2002 (klh) */
+/*  Last edited: Jul 16 10:42 2002 (klh) */
 /**********************************************************************
  ** FILE: util.c
  ** NOTES:
@@ -9,7 +9,6 @@
  **********************************************************************/
 
 #include "util.h"
-
 
 
 /*********************************************************************/
@@ -23,71 +22,10 @@ long int how_many_bytes (void) {
 }
 
 
-/**********************************************************************/
-/*************** Core memory allocation wrappers **********************/
-/**********************************************************************/
 
-
-void *calloc_util( size_t numobjs, size_t size) {
-  void *ret;
-	
-  if ((ret = calloc( numobjs, size )) == NULL)
-    fatal_util("calloc_util: Out of memory");
-
-  return ret;	
-}
-
-
-
-void *malloc0_util(size_t numbytes) {
-  void *ret;
-
-  if ((ret = malloc( numbytes )) == NULL)
-    fatal_util("malloc_util: out of memory when requesting %d bytes", numbytes);
-  memset( ret, 0, numbytes );
-
-  return ret;	
-}
-
-void *malloc_util(size_t numbytes) {
-  void *ret;
-
-  if ((ret = malloc( numbytes )) == NULL)
-    fatal_util("malloc_util: out of memory when requesting %d bytes", numbytes);
-
-  total_bytes += numbytes;
-
-  return ret;	
-}
-
-
-
-void *realloc_util(void *ptr, size_t bytes) {
-  void *ret = NULL;
-
-  if (ptr == NULL)
-    fatal_util("Call to realloc_util with a null pointer");
-  else { 
-    if ((ret = realloc(ptr, bytes)) == NULL)
-      fatal_util("realloc_util: out of memory when requesting %d bytes", bytes);
-  }
-
-  total_bytes += bytes;
-
-  return ret;
-}  
-
-
-void *free_util( void *ptr ) {
-  if (ptr == NULL)
-    fatal_util("Call to free_util with null pointer");
-  else {
-    free(ptr);
-    ptr = NULL;
-  }
-  return ptr;
-}
-
+/*********************************************************************/
+/********************** Error reporting ******************************/
+/*********************************************************************/
 
 
 /********************************************************************* 
@@ -135,6 +73,96 @@ void warning_util( char *fmt, ...) {
 
 
 
+
+/*********************************************************************/
+/********************** String functions *****************************/
+/*********************************************************************/
+
+
+/********************************************************************* 
+ FUNCTION: strdup_util
+ DESCRIPTION: 
+    Duplicates the given string and returns it
+ RETURNS:
+ ARGS:
+ NOTES:
+ *********************************************************************/
+char *strdup_util(const char *str) {
+  char *new_str;
+
+  if (str) {
+    new_str = (char *) malloc_util ( strlen (str) + 1 );
+    strcpy (new_str, str);
+  }
+  else
+    new_str = NULL;
+  
+  return new_str;
+}
+
+
+
+/**********************************************************************/
+/*************** Core memory allocation wrappers **********************/
+/**********************************************************************/
+
+
+void *calloc_util( size_t numobjs, size_t size) {
+  void *ret;
+	
+  if ((ret = calloc( numobjs, size )) == NULL)
+    fatal_util("calloc_util: Out of memory");
+
+  return ret;	
+}
+
+
+
+void *malloc0_util(size_t numbytes) {
+  void *ret;
+
+  if ((ret = malloc( numbytes )) == NULL)
+    fatal_util("malloc_util: out of memory when requesting %d bytes", numbytes);
+  memset( ret, 0, numbytes );
+
+  return ret;	
+}
+
+void *malloc_util(size_t numbytes) {
+  void *ret;
+
+  if ((ret = malloc( numbytes )) == NULL)
+    fatal_util("malloc_util: out of memory when requesting %d bytes", numbytes);
+
+  return ret;	
+}
+
+
+
+void *realloc_util(void *ptr, size_t bytes) {
+  void *ret = NULL;
+
+  if (ptr == NULL)
+    fatal_util("Call to realloc_util with a null pointer");
+  else { 
+    if ((ret = realloc(ptr, bytes)) == NULL)
+      fatal_util("realloc_util: out of memory when requesting %d bytes", bytes);
+  }
+  return ret;
+}  
+
+
+void free_util( void *ptr ) {
+  if (ptr == NULL)
+    fatal_util("Call to free_util with null pointer");
+  else {
+    free(ptr);
+    ptr = NULL;
+  }
+}
+
+
+
 /**********************************************************************/
 /*************** dynamically growable arrays **************************/
 /**********************************************************************/
@@ -142,8 +170,19 @@ void warning_util( char *fmt, ...) {
 
 #define MIN_ARRAY_SIZE  16
 
-static int _nearest_pow (int num);
-static void _array_maybe_expand (GRealArray *array,
+struct _RealArray
+{
+  char *data;
+  int   len;
+  int   alloc;
+  int   elt_size;
+  int   clear;
+};
+
+typedef struct _RealArray  RealArray;
+
+static int _next_power_of_two (int num);
+static void _array_expand_if_necessary (RealArray *array,
 				  int len);
 
 /********************************************************************* 
@@ -156,9 +195,9 @@ static void _array_maybe_expand (GRealArray *array,
  *********************************************************************/
 Array *new_Array ( int elt_size,
 		   boolean clear ) {
-  GRealArray *array;
+  RealArray *array;
 
-  array = (GRealArray *) malloc_util ( sizeof (GRealArray) );
+  array = (RealArray *) malloc_util ( sizeof (RealArray) );
   array->data            = NULL;
   array->len             = 0;
   array->alloc           = 0;
@@ -201,9 +240,9 @@ Array* append_vals_Array (Array *farray,
 			  const void *data,
 			  int len) {
 
-  GRealArray *array = (GRealArray*) farray;
+  RealArray *array = (RealArray*) farray;
 
-  _array_maybe_expand (array, len);
+  _array_expand_if_necessary (array, len);
   memcpy (array->data + array->elt_size * array->len, data, array->elt_size * len);
   array->len += len;
 
@@ -222,11 +261,11 @@ Array* append_vals_Array (Array *farray,
  *********************************************************************/
 Array* prepend_vals_Array (Array *farray,
 			   const void *data,
-			      int len) {
+			   int len) {
 
-  GRealArray *array = (GRealArray*) farray;
+  RealArray *array = (RealArray*) farray;
 
-  _array_maybe_expand (array, len);
+  _array_expand_if_necessary (array, len);
   memmove (array->data + array->elt_size * len, array->data, array->elt_size * array->len);
   memcpy (array->data, data, len * array->elt_size);
   array->len += len;
@@ -236,7 +275,7 @@ Array* prepend_vals_Array (Array *farray,
 
 
 /********************************************************************* 
- FUNCTION: prepend_vals_Array
+ FUNCTION: insert_vals_Array
  DESCRIPTION: 
     Copys "len" elements from the given data block, to "index"
     of the given array, resizing if necessary
@@ -249,9 +288,9 @@ Array* insert_vals_Array (Array *farray,
 			  const void *data,
 			  int len) {
 
-  GRealArray *array = (GRealArray*) farray;
+  RealArray *array = (RealArray*) farray;
 
-  _array_maybe_expand (array, len);
+  _array_expand_if_necessary (array, len);
   memmove (array->data + array->elt_size * (len + index), 
 	     array->data + array->elt_size * index, 
 	     array->elt_size * (array->len - index));
@@ -263,7 +302,7 @@ Array* insert_vals_Array (Array *farray,
 
 
 /********************************************************************* 
- FUNCTION: prepend_vals_Array
+ FUNCTION: set_size_Array
  DESCRIPTION: 
    Called after new_Array if the array size is known, to set the
    size of the array
@@ -272,9 +311,9 @@ Array* insert_vals_Array (Array *farray,
  NOTES:
  *********************************************************************/
 Array *set_size_Array (Array *farray,
-			int length) {
+		       int length) {
 
-  GRealArray *array = (GRealArray*) farray;
+  RealArray *array = (RealArray*) farray;
 
   if (array->len != 0)
     warning_util("Attempt to set the size of an array that is already populated\n");
@@ -304,8 +343,9 @@ Array *set_size_Array (Array *farray,
  NOTES:
  *********************************************************************/
 Array *remove_index_Array (Array* farray,
-			      int index) {
-  GRealArray* array = (GRealArray*) farray;
+			   int index) {
+
+  RealArray* array = (RealArray*) farray;
 
   if (index != array->len - 1)
       memmove (array->data + array->elt_size * index, 
@@ -320,14 +360,14 @@ Array *remove_index_Array (Array* farray,
 
 
 /********************************************************************* 
- FUNCTION: _nearest_pow
+ FUNCTION: _next_power_of_two
  DESCRIPTION: 
     Returns the nearest power of two to the given number
  RETURNS:
  ARGS:
  NOTES:
  *********************************************************************/
-static int _nearest_pow (int num)
+static int _next_power_of_two (int num)
 {
   int n = 1;
 
@@ -339,22 +379,23 @@ static int _nearest_pow (int num)
 
 
 /********************************************************************* 
- FUNCTION: _array_maybe_expand
+ FUNCTION: _array_expand_if_necessary
  DESCRIPTION: 
-    Returns the nearest power of two to the given number
+   Reallocates the given array to the given size, if the given 
+   size is bigger than the current size.
  RETURNS:
  ARGS:
  NOTES:
  *********************************************************************/
-static void _array_maybe_expand (GRealArray *array,
-				  int len)
+static void _array_expand_if_necessary (RealArray *array,
+					int len)
 {
   int want_alloc = (array->len + len) * array->elt_size;
 
   if (want_alloc > array->alloc) {
     int old_alloc = array->alloc;
 
-    array->alloc = _nearest_pow (want_alloc);
+    array->alloc = _next_power_of_two(want_alloc);
     array->alloc = MAX (array->alloc, MIN_ARRAY_SIZE);
 
     if (old_alloc == 0) {
@@ -370,29 +411,4 @@ static void _array_maybe_expand (GRealArray *array,
 }
 
 
-/*********************************************************************/
-/********************** String functions *****************************/
-/*********************************************************************/
-
-
-/********************************************************************* 
- FUNCTION: strdup_util
- DESCRIPTION: 
-    Duplicates the given string and returns it
- RETURNS:
- ARGS:
- NOTES:
- *********************************************************************/
-char *strdup_util(const char *str) {
-  char *new_str;
-
-  if (str) {
-    new_str = (char *) malloc_util ( strlen (str) + 1 );
-    strcpy (new_str, str);
-  }
-  else
-    new_str = NULL;
-  
-  return new_str;
-}
 
