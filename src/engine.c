@@ -1,4 +1,4 @@
-/*  Last edited: Apr  8 16:14 2002 (klh) */
+/*  Last edited: Apr  9 14:47 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -206,6 +206,7 @@ gboolean is_legal_path( GArray *path,
   Feature *src, *tgt;
   gboolean legal_path = TRUE;
 
+
   for( idx=0; legal_path && idx < path->len - 1; idx++) { 
     /* for the score to mean anything, all paths must begin with "BEGIN"
        and end with "END." Therefore ignoring the local score of the first 
@@ -221,7 +222,7 @@ gboolean is_legal_path( GArray *path,
     right_pos = tgt->adj_pos.e;
     
     distance = right_pos - left_pos + 1;
-    
+
     if ((reg_info = g_array_index(tgt_info->sources, Feature_Relation *, src->feat_idx)) != NULL) {
       
       if ((reg_info->phase == NULL) || (*(reg_info->phase) == distance % 3)) {
@@ -231,14 +232,13 @@ gboolean is_legal_path( GArray *path,
 	  if ((reg_info->max_dist == NULL) || (*(reg_info->max_dist)) >= distance) {
 	    /* check for DNA killers */
 	    gboolean killed_by_dna = FALSE;
-	    
-	    if (reg_info->kill_dna_quals == NULL) {
-	      
+
+	    if (reg_info->kill_dna_quals != NULL) {
 	      for(k=0; k < reg_info->kill_dna_quals->len; k++) {
 		Killer_DNA_Qualifier *kdq = g_array_index( reg_info->kill_dna_quals, 
 							   Killer_DNA_Qualifier *,
 							   k );
-		
+
 		if (src->dna > 0 && src->dna == kdq->src_dna 
 		    && tgt->dna > 0 && tgt->dna == kdq->tgt_dna) { 
 		  
@@ -246,7 +246,8 @@ gboolean is_legal_path( GArray *path,
 		}
 	      }
 	    }
-	    
+
+
 	    if (! killed_by_dna) 
 	      continue;
 	    else { 
