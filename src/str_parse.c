@@ -1,4 +1,4 @@
-/*  Last edited: Nov 22 18:26 2001 (klh) */
+/*  Last edited: Jan 14 16:49 2002 (klh) */
 /**********************************************************************
  ** File: str_parse.c
  ** Author : Kevin Howe
@@ -600,7 +600,8 @@ static void parse_Gaze_Structure_gfffeat( struct Parse_context *state,
 static void parse_Gaze_Structure_killdna( struct Parse_context *state, 
 					  const char **attr ) {
 
-  int i,j;
+  int i;
+  int j;
   int src_dna_idx = -1;
   int tgt_dna_idx = -1;
   char *new_motif = NULL;
@@ -621,7 +622,7 @@ static void parse_Gaze_Structure_killdna( struct Parse_context *state,
 	else {
 	  new_motif = g_strdup( attr[i+1] );
 	  for(j=0; new_motif[j] != '\0'; j++)
-	    new_motif[j] = tolower(new_motif[j]);
+	    new_motif[j] = tolower( (int) new_motif[j]);
 	  if ((src_dna_idx = dict_lookup(state->gs->motif_dict, attr[i+1])) < 0) {
 	    g_array_append_val( state->gs->motif_dict, new_motif );
 	    src_dna_idx = state->gs->motif_dict->len - 1;
@@ -639,7 +640,7 @@ static void parse_Gaze_Structure_killdna( struct Parse_context *state,
 	else {
 	  new_motif = g_strdup( attr[i+1] );
 	  for(j=0; new_motif[j] != '\0'; j++)
-	    new_motif[j] = tolower(new_motif[j]);
+	    new_motif[j] = tolower( (int) new_motif[j]);
 	  if ((tgt_dna_idx = dict_lookup(state->gs->motif_dict, attr[i+1])) < 0) {
 	    g_array_append_val( state->gs->motif_dict, new_motif );
 	    tgt_dna_idx = state->gs->motif_dict->len - 1;
