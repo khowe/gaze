@@ -1,4 +1,4 @@
-/*  Last edited: Jan 14 16:40 2002 (klh) */
+/*  Last edited: Jan 23 14:24 2002 (klh) */
 /**********************************************************************
  ** File: info.h
  ** Author : Kevin Howe
@@ -102,8 +102,8 @@ typedef struct {
   GArray *kill_feat_quals;
   GArray *kill_dna_quals;
   char *out_feature;
-  char *out_strand;
-  char *out_frame;
+  char out_strand;
+  char out_frame;
 } Feature_Relation;                     
 
 Feature_Relation *clone_Feature_Relation(Feature_Relation *);
