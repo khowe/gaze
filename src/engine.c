@@ -1,4 +1,4 @@
-/*  Last edited: Apr 26 10:09 2002 (klh) */
+/*  Last edited: Jul 13 14:31 2002 (klh) */
 /**********************************************************************
  ** File: params.c
  ** Author : Kevin Howe
@@ -126,27 +126,27 @@ double calculate_segment_score( Feature *src, Feature *tgt,
 	  segs = g_array_index( list, GArray *, 3 );
 
 	{
-	  /* find min j s.t. segs[j].max_end_up >= src_pos */
+	  /* find min j s.t. segs[j].pos.s > end_pos */
 	  /* strategy: binary search */
 
 	  int left = 0;
-	  int right = segs->len - 1;
+	  int right = segs->len;
 
 	  while (left < right) {
 	    int mid = (left + right) / 2;
 
-	    if (g_array_index( segs, Segment *, mid)->max_end_up < src_pos)
+	    if (g_array_index( segs, Segment *, mid)->pos.s <= tgt_pos)
 	      left = mid + 1;
 	    else 
-	      right = g_array_index( segs, Segment *, mid)->max_end_up_idx; 
+	      right = mid;
 	  }
-	  j = left;
+	  j = left - 1;
 	}
 
-	for (; j < segs->len; j++) {
+	for (; j >= 0; j--) {
 	  Segment *seg = g_array_index( segs, Segment *, j ); 
 
-	  if ( seg->pos.s > tgt_pos )
+	  if ( seg->max_end_up < src_pos )
 	    break;
 	  else if ( seg->pos.e < src_pos )
 	    continue;
@@ -305,7 +305,7 @@ void free_Seg_Results( Seg_Results *s_res ) {
   if (s_res != NULL) { 
     g_array_free( s_res->raw_scores, TRUE );
     g_array_free( s_res->has_score, TRUE );
-    g_free( s_res );
+    free_util( s_res );
   }
 }
 
@@ -320,7 +320,7 @@ void free_Seg_Results( Seg_Results *s_res ) {
 Seg_Results *new_Seg_Results( int seg_dict_size ) {
   Seg_Results *s_res;
 
-  s_res = (Seg_Results *) g_malloc (sizeof(Seg_Results));
+  s_res = (Seg_Results *) malloc_util(sizeof(Seg_Results));
   s_res->raw_scores = g_array_new( FALSE, TRUE, sizeof( double ) ); 
   s_res->has_score = g_array_new( FALSE, TRUE, sizeof( gboolean ) ); 
   g_array_set_size( s_res->raw_scores, seg_dict_size );
