@@ -1,4 +1,4 @@
-/*  Last edited: Apr  2 16:26 2002 (klh) */
+/*  Last edited: Apr 17 18:22 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -36,7 +36,6 @@ Output files:\
 \
  -output_file <s>       print gene structure to given file (def: stdout)\n\
  -exon_file <s>         print candidate exons to given file\n\
- -trace_file <s>        name of trace file if trace mode on (def: stderr)\n\
 \
 Where to look for genes:\
 \
@@ -52,7 +51,6 @@ Other options:\
  -full_calc             perform full dynamic programming (as opposed to faster heurstic method)\n\
  -sample_gene           calculate and show sampled gene\n\
 \
- -trace <n>             Print out a trace to the given trace file (n gives detail level)\n\
  -verbose               write basic progess information to stderr\n\
  -help                  show this message\n" ;
 
@@ -63,7 +61,6 @@ static Option options[] = {
   { "-dna_file", STRING_ARG },
   { "-structure_file", STRING_ARG },
   { "-feature_file", STRING_ARG },
-  { "-trace_file", STRING_ARG },
   { "-output_file", STRING_ARG },
   { "-exon_file", STRING_ARG },
   { "-path", STRING_ARG },
@@ -71,7 +68,6 @@ static Option options[] = {
   { "-selected", NO_ARGS },
   { "-help", NO_ARGS },
   { "-verbose", NO_ARGS },
-  { "-trace", INT_ARG },
   { "-post_probs", STRING_ARG },
   { "-no_path", NO_ARGS },
   { "-full_calc", NO_ARGS },
@@ -91,15 +87,12 @@ static struct {
   GArray *feature_files;      /* of FILE */
   char *dna_file_name;
   FILE *dna_file;
-  char *trace_file_name;
-  FILE *trace_file;
   char *output_file_name;
   FILE *output_file;
   char *path_file_name;
   FILE *path_file;
   char *exon_file_name;
   FILE *exon_file;
-  int trace;
   gboolean full_calc;
   gboolean use_selected;
   gboolean verbose;
@@ -126,7 +119,6 @@ static gboolean process_Gaze_Options(char *optname,
   if (strcmp(optname, "-begin_dna") == 0) gaze_options.begin_dna = atoi( optarg );
   else if (strcmp(optname, "-end_dna") == 0) gaze_options.end_dna = atoi( optarg );	     
   else if (strcmp(optname, "-offset_dna") == 0) gaze_options.offset_dna = atoi( optarg );
-  else if (strcmp(optname, "-trace") == 0) gaze_options.trace = atoi( optarg );
   else if (strcmp(optname, "-sigma") == 0) gaze_options.sigma = atof( optarg );
   else if (strcmp(optname, "-selected") == 0) gaze_options.use_selected = TRUE;	     
   else if (strcmp(optname, "-verbose") == 0) gaze_options.verbose = TRUE;
@@ -137,17 +129,6 @@ static gboolean process_Gaze_Options(char *optname,
   }
   else if (strcmp(optname, "-full_calc") == 0) gaze_options.full_calc = TRUE;
   else if (strcmp(optname, "-sample_gene") == 0) gaze_options.sample_gene = TRUE;
-  else if (strcmp(optname, "-trace_file") == 0)  {
-    if ((gaze_options.trace_file = fopen( optarg, "w")) == NULL) {
-      fprintf( stderr, "Could not open trace file %s for writing\n", optarg );
-      options_error = TRUE;
-    }
-    else {
-      if (gaze_options.trace_file_name != NULL)
-	g_free( gaze_options.trace_file_name );
-      gaze_options.trace_file_name = g_strdup( optarg );
-    }
-  }
   else if (strcmp(optname, "-output_file") == 0) {
     if ((gaze_options.output_file = fopen( optarg, "w")) == NULL) {
       fprintf( stderr, "Could not open output file %s for writing\n", optarg );
@@ -302,15 +283,12 @@ static int parse_command_line( int argc, char *argv[] ) {
   gaze_options.feature_files = g_array_new( FALSE, TRUE, sizeof( FILE *) );
   gaze_options.structure_file_name = NULL;
   gaze_options.structure_file = NULL;
-  gaze_options.trace_file_name = g_strdup( "stderr");
-  gaze_options.trace_file = stderr;
   gaze_options.output_file_name = g_strdup( "stdout ");
   gaze_options.output_file = stdout;
   gaze_options.path_file_name = NULL;
   gaze_options.path_file = NULL;;
   gaze_options.exon_file_name = NULL;
   gaze_options.exon_file = NULL;;
-  gaze_options.trace = 0;
   gaze_options.use_selected = FALSE;
   gaze_options.verbose = FALSE;
   gaze_options.full_calc = FALSE;
@@ -380,12 +358,6 @@ int main (int argc, char *argv[]) {
   
   if ((gs = parse_Gaze_Structure( gaze_options.structure_file )) == NULL)
     exit(1);
-
-
-  /*
-  if (gaze_options.trace > 1)
-    print_Gaze_Structure( gs, gaze_options.trace_file );
-  */
 
   features = g_array_new( FALSE, TRUE, sizeof(Feature *));
 
@@ -568,9 +540,7 @@ int main (int argc, char *argv[]) {
       backwards_calc( features, 
 		      segments, 
 		      gs, 
-		      calc_mode, 
-		      gaze_options.trace, 
-		      gaze_options.trace_file);
+		      calc_mode);
     }
     
     if (gaze_options.verbose)
@@ -581,13 +551,11 @@ int main (int argc, char *argv[]) {
 		   segments, 
 		   gs, 
 		   calc_mode, 
-		   gaze_options.exon_file, 
-		   gaze_options.trace, 
-		   gaze_options.trace_file ); 
+		   gaze_options.exon_file );
         
     if (! gaze_options.no_path) {
       if (gaze_options.verbose)
-	fprintf(gaze_options.trace_file, "Tracing back...\n");
+	fprintf( stderr, "Tracing back...\n");
       feature_path = trace_back_general(features, 
 					segments, 
 					gs,

@@ -1,4 +1,4 @@
-/*  Last edited: Apr  2 15:13 2002 (klh) */
+/*  Last edited: Apr 17 18:19 2002 (klh) */
 /**********************************************************************
  ** File: engine.h
  ** Author : Kevin Howe
@@ -32,16 +32,12 @@ void forwards_calc(GArray *,
 		   GArray *,
 		   Gaze_Structure *,
 		   enum DP_Calc_Mode,
-		   FILE *,
-		   int,
 		   FILE *);
 
 void backwards_calc(GArray *, 
 		    GArray *,
 		    Gaze_Structure *,
-		    enum DP_Calc_Mode,
-		    int,
-		    FILE *);
+		    enum DP_Calc_Mode);
 
 
 
@@ -52,8 +48,6 @@ void scan_through_sources_dp(GArray *,
 			     Gaze_DP_struct *,
 			     enum DP_Calc_Mode,
 			     enum DP_Traceback_Mode,
-			     FILE *,
-			     int,
 			     FILE *);
 
 void scan_through_targets_dp(GArray *,
@@ -61,30 +55,7 @@ void scan_through_targets_dp(GArray *,
 			     Gaze_Structure *,
 			     int,
 			     Gaze_DP_struct *,
-			     enum DP_Calc_Mode,
-			     int,
-			     FILE *);
-
-void scan_through_sources_dp_old(GArray *,
-				 GArray *,
-				 int,
-				 Gaze_DP_struct *,
-				 Gaze_Structure *,
-				 enum DP_Calc_Mode,
-				 enum DP_Traceback_Mode,
-				 int,
-				 FILE *);
-
-void scan_through_targets_dp_old(GArray *,
-				 GArray *,
-				 int,
-				 Gaze_DP_struct *,
-				 Gaze_Structure *,
-				 enum DP_Calc_Mode,
-				 int,
-				 FILE *);
-
-
+			     enum DP_Calc_Mode);
 
 GArray *trace_back_general(GArray *,
 			   GArray *,
