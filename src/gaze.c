@@ -545,7 +545,8 @@ int main (int argc, char *argv[]) {
     
     forwards_calc( g_seq,
 		   gazeStructure, 
-		   gaze_options.full_calc ? STANDARD_SUM : PRUNED_SUM, 
+		   gaze_options.full_calc ? STANDARD_SUM : PRUNED_SUM,
+		   gaze_options.output == SAMPLE_PATH ? SAMPLE_TRACEBACK : MAX_TRACEBACK,
 		   gaze_options.output == ALL_REGIONS ? gazeOutput : NULL );
   
     if (g_seq->path != NULL) {
@@ -557,12 +558,10 @@ int main (int argc, char *argv[]) {
     }
     else if (gaze_options.output == BEST_PATH || gaze_options.output == SAMPLE_PATH) {
       /* obtain a path by traceback */
-      
       if (gaze_options.verbose)
 	fprintf( stderr, "Tracing back...\n");
       trace_back_general(g_seq, 
-			 gazeStructure, 
-			 gaze_options.output == SAMPLE_PATH ? SAMPLE_TRACEBACK : MAX_TRACEBACK ); 
+			 gazeStructure ); 
 
       /* for non-strandard traceback, we need to recalculate the path score */
       calculate_path_score( g_seq, gazeStructure );

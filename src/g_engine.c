@@ -7,7 +7,7 @@
  **********************************************************************/
 
 #include "g_engine.h"
-
+#include "time.h"
 
 /*********************************************************************
  FUNCTION: free_Gaze_DP_struct
@@ -164,19 +164,23 @@ double calculate_path_score(Gaze_Sequence *g_seq,
 void forwards_calc( Gaze_Sequence *g_seq,
 		    Gaze_Structure *gs,
 		    enum DP_Calc_Mode sum_mode,
+		    enum DP_Traceback_Mode trace_mode,
 		    Gaze_Output *g_out) {
   
   int ft_idx, prev_idx;
   Array *temp;
   Feature *prev_feat;
-
+  
   Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, 
 					      gs->seg_dict->len,
 					      0 );
-
+  
 #ifdef TRACE
-    fprintf(stderr, "\nForward calculation:\n\n");
+  fprintf(stderr, "\nForward calculation:\n\n");
 #endif
+  
+  if ( trace_mode == SAMPLE_TRACEBACK)
+    srand( time(NULL) );
 
   for (ft_idx = 1; ft_idx < g_seq->features->len; ft_idx++) {
     /* push the index of the last feature onto the list of
@@ -191,7 +195,7 @@ void forwards_calc( Gaze_Sequence *g_seq,
 			     ft_idx,  
 			     g_res, 
 			     sum_mode,
-			     MAX_TRACEBACK,
+			     trace_mode,
 			     g_out);
 
     index_Array( g_seq->features, Feature *, ft_idx )->forward_score = g_res->score;
@@ -316,7 +320,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 
   if (! tgt->invalid) {
     touched_score = FALSE;
-    
+
     /* set up the boundaries for the scan. We do not want to go past:
        1. The last forced feature */
 
@@ -539,7 +543,7 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 		    
 		    append_val_Array( all_scores, forward_temp);
 		    append_val_Array( all_indices, src_idx);
-		  
+
 		    if (! touched_score || (forward_temp > max_forward))
 		      max_forward = forward_temp;
 		    
@@ -712,10 +716,11 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
 	  g_res->last_selected = tgt_idx;
       }
     }
+
     
     if (touched_score) {
       
-      if (sum_mode == STANDARD_SUM || sum_mode == PRUNED_SUM) {
+      if (sum_mode == STANDARD_SUM || sum_mode == PRUNED_SUM || trace_mode == SAMPLE_TRACEBACK) {
 	/* the trick of subtracting the max before exponentiating avoids
 	   overflow errors. Just need to add it back when logging back down */
 	for (src_idx=0; src_idx < all_scores->len; src_idx++) {
@@ -729,9 +734,10 @@ void scan_through_sources_dp( Gaze_Sequence *g_seq,
       if (trace_mode == SAMPLE_TRACEBACK) {
 	double random_number = (double) rand() / (double) RAND_MAX;
 	double sum = 0.0;
+
 	for(src_idx=0; src_idx < all_indices->len; src_idx++) {
 	  double ft_prob = exp( index_Array( all_scores, double, src_idx ) -
-				tgt->forward_score ); 
+				g_res->score ); 
 	  sum += ft_prob;
 	  
 	  if (sum >= random_number) {
@@ -1256,8 +1262,7 @@ void scan_through_targets_dp( Gaze_Sequence *g_seq,
  NOTES:
  *********************************************************************/
 void trace_back_general ( Gaze_Sequence *g_seq,
-			  Gaze_Structure *gs,
-			  enum DP_Traceback_Mode tb_mode) {
+			  Gaze_Structure *gs ) {
   
   int i;
   Feature *temp;
@@ -1269,36 +1274,13 @@ void trace_back_general ( Gaze_Sequence *g_seq,
   temp = index_Array( g_seq->features, Feature *, pos );
   append_val_Array( stack, temp );
 
-  if (tb_mode == SAMPLE_TRACEBACK) {
-    Gaze_DP_struct *g_res = new_Gaze_DP_struct( gs->feat_dict->len, 
-						gs->seg_dict->len,
-						0 );
+  while (pos > 0) {
+    pos = temp->trace_pointer;    
+    
+    temp = index_Array( g_seq->features, Feature *, pos );
+    append_val_Array( stack, temp );
+  }
 
-    while (pos > 0) {
-      scan_through_sources_dp( g_seq,
-			       gs, 
-			       pos, 
-			       g_res,
-			       NO_SUM, 
-			       SAMPLE_TRACEBACK, 
-			       NULL );
-      pos = g_res->pth_trace;
-      
-      temp = index_Array( g_seq->features, Feature *, pos );
-      append_val_Array( stack, temp );
-    }
-    
-    free_Gaze_DP_struct( g_res, gs->feat_dict->len );
-  }
-  else {
-    while (pos > 0) {
-      pos = temp->trace_pointer;    
-      
-      temp = index_Array( g_seq->features, Feature *, pos );
-      append_val_Array( stack, temp );
-    }
-  }
-    
   if (pos == 0) {
     for (i=stack->len-1; i>=0; i--) {
       temp =  index_Array( stack, Feature *, i );

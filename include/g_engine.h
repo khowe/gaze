@@ -34,13 +34,12 @@ double calculate_path_score(Gaze_Sequence *, Gaze_Structure *);
 void forwards_calc(Gaze_Sequence *,
 		   Gaze_Structure *,
 		   enum DP_Calc_Mode,
+		   enum DP_Traceback_Mode,
 		   Gaze_Output *);
 
 void backwards_calc(Gaze_Sequence *,
 		    Gaze_Structure *,
 		    enum DP_Calc_Mode);
-
-
 
 void scan_through_sources_dp(Gaze_Sequence *,
 			     Gaze_Structure *,
@@ -57,8 +56,7 @@ void scan_through_targets_dp(Gaze_Sequence *,
 			     enum DP_Calc_Mode);
 
 void trace_back_general(Gaze_Sequence *,
-			Gaze_Structure *,
-			enum DP_Traceback_Mode);
+			Gaze_Structure * );
 
 #endif
 
