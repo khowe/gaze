@@ -203,7 +203,6 @@ void forwards_calc( Gaze_Sequence *g_seq,
 				       ft_idx,  
 				       g_res );
     */
-
     index_Array( g_seq->features, Feature *, ft_idx )->forward_score = g_res->score;
     index_Array( g_seq->features, Feature *, ft_idx )->path_score = g_res->pth_score;
     index_Array( g_seq->features, Feature *, ft_idx )->trace_pointer = g_res->pth_trace;
@@ -1520,17 +1519,18 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 			touched_score_local = TRUE;
 		      } 
 		    }
-		    
+
 		    local_fringe = src_idx;
 		  }
 		  else {
-		    /* compare this one to max_forward, to see if it is dominated */
-		    if (viterbi_temp + len_pen > max_vit_plus_len 
-			    && (danger_source_dna == NULL 
-				|| src->dna < 0  
-				|| ! danger_source_dna[(int)src->dna])) {
-
-		      max_vit_plus_len = viterbi_temp + len_pen;
+		    /* compare this one to max_viterbi, to see if it is dominated */
+		    if (viterbi_temp + len_pen > max_vit_plus_len) {
+ 
+		      if (danger_source_dna == NULL 
+			  || src->dna < 0  
+				|| ! danger_source_dna[(int)src->dna])
+			max_vit_plus_len = viterbi_temp + len_pen;		      		      
+		      
 		      local_fringe = src_idx;
 		    }
 		  }						   	      
@@ -1539,7 +1539,7 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
 		  
 #ifdef TRACE
 		  if (TRACE > 1) 
-		    fprintf( stderr, "scre: v=%.3f, (seg:%.5f len:%.3f)\n",
+		    fprintf( stderr, "scre: v=%.3f (seg:%.5f len:%.3f)\n",
 			     viterbi_temp, seg_score, len_pen );
 #endif
 		  /*
@@ -1630,10 +1630,9 @@ void scan_through_sources_for_max_only( Gaze_Sequence *g_seq,
       
       
 #ifdef TRACE
-      fprintf(stderr, "  RESULT: v=%.3f, max=%d, f=%.8f\n", 
+      fprintf(stderr, "  RESULT: v=%.3f, max=%d\n", 
 	      g_res->pth_score,
-	      max_index,
-	      g_res->score );
+	      max_index);
 #endif
     }
     else {
