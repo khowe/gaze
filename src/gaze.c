@@ -1,4 +1,4 @@
-/*  Last edited: Apr  2 14:47 2002 (klh) */
+/*  Last edited: Apr  2 16:26 2002 (klh) */
 /**********************************************************************
  ** File: gaze.c
  ** Author : Kevin Howe
@@ -366,7 +366,7 @@ static int parse_command_line( int argc, char *argv[] ) {
 int main (int argc, char *argv[]) {
 
   Gaze_Structure *gs;
-  GArray *features, *segments, *feature_path, *min_scores;
+  GArray *features, *segments, *min_scores, *feature_path = NULL;
   Feature *beg_ft, *end_ft;
   char *seq_name, *dna_seq;
   int i,j,k, num_segs = 0;
@@ -584,18 +584,18 @@ int main (int argc, char *argv[]) {
 		   gaze_options.exon_file, 
 		   gaze_options.trace, 
 		   gaze_options.trace_file ); 
+        
+    if (! gaze_options.no_path) {
+      if (gaze_options.verbose)
+	fprintf(gaze_options.trace_file, "Tracing back...\n");
+      feature_path = trace_back_general(features, 
+					segments, 
+					gs,
+					gaze_options.sample_gene ? SAMPLE_TRACEBACK : MAX_TRACEBACK ); 
     
-    if (gaze_options.verbose)
-      fprintf(gaze_options.trace_file, "Tracing back...\n");
-    feature_path = trace_back_general(features, 
-				      segments, 
-				      gs,
-				      gaze_options.sample_gene ? SAMPLE_TRACEBACK : MAX_TRACEBACK ); 
-    
-    
-    if (! gaze_options.no_path)
       print_GFF_path( gaze_options.output_file, feature_path, gs, seq_name );
-    
+    }    
+
     if (gaze_options.post_probs) {
       /* before printing the posterior probabilities, re-sort the features in the standard
 	 way. The method of sorting used for the D.P. will not list the complete set of 
@@ -612,7 +612,8 @@ int main (int argc, char *argv[]) {
     free_Segment_lists( g_array_index( segments, Segment_lists *, i ));
   g_array_free( segments, TRUE);
   g_free( seq_name );
-  g_array_free (feature_path, TRUE );
+  if (feature_path != NULL)
+    g_array_free (feature_path, TRUE );
   free_Gaze_Structure( gs );
   
   return 0;
