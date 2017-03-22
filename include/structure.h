@@ -1,12 +1,20 @@
-/*  Last edited: Jul 22 11:32 2002 (klh) */
 /**********************************************************************
  ** File: structure.h
- ** Author : Kevin Howe
- ** E-mail : klh@sanger.ac.uk
- ** Description :
-     This file takes care of the representation and parsing of the 
-     XML encoded gaze structure file. 
-
+ * Author: Kevin Howe
+ * Copyright (C) Genome Research Limited, 2002-
+ *-------------------------------------------------------------------
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *-------------------------------------------------------------------
+ * Description :
+ 
      The Gaze structure file encodes three classes of information:
 
      1. Info about Features, and how they relate to each other
@@ -14,8 +22,6 @@
      3. Info about making features from a GFF file
 
  **********************************************************************/
-
-
 
 #ifndef _GAZE_STRUCTURE
 #define _GAZE_STRUCTURE
