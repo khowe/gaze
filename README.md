@@ -1,5 +1,3 @@
-************* GAZE v1.0 **************************
-
 
 About GAZE
 ==========
@@ -21,19 +19,18 @@ GAZE has one primary dependency, the expat library for XML parsing:
 http://sourceforge.net/projects/expat/
 
 
-===============================================
 Installing
-===============================================
+==========
 
 make
 
 [results in executable "gaze"]
 
 
-Running GAZE
-============
+Running
+=======
 
-machine[user]% gaze <options> sequence_name1 sequence_name2 ...
+gaze <options> sequence_name1 sequence_name2 ...
 
 Some important options are:
 
