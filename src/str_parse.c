@@ -1803,7 +1803,7 @@ Gaze_Structure *parse_Gaze_Structure( char *structure_file_nm ) {
 
     if (! XML_Parse(p, buffer, len, end_of_file)) {
       fprintf(stderr, "Parse error at line %d:\n%s\n",
-              XML_GetCurrentLineNumber(p),
+              (int) XML_GetCurrentLineNumber(p),
               XML_ErrorString(XML_GetErrorCode(p)));
       exit(-1);
     }

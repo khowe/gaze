@@ -232,7 +232,7 @@ static int parse_command_line( int argc, char *argv[] ) {
   }
 
   if (help_wanted) { 
-    fprintf( stderr, gaze_usage_string );
+    fprintf( stderr, "%s", gaze_usage_string );
     return 0;
   }
   else if (options_error) {

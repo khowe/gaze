@@ -1,22 +1,12 @@
 
-# If you have installed expat locally,
-# you will have to amend the following lines
-
-EXPATINC = $(HOME)/libraries/osf/include
-EXPATLIB = $(HOME)/libraries/osf/lib
-
-###################################################
-##### shouldn't need to change anything below here 
-###################################################
-
-OBJ = ./obj
 SRC = ./src
-BIN = ./bin
 INC = ./include
+OBJ = ./
+BIN = ./
 
-INCPATH = -I$(INC) -I$(EXPATINC)
 
-LIB = -L$(EXPATLIB) -lm -lexpat 
+INCPATH = -I$(INC)
+LIB =  -lm -lexpat 
 
 OBJS =	$(OBJ)/util.o \
 	$(OBJ)/structure.o \
@@ -30,9 +20,6 @@ OBJS =	$(OBJ)/util.o \
 	$(OBJ)/g_engine.o \
 	$(OBJ)/sequence.o \
 	$(OBJ)/gaze.o
-
-
-#TRACE_LEV = -DTRACE=1
 
 CC = gcc 
 CFLAGS =  -c -O2 -Wall 
@@ -84,5 +71,5 @@ $(OBJ)/gaze.o : $(SRC)/gaze.c
 # clean up
 
 clean :
-	rm -f $(OBJ)/*.o
+	rm -f $(OBJ)/*.o $(BIN)/gaze
 
